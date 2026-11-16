@@ -12,7 +12,7 @@ Run every command as `${CLAUDE_PLUGIN_ROOT}/bin/ai-docs-kit`. Commands take the 
 ## Rules
 
 - Never invent a value the material does not hold. A token, a term or a rule comes from a page, a template or a measurement, and keeps its source. If the material is silent, leave the value unset and let the engine list it as a gap.
-- Every value carries a label: Measured, Derived, Inferred or Answered. Ask the person to confirm only values labelled Inferred. Do not ask about Measured or Derived values, and do not reopen an Answered one.
+- Every value carries a label: Measured, Derived, Inferred or Answered. Ask the person to confirm only values labelled Inferred, and record the confirmation with `ai-docs-kit brand answer <slug> <question-id> (--option <id> | --text <answer>)`. Do not ask about Measured or Derived values, and do not reopen an Answered one.
 - A value measured from a template the brand supplied may make a hard rule. A value measured only from examples makes a proposed rule.
 - Brand material never enters the repository. Keep it under the brand folder (`.brand/` is git-ignored), never commit fonts, logos, guidelines or examples, and never copy their content into a test, a comment or a message.
 - Make no model call of your own beyond your own reading. Do not set `DOCLA_LIVE` and do not run the commands that call a model on their own (`segment`, `extract`, `tie`, `calibrate`).
