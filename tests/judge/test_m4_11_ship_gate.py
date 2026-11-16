@@ -144,8 +144,8 @@ def test_D5_plain_build_retains_output(tmp_path, capsys):
     source.write_text(SLIDES)
     pdf = tmp_path / "out" / "deck.pdf"
     code, out, _ = run(["build", str(source), "--out", str(pdf.parent)], capsys)
-    assert code == 0 and out.splitlines() == [str(pdf)]
-    assert pdf.is_file() and not (tmp_path / "deck.versions").exists()
+    assert code == 0 and out.splitlines() == [str(pdf), str(tmp_path / "deck.versions" / "v1")]
+    assert pdf.is_file() and (tmp_path / "deck.versions" / "v1").is_dir()
 
 
 @pytest.mark.parametrize("text", [M1["SLIDES"], M1["DOC"], M2["SLIDES"], M2["DOC"]])

@@ -1,0 +1,31 @@
+{
+  "pages": [
+    {
+      "page": 1,
+      "image": "p01.png",
+      "width": 960.0,
+      "height": 540.0,
+      "sections": [
+        "blank1"
+      ],
+      "regions": [
+        {
+          "section": "blank1",
+          "role": "section",
+          "x": 40.0,
+          "y": 120.24000000000001,
+          "w": 24.912000000000006,
+          "h": 48.0
+        }
+      ],
+      "findings": [
+        "9b14211adb33"
+      ]
+    }
+  ],
+  "sections": {
+    "blank1": [
+      1
+    ]
+  }
+}

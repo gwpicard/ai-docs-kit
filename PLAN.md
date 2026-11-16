@@ -73,5 +73,6 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 ## Deviations
 
 - Issue 4: the reverse index in `pages/pages.json` is the top-level key `sections`, mapping each section id to its sorted page numbers; the tests read that name. New fixtures `tests/fixtures/slides/deck.md` (the gallery needs image assets that do not exist) and `tests/fixtures/doc/report.md` (five pages).
+- Issue 4: every build rasterises into `<out>/look/pages`, not `<out>/pages`, because the locked test `test_m4_01_pixel_tier.py::test_D4_check_rasterises_but_build_does_not` still expects a build to leave no `<out>/pages`; the version's own `pages/` holds the PNGs. `tests/judge/test_m4_11_ship_gate.py::test_D5_plain_build_retains_output` was updated as the person approved.
 - Issue 6: `--from` holds one section block (`::: {#id .section ...}` to `:::`); a refused or failed `section` command exits 1, a missing file exits 2; with `--redraft-done` the replacement's own `because=` is kept and `redraft=` is dropped. Tests in `tests/test_section_command.py` lock this.
 - Issue 16: the brand skill does not name `segment`, `extract`, `tie` or `calibrate`, because they call a model and skills make none (PLAN.md decision); the session's Claude reads the guidelines and records answers with `brand set`.

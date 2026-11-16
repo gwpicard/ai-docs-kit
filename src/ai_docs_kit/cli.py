@@ -129,10 +129,25 @@ def _line(finding: Finding) -> str:
 def _build(file: Path, out: Path, theme: Theme, *, final: bool = False) -> int:
     built = _render(file, out, theme)
     print(built.pdf)
-    return _final_build(file, out, theme, built) if final else 0
+    return _version_build(file, out, theme, built, final)
 
 
-def _final_build(file: Path, out: Path, theme: Theme, built: _Built) -> int:
+def _sheet(built: _Built, result: Any, out: Path) -> Path:
+    """Draw the contact sheet for slides, or the facing-page spreads for a document."""
+    from ai_docs_kit.facts.sheets import contact_sheet, page_labels, spread_sheet
+    from ai_docs_kit.store import page_index
+
+    if built.comp.format != "slides":
+        return spread_sheet(result.pngs, page_labels(result.facts), out / "spreads.png")
+    components = {s.id: s.component for s in built.comp.sections}
+    labels = [
+        " ".join([str(page["page"]), *(components[s] for s in page["sections"] if s in components)])
+        for page in page_index(result.facts, [])
+    ]
+    return contact_sheet(result.pngs, labels, out / "contact.png")
+
+
+def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
     from ai_docs_kit.loop.look import LookContext, look
     from ai_docs_kit.store import write_version
     from ai_docs_kit.store.gate import ship_gate
@@ -150,14 +165,15 @@ def _final_build(file: Path, out: Path, theme: Theme, built: _Built) -> int:
                 theme=theme,
                 main=built.main,
                 project=file.parent,
-                workdir=out,
+                workdir=out / "look",
                 rules=rules,
                 critic=None,
-                final=True,
+                final=final,
                 assets=[file.parent / "assets", theme.root / "assets"],
             ),
         )
     )
+    sheet = _sheet(built, result, out)
     version = write_version(
         file,
         built.doc,
@@ -168,11 +184,12 @@ def _final_build(file: Path, out: Path, theme: Theme, built: _Built) -> int:
         result.pngs,
         None,
         theme=theme,
-        final=True,
+        final=final,
         look=result.record(),
+        sheet=sheet,
     )
     print(version.path)
-    return _gate_report(ship_gate(version))
+    return _gate_report(ship_gate(version)) if final else 0
 
 
 def _gate_report(reasons: list[str]) -> int:

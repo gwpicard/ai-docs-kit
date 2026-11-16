@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "written": "2026-11-16T16:36:49Z",
+  "draft": true,
+  "final": false,
+  "doc_rev": 0,
+  "theme": {
+    "name": "neutral",
+    "version": "0.1.0"
+  },
+  "typst": "0.15.1",
+  "engine": "0.0.1",
+  "doctype": "pitch-deck",
+  "format": "slides",
+  "sections": 1,
+  "outputs": [
+    "doc.pdf"
+  ],
+  "pdf_sha256": "140e800975bf2b8f0df6dd14ca4e939a45c2cd4aeeca53f9bf0de824d64ff4e1",
+  "gaps": [],
+  "chosen": [],
+  "findings": {
+    "error": 1,
+    "warning": 0,
+    "info": 0
+  },
+  "residual": [],
+  "look": {
+    "pages": 1,
+    "method": "marks",
+    "could_not": [],
+    "clean": false,
+    "tiers": {
+      "source": "ok",
+      "geometry": "ok",
+      "pixel": "ok",
+      "semantic": "skipped"
+    }
+  },
+  "cost": {
+    "usd": 0.0,
+    "by_role": {}
+  },
+  "state": "draft",
+  "sent_to": [],
+  "forced_reason": null
+}

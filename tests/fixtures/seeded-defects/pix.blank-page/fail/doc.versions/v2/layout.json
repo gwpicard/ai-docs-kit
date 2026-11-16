@@ -1,0 +1,74 @@
+{
+  "pdf_sha256": "140e800975bf2b8f0df6dd14ca4e939a45c2cd4aeeca53f9bf0de824d64ff4e1",
+  "pages": [
+    {
+      "page": 1,
+      "width": 960.0,
+      "height": 540.0,
+      "words": [
+        {
+          "text": "a",
+          "font": "GZUAPG+SourceSerif4-Semibold",
+          "size": 48.0,
+          "colour": "#1A1A1A",
+          "box": {
+            "page": 1,
+            "x0": 40.0,
+            "y0": 120.24000000000001,
+            "x1": 64.912,
+            "y1": 168.24
+          },
+          "baseline": 152.16000000000003
+        }
+      ],
+      "shapes": [],
+      "images": []
+    }
+  ],
+  "words": [
+    {
+      "text": "a",
+      "font": "GZUAPG+SourceSerif4-Semibold",
+      "size": 48.0,
+      "colour": "#1A1A1A",
+      "box": {
+        "page": 1,
+        "x0": 40.0,
+        "y0": 120.24000000000001,
+        "x1": 64.912,
+        "y1": 168.24
+      },
+      "baseline": 152.16000000000003,
+      "role": null,
+      "section_id": "blank1"
+    }
+  ],
+  "shapes": [],
+  "marks": [
+    {
+      "kind": "section",
+      "id": "blank1",
+      "edge": "start",
+      "page": 1,
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "kind": "fit",
+      "role": "title",
+      "id": "blank1",
+      "need": 32.160000000000004,
+      "have": 300.0,
+      "ok": true
+    },
+    {
+      "kind": "section",
+      "id": "blank1",
+      "edge": "end",
+      "page": 1,
+      "x": 0.0,
+      "y": 0.0
+    }
+  ],
+  "images": []
+}

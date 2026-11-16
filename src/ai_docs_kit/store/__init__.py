@@ -272,6 +272,7 @@ def write_version(
     residual: list[Residual] | None = None,
     cost: Cost | None = None,
     now: Callable[[], datetime] | None = None,
+    sheet: Path | None = None,
 ) -> Version:
     root = doc_path.parent / f"{doc_path.stem}.versions"
     root.mkdir(parents=True, exist_ok=True)
@@ -295,9 +296,14 @@ def write_version(
         pages.mkdir()
         for i, png in enumerate(pngs, 1):
             shutil.copyfile(png, pages / f"p{i:02d}.png")
-        (pages / "pages.json").write_text(
-            json.dumps({"pages": page_index(facts, findings)}, indent=2), encoding="utf-8"
-        )
+        index = page_index(facts, findings)
+        reverse: dict[str, list[int]] = {}
+        for entry in index:
+            for section in entry["sections"]:
+                reverse.setdefault(section, []).append(entry["page"])
+        (pages / "pages.json").write_text(json.dumps({"pages": index, "sections": reverse}, indent=2), encoding="utf-8")
+        if sheet is not None:
+            shutil.copyfile(sheet, pages / sheet.name)
         if heal is not None and heal.exists():
             shutil.copyfile(heal, temporary / "heal.jsonl")
             if (heal.parent / "heal").is_dir():
