@@ -73,3 +73,4 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 ## Deviations
 
 - Issue 6: `--from` holds one section block (`::: {#id .section ...}` to `:::`); a refused or failed `section` command exits 1, a missing file exits 2; with `--redraft-done` the replacement's own `because=` is kept and `redraft=` is dropped. Tests in `tests/test_section_command.py` lock this.
+- Issue 16: the brand skill does not name `segment`, `extract`, `tie` or `calibrate`, because they call a model and skills make none (PLAN.md decision); the session's Claude reads the guidelines and records answers with `brand set`.
