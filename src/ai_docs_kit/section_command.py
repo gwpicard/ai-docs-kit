@@ -33,7 +33,11 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
     put.add_argument("file", type=Path, help="the working file")
     put.add_argument("id", help="the section id")
     put.add_argument("--from", dest="source", type=Path, required=True, help="a file holding the new section block")
-    put.add_argument("--redraft-done", action="store_true", help="remove the redraft ask and record because=")
+    put.add_argument(
+        "--redraft-done",
+        action="store_true",
+        help='remove the redraft ask; if because= is missing, write because="redrafted: <the ask>"',
+    )
 
 
 def _load(path: Path) -> Document:
@@ -101,8 +105,8 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
     new = _replacement(args.source)
     new.owner, new.lock = old.owner, old.lock
     if args.redraft_done:
+        new.because = new.because or f"redrafted: {old.redraft or new.redraft or 'no ask recorded'}"
         new.redraft = None
-        new.because = new.because or old.because
     else:
         new.redraft = old.redraft
     evidence = [f"{s.key} {s.text}" for s in doc.sources]
