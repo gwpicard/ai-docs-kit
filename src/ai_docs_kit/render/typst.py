@@ -1,7 +1,7 @@
 import os
 import shutil
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 TYPST_VERSION = "0.15.1"
@@ -51,8 +51,12 @@ def typst_env() -> dict[str, str]:
     return env
 
 
-def run_typst(args: Sequence[str], root: Path, font_paths: Sequence[Path] = ()) -> str:
+def run_typst(
+    args: Sequence[str], root: Path, font_paths: Sequence[Path] = (), inputs: Mapping[str, str] | None = None
+) -> str:
     command = [typst_command(), *args, "--root", str(root), "--ignore-system-fonts"]
+    for key, value in (inputs or {}).items():
+        command += ["--input", f"{key}={value}"]
     for path in font_paths:
         command += ["--font-path", str(path)]
     result = subprocess.run(command, capture_output=True, text=True, env=typst_env())
@@ -61,9 +65,12 @@ def run_typst(args: Sequence[str], root: Path, font_paths: Sequence[Path] = ()) 
     return result.stdout
 
 
-def compile_pdf(main: Path, root: Path, output: Path, font_paths: Sequence[Path] = ()) -> None:
+def compile_pdf(
+    main: Path, root: Path, output: Path, font_paths: Sequence[Path] = (), *, hide_text: bool = False
+) -> None:
+    """Compile `main` to `output`; with `hide_text`, every text run is drawn with a transparent fill."""
     try:
-        run_typst(["compile", str(main), str(output)], root, font_paths)
+        run_typst(["compile", str(main), str(output)], root, font_paths, {"hide-text": "1"} if hide_text else None)
     except TypstCompileError:
         output.unlink(missing_ok=True)
         raise

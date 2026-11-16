@@ -132,6 +132,8 @@ def _main_typ(comp: Composition) -> str:
         "",
         f'#show: page-setup.with("{comp.format}")',
         '#set text(fill: colour("ink"))',
+        '#let hide-text = sys.inputs.at("hide-text", default: "0") == "1"',
+        "#show text: it => if hide-text { text(fill: rgb(0, 0, 0, 0), it) } else { it }",
         "",
         '#let comp = json("/composition.json")',
     ]
