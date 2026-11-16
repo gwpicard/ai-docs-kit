@@ -69,3 +69,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 - The rulebook and checks, including the seeded-defect fixtures.
 - The renderer: Typst components, composition, layout facts and golden files.
 - The skills and agents: commands they name, paths they write, what they promise the person.
+
+## Deviations
+
+- Issue 6: `--from` holds one section block (`::: {#id .section ...}` to `:::`); a refused or failed `section` command exits 1, a missing file exits 2; with `--redraft-done` the replacement's own `because=` is kept and `redraft=` is dropped. Tests in `tests/test_section_command.py` lock this.
