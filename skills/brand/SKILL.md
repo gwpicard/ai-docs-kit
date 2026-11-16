@@ -1,6 +1,6 @@
 ---
 name: brand
-description: Read brand guidelines and write the brand folder: tokens, voice and rules, each with its source.
+description: "Read brand guidelines and write the brand folder: tokens, voice and rules, each with its source."
 ---
 
 # brand

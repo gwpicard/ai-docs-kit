@@ -1,6 +1,6 @@
 ---
 name: review
-description: Read a Word or PowerPoint review copy, apply the wording and comments, and rebuild.
+description: "Read a Word or PowerPoint review copy, apply the wording and comments, and rebuild."
 ---
 
 # review

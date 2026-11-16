@@ -1,6 +1,6 @@
 ---
 name: create
-description: Write a branded report or deck as PDF from agreed facts and an agreed outline, then look at every page.
+description: "Write a branded report or deck as PDF from agreed facts and an agreed outline, then look at every page."
 ---
 
 # create
