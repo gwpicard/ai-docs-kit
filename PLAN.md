@@ -69,3 +69,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 - The rulebook and checks, including the seeded-defect fixtures.
 - The renderer: Typst components, composition, layout facts and golden files.
 - The skills and agents: commands they name, paths they write, what they promise the person.
+
+## Deviations
+
+- Issue 4: the reverse index in `pages/pages.json` is the top-level key `sections`, mapping each section id to its sorted page numbers; the tests read that name. New fixtures `tests/fixtures/slides/deck.md` (the gallery needs image assets that do not exist) and `tests/fixtures/doc/report.md` (five pages).
