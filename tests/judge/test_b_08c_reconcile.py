@@ -157,6 +157,6 @@ def test_D5_cli_and_design(brand, capsys):
     empty = init_brand("empty", brand.parent)
     assert main(["brand", "reconcile", "empty", "--root", str(brand.parent)]) == 2
     assert run_git(empty, "status", "--porcelain") == ""
-    design = (Path(__file__).resolve().parents[2] / "docs/DESIGN.md").read_text()
+    design = (Path(__file__).resolve().parents[2] / "docs/ENGINE.md").read_text()
     assert "measured only from examples" in design
     assert "measured from a template the brand supplied" in design
