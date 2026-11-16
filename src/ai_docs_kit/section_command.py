@@ -101,8 +101,8 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
     new = _replacement(args.source)
     new.owner, new.lock = old.owner, old.lock
     if args.redraft_done:
+        new.because = new.because or f"redrafted: {old.redraft or new.redraft or 'no ask recorded'}"
         new.redraft = None
-        new.because = new.because or old.because
     else:
         new.redraft = old.redraft
     evidence = [f"{s.key} {s.text}" for s in doc.sources]
