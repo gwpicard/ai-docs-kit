@@ -1,0 +1,120 @@
+"""Gather facts from source spans cited by Claude."""
+
+import base64
+import hashlib
+import re
+from collections.abc import Iterator, Sequence
+from decimal import Decimal
+from typing import Any, Literal
+
+from pydantic import BaseModel
+
+from ai_docs_kit.agents.client import Claude
+from ai_docs_kit.agents.prompts import system_blocks
+from ai_docs_kit.sources import Extracted
+
+MAX_CHUNK_CHARS = 100_000
+MAX_PDF_PAGES = 100
+
+
+class Fact(BaseModel):
+    text: str
+    source_key: str
+    locator: str | None = None
+    id: str | None = None
+    kind: Literal["number", "percent", "currency", "date", "text"] = "text"
+    value: Decimal | None = None
+    unit: str | None = None
+
+
+def fact_id(fact: Fact) -> str:
+    content = f"{fact.source_key}\x1f{fact.locator or ''}\x1f{fact.text}"
+    return "F" + hashlib.sha256(content.encode("utf-8")).hexdigest()[:10]
+
+
+def with_fact_ids(facts: Sequence[Fact]) -> list[Fact]:
+    return [fact.model_copy(update={"id": fact.id if fact.id is not None else fact_id(fact)}) for fact in facts]
+
+
+def _chunks(source: Extracted) -> Iterator[tuple[int, dict[str, Any]]]:
+    if source.kind == "pdf" and source.pages is not None and source.pages <= MAX_PDF_PAGES:
+        yield (
+            0,
+            {
+                "type": "base64",
+                "media_type": "application/pdf",
+                "data": base64.standard_b64encode(source.source.read_bytes()).decode("ascii"),
+            },
+        )
+        return
+    offset = 0
+    while offset < len(source.text):
+        end = min(offset + MAX_CHUNK_CHARS, len(source.text))
+        if end < len(source.text):
+            newline = source.text.rfind("\n", offset, end)
+            if newline >= offset:
+                end = newline + 1
+        yield offset, {"type": "text", "media_type": "text/plain", "data": source.text[offset:end]}
+        offset = end
+
+
+def _locator(source: Extracted, citation: dict[str, Any], offset: int) -> str | None:
+    if citation["type"] == "page_location":
+        return f"p.{citation['start_page_number']}"
+    position = offset + citation["start_char_index"]
+    pattern = r"^\[(\d{2}:\d{2}(?::\d{2})?)\]" if source.kind == "vtt" else r"<!-- page (\d+) -->"
+    matches = [match for match in re.finditer(pattern, source.text, re.MULTILINE) if match.start() <= position]
+    if not matches:
+        return None
+    value = matches[-1].group(1)
+    return value if source.kind == "vtt" else f"p.{value}"
+
+
+def _facts(source: Extracted, response: dict[str, Any], offset: int) -> Iterator[Fact]:
+    for block in response.get("content", []):
+        if block.get("type") != "text":
+            continue
+        for citation in block.get("citations") or []:
+            if citation.get("type") not in {"char_location", "page_location"}:
+                continue
+            text = " ".join(citation["cited_text"].split())
+            if text:
+                yield Fact(text=text, source_key=source.key, locator=_locator(source, citation, offset))
+
+
+def _append_unique(facts: list[Fact], seen: set[tuple[str, str, str | None]], incoming: Iterator[Fact]) -> None:
+    for fact in incoming:
+        key = (fact.text, fact.source_key, fact.locator)
+        if key not in seen:
+            seen.add(key)
+            facts.append(fact)
+
+
+async def gather(claude: Claude, extracted: list[Extracted]) -> list[Fact]:
+    facts: list[Fact] = []
+    seen: set[tuple[str, str, str | None]] = set()
+    for source in extracted:
+        if source.kind == "table":
+            from ai_docs_kit.tables import table_facts
+
+            _append_unique(facts, seen, iter(table_facts(source.source, source.key)))
+            continue
+        if not source.text:
+            continue
+        for offset, data in _chunks(source):
+            document = {
+                "type": "document",
+                "source": data,
+                "title": f"{source.key} {source.name}",
+                "citations": {"enabled": True},
+            }
+            content: list[dict[str, Any]] = [
+                document,
+                {
+                    "type": "text",
+                    "text": "State every usable fact, including numbers, dates, names and findings, with a citation.",
+                },
+            ]
+            response = await claude.cite("gatherer", system=system_blocks("gatherer"), content=content)
+            _append_unique(facts, seen, _facts(source, response, offset))
+    return facts

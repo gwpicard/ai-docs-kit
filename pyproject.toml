@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-docs-kit"
+version = "0.0.1"
+description = "Claude skills that write branded reports and decks as PDF, check every build against a brand rulebook, and learn from comments in Word and PowerPoint."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Guillaume Picard" }]
+classifiers = ["Development Status :: 1 - Planning"]
+dependencies = ["python-docx", "python-pptx", "anthropic", "fonttools", "openpyxl", "pdfplumber>=0.11", "Pillow>=13", "pydantic>=2", "pypdfium2>=5.14", "PyYAML>=6"]
+
+[project.scripts]
+ai-docs-kit = "ai_docs_kit.cli:main"
+
+[project.urls]
+Repository = "https://github.com/gwpicard/ai-docs-kit"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_docs_kit"]
+
+[dependency-groups]
+dev = ["pytest>=8", "types-openpyxl", "ruff", "mypy", "hypothesis", "httpx"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["docs", "tests/judge"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/judge/test_p0_1_tooling.py" = ["F401"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+python_version = "3.12"

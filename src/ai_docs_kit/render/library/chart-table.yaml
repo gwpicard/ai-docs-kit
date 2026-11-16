@@ -1,0 +1,10 @@
+name: chart-table
+format: doc
+label: Chart as a table
+intents: [chart]
+capacity:
+  title_words: [1, 10]
+  categories: [1, 30]
+  series: [1, 5]
+elements: [heading, figure, table-header, table-cell, figure-source]
+fixture: tests/fixtures/components/chart-table.yaml

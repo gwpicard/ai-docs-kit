@@ -1,0 +1,259 @@
+sections:
+- id: s-cover
+  intent: cover
+  title: A clear direction for the future
+  paragraphs:
+  - A practical plan for the next chapter.
+  component: cover
+- id: s-agenda
+  intent: agenda
+  title: Today's agenda
+  items:
+  - body: Review the current position
+  - body: Discuss priorities for the year
+  - body: Agree the next steps
+  - body: Assign responsibilities
+  component: agenda
+- title: A shared direction
+  items:
+  - body: A clear next step
+  - body: A practical plan
+  id: s-bullets
+  intent: bullets
+  component: bullets
+- id: s-cards
+  intent: card-set
+  title: Shared priorities
+  items:
+  - head: People
+    body: Support the people who deliver our work.
+  - head: Practice
+    body: Improve the way we work together.
+  - head: Progress
+    body: Measure progress against our goals.
+  component: cards
+- id: s-chapter-break
+  intent: chapter-break
+  title: The next chapter
+  paragraphs:
+  - '01'
+  component: chapter-break
+- id: s-chart
+  intent: chart
+  title: Quarterly results
+  data:
+    type: bar
+    categories:
+    - North
+    - South
+    - East
+    - West
+    series:
+    - name: Current
+      values:
+      - 4
+      - 6
+      - 8
+      - 5
+    - name: Previous
+      values:
+      - 3
+      - 5
+      - 6
+      - 4
+  source_line: 'Source: Internal data'
+  component: chart
+- id: s-comparison
+  intent: comparison
+  title: Compare the options
+  items:
+  - head: Option one
+    body: ''
+    sub:
+    - Familiar approach
+    - Steady delivery
+  - head: Option two
+    body: ''
+    sub:
+    - Flexible approach
+    - Wider reach
+  component: comparison
+- id: s-contact
+  intent: contact
+  title: Contact us
+  items:
+  - head: Email
+    body: hello@example.org
+  - head: Telephone
+    body: +44 20 1234 5678
+  - head: Website
+    body: example.org
+  component: contact
+- id: s-full-image
+  intent: full-image
+  image: specimen.png
+  paragraphs:
+  - A view of the landscape.
+  component: full-image
+- id: s-image-with-text
+  intent: image-text
+  title: A clear picture
+  image: specimen.png
+  items:
+  - body: A useful point about the picture
+  - body: Another point for the audience
+  - body: A final point to remember
+  component: image-with-text
+- id: s-key-figures
+  intent: key-numbers
+  title: Key figures
+  items:
+  - head: 42%
+    body: Growth in the past year
+  - head: '120'
+    body: Projects delivered on time
+  - head: 85%
+    body: Customers who returned
+  component: key-figures
+- id: s-matrix
+  intent: matrix
+  title: Priorities for action
+  items:
+  - body: Invest in promising opportunities
+  - body: Build on established strengths
+  - body: Monitor emerging possibilities
+  - body: Review areas needing attention
+  data:
+    x: Impact
+    y: Effort
+  component: matrix
+- id: s-people
+  intent: people
+  title: Our team
+  items:
+  - head: Ada Morgan
+    body: Programme lead
+  - head: Jo Taylor
+    body: Design lead
+  - head: Sam Chen
+    body: Research lead
+  - head: Alex Brown
+    body: Delivery lead
+  component: people
+- id: s-process
+  intent: process
+  title: How we work
+  items:
+  - head: Discover
+    body: Understand the needs of the team.
+  - head: Plan
+    body: Agree on the next steps together.
+  - head: Build
+    body: Turn the plan into a working service.
+  - head: Review
+    body: Learn from the results and improve.
+  component: process
+- id: s-quote
+  intent: quote
+  paragraphs:
+  - The future depends on what we choose to do today.
+  source_line: A project contributor
+  component: quote
+- id: s-statement
+  intent: statement
+  title: A clear direction
+  items:
+  - body: Shared priorities make the work easier to coordinate.
+  component: statement
+- id: s-table
+  intent: table
+  title: Quarterly results
+  data:
+    columns:
+    - Quarter
+    - Revenue
+    - Growth
+    rows:
+    - - First
+      - 120
+      - 5%
+    - - Second
+      - 130
+      - 8%
+    - - Third
+      - 140
+      - 7%
+    - - Fourth
+      - 150
+      - 6%
+  source_line: 'Source: Company records'
+  component: table
+- id: s-timeline
+  intent: chronology
+  title: Our history
+  items:
+  - head: '2020'
+    body: The project begins with a small team.
+  - head: '2021'
+    body: The first product reaches its customers.
+  - head: '2022'
+    body: The team expands into new markets.
+  - head: '2023'
+    body: A new service joins the portfolio.
+  component: timeline
+- id: s-two-column
+  intent: comparison
+  title: Compare the options
+  items:
+  - body: The first option supports a steady start
+  - body: It offers a familiar way of working
+  - body: The second option allows more flexibility
+  - body: It supports a wider range of needs
+  component: two-column
+- id: s-closing
+  intent: closing
+  title: Thank you for joining us
+  paragraphs:
+  - Let us build the next chapter together.
+  component: closing
+- id: s-body
+  intent: body
+  title: Working together
+  paragraphs:
+  - A shared direction helps the team coordinate its work and make decisions.
+  - Regular conversations give everyone a chance to review progress.
+  component: body
+- id: s-callout
+  intent: callout
+  title: Next steps
+  items:
+  - body: Agree the direction together
+  - body: Share progress across the team
+  - body: Review the next steps
+  component: callout
+- id: s-chart-table
+  intent: chart
+  title: Quarterly results
+  data:
+    type: bar
+    category_label: Region
+    categories:
+    - North
+    - South
+    - East
+    - West
+    series:
+    - name: Current
+      values:
+      - 4
+      - 6
+      - 8
+      - 5
+    - name: Previous
+      values:
+      - 3
+      - 5
+      - 6
+      - 4
+  source_line: 'Source: Internal data'
+  component: chart-table

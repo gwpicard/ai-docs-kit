@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+dist/
+.venv/
+node_modules/
+*.tgz
+.DS_Store
+.ruff_cache/
+.mypy_cache/
+
+# pytest temporary folders a builder may create inside the work tree
+pytest-of-*/
+
+# Brand workspaces: real brand material, local only (docs/PRODUCT.md section 3)
+.brand/
+.loop/
