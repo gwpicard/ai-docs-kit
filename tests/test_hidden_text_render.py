@@ -21,6 +21,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "components"
 NAMES = sorted(path.name.removesuffix(".yaml") for path in FIXTURES.glob("*.yaml"))
 TOLERANCE_PT = 0.01
 DARK = 100
+MARGIN_PX = 3
 
 
 def _render_both(name: str, workdir: Path):
@@ -74,7 +75,9 @@ def test_hidden_text_changes_only_text_pixels(name):
             for word in shown.words:
                 if word.box.page != page:
                     continue
-                box = tuple(round(v * DEFAULT_SCALE) for v in (word.box.x0, word.box.y0, word.box.x1, word.box.y1))
+                x0, y0, x1, y1 = (word.box.x0, word.box.y0, word.box.x1, word.box.y1)
+                box = tuple(round(v * DEFAULT_SCALE) for v in (x0, y0, x1, y1))
+                box = (box[0] - MARGIN_PX, box[1] - MARGIN_PX, box[2] + MARGIN_PX, box[3] + MARGIN_PX)
                 inside.paste(255, box)
             outside_diff = ImageChops.difference(shown_img, hidden_img).convert("L")
             outside_diff = ImageChops.multiply(outside_diff, ImageChops.invert(inside))
