@@ -20,6 +20,7 @@ shaping. Where an issue and this file differ, this file wins.
 - 2026-11-17: The kit has two layers. The plugin's layer (engine, skills, agents, component library, neutral theme) is shared, read-only in use and replaced on update; the person's layer (the brand folder with its rulebook and `preferences.md`, working files, versions) is data the plugin reads and an update never writes, except a format migration the person runs. See `docs/DESIGN.md` section 10. Reason: people build their own brand and rules through the skills, and an update must not lose them.
 - 2026-11-17: Skills never edit plugin files and never change the engine during a session. They read the brand's rulebook and `preferences.md` before their first step, and offer to record a repeated correction as a rule, a preference or an upstream issue. Reason: a local edit to a skill is silently wiped by the next update.
 - 2026-11-17: A brand belongs to a project folder by default (`.brand/<slug>/`); `--root` points a project at a brand kept elsewhere. Reason: the owner's choice of default.
+- 2026-11-17: The project is licensed under MIT, not Apache-2.0, and has no `NOTICE` file. Releases before this change stay available under Apache-2.0. Reason: the owner's choice; these are open-source skills, not the docla product, and every commit so far is the owner's.
 
 ## Product rules
 
@@ -54,7 +55,7 @@ Added for this project:
 - anything touching billing, payment, API keys or the Anthropic account
 - a live Claude call outside a recorded cassette
 - the CI workflow or anything under `.github/`
-- `LICENSE`, `NOTICE` or the package metadata (`pyproject.toml` name, version, authors), publishing to PyPI or a plugin marketplace
+- `LICENSE` or the package metadata (`pyproject.toml` name, version, authors), publishing to PyPI or a plugin marketplace
 
 ## Lessons
 
@@ -63,6 +64,7 @@ Added for this project:
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
 - A command that appends to a record (`sent_to`, `forced_reason`) needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback.
+- Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers.
 
 ## Standing approvals
 
