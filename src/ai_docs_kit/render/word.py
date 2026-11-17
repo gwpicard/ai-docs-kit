@@ -25,7 +25,7 @@ def _style(document: Any, name: str, family: str, colour: str) -> None:
     """Give a built-in style the theme's font and colour, dropping the template's own theme references."""
     style = document.styles[name]
     style.font.name = family
-    style.font.color.rgb = RGBColor.from_string(colour.lstrip("#").upper())  # type: ignore[no-untyped-call]
+    style.font.color.rgb = RGBColor.from_string(colour.lstrip("#").upper())
     fonts = style.element.rPr.find(qn("w:rFonts"))
     for attribute in THEME_ATTRIBUTES:
         fonts.attrib.pop(qn(f"w:{attribute}"), None)
