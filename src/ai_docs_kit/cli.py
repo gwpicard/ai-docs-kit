@@ -225,13 +225,22 @@ def _ready(args: argparse.Namespace) -> int:
 
 
 def _look_pages(version_dir: Path) -> int:
-    pages = json.loads((version_dir / "pages" / "pages.json").read_text(encoding="utf-8"))["pages"]
-    findings = json.loads((version_dir / "findings.json").read_text(encoding="utf-8"))
-    for page in pages:
-        print(f"page {page['page']}: {', '.join(page['sections'])}")
-    print("engine findings (do not repeat):")
-    for f in findings:
-        print(f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}")
+    pages_path = version_dir / "pages" / "pages.json"
+    findings_path = version_dir / "findings.json"
+    try:
+        pages = json.loads(pages_path.read_text(encoding="utf-8"))["pages"]
+        lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
+    except (KeyError, TypeError) as error:
+        raise ValueError(f"{pages_path}: malformed page index ({error!r})") from error
+    try:
+        findings = json.loads(findings_path.read_text(encoding="utf-8"))
+        notes = [
+            f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}"
+            for f in findings
+        ]
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ValueError(f"{findings_path}: malformed findings ({error!r})") from error
+    print("\n".join([*lines, "engine findings (do not repeat):", *notes]))
     return 0
 
 
