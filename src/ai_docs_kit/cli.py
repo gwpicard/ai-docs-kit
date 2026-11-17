@@ -238,7 +238,7 @@ def _look_pages(version_dir: Path) -> int:
 def _look_findings(version_dir: Path, file: Path) -> int:
     from pydantic import ValidationError
 
-    from ai_docs_kit.store import LookFinding, LookRecord, load_version, update_manifest
+    from ai_docs_kit.store import LookFinding, load_version, update_manifest
 
     version = load_version(version_dir)
     pages = json.loads((version_dir / "pages" / "pages.json").read_text(encoding="utf-8"))["pages"]
@@ -266,7 +266,10 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         for problem in problems:
             print(problem, file=sys.stderr)
         return 2
-    record = version.manifest.look or LookRecord(pages=len(pages), clean=True)
+    record = version.manifest.look
+    if record is None:
+        print(f"{version_dir}: no look record; the engine's look has not run", file=sys.stderr)
+        return 2
     update_manifest(version_dir, look=record.model_copy(update={"agent": [*(record.agent or []), *accepted]}))
     print(f"recorded {len(accepted)} findings")
     return 0

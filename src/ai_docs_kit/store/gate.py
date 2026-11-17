@@ -27,11 +27,22 @@ def ship_gate(version: Version) -> list[str]:
 
 
 def sent_gate(version: Version) -> list[str]:
-    look = version.manifest.look
-    if look is None or look.agent is None:
-        return ["no look entry"]
-    errors = sum(f.severity == "error" for f in look.agent)
-    return [f"{errors} look errors"] if errors else []
+    manifest = version.manifest
+    look = manifest.look
+    if look is None:
+        return ["no look record"]
+    reasons: list[str] = []
+    if look.could_not:
+        reasons.append(f"not fully looked at: {'; '.join(look.could_not)}")
+    if manifest.findings.error:
+        reasons.append(f"{manifest.findings.error} error findings")
+    if not look.clean and not reasons:
+        reasons.append("look record is not clean")
+    if look.agent is None:
+        reasons.append("no look entry")
+    elif errors := sum(f.severity == "error" for f in look.agent):
+        reasons.append(f"{errors} look errors")
+    return reasons
 
 
 def mark_sent(version: Version, to: str, *, force: bool = False, reason: str | None = None) -> list[str]:
@@ -47,7 +58,7 @@ def mark_sent(version: Version, to: str, *, force: bool = False, reason: str | N
         "sent_on": [*manifest.sent_on, datetime.now(UTC).strftime("%Y-%m-%d")],
     }
     if reasons:
-        changes["forced_reason"] = reason
+        changes["forced_reason"] = "; ".join(filter(None, [manifest.forced_reason, reason]))
     update_manifest(version.path, **changes)
     return reasons
 
