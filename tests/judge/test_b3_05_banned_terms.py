@@ -113,6 +113,7 @@ def test_D3_fields_boundaries_case_and_no_theme():
         ("title", "title", ("unlock",)),
         ("paragraph", "paragraphs", ("synergy",)),
         ("item", "items", ("journey", "leverage", "synergy", "unlock")),
+        ("safe", "spoken", ("journey",)),
     }
     for finding in findings:
         assert all(term in finding.message.lower() for term in finding.measured["terms"])
