@@ -17,8 +17,8 @@ Return a JSON array and only a JSON array: no prose, no code fence, no heading. 
 
 - `section`: the section id, or `null` for a structural item.
 - `item`: the index of the item in the list you were given.
-- `action`: `apply` when the comment itself is the wording the section should take; `redraft` when it asks for a change of substance or tone that needs fresh writing; `restructure` for every structural item.
-- `proposed`: for `apply`, the section's full new wording, in the reviewer's words wherever they gave them; for `redraft`, the ask to write on the section, in the reviewer's terms; for `restructure`, the change in a few words (for example "delete section gamma01").
+- `action`: `apply` when the comment itself is the wording the section should take; `redraft` when it asks for a change of substance or tone that needs fresh writing; `restructure` for a `delete` or `reorder` item; `skip` for an `unplaced` item, which the engine cannot apply and the skill only reports.
+- `proposed`: for `apply`, the section's full new wording, in the reviewer's words wherever they gave them; for `redraft`, the ask to write on the section, in the reviewer's terms; for `restructure`, the change in a few words (for example "delete section gamma01"); for an `unplaced` item, the section you suggest the text belongs in, or `none`.
 - `sentence`: one sentence the person reads before deciding, saying what accepting does.
 - `lasting`: `true` when the comment states a lasting preference (for example "never write ASAP", "always give a date"), not a one-off fix to this text; otherwise `false`. Flag it this way. When `true`, add `preference`: the preference in one sentence, so the skill can draft a rule from it.
 
