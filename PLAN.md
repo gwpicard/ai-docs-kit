@@ -17,6 +17,9 @@ shaping. Where an issue and this file differ, this file wins.
 - 2026-11-16: The skills ship as a Claude Code plugin from this repository and call the engine through `bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder. Reason: one install for skills and engine.
 - 2026-11-16: Judges already in `tests/judge/` came over from docla and stay frozen. Golden facts files (`tests/fixtures/components/*.facts.json`) are regenerated with `scripts/golden_facts.py <name>`, never edited by hand. Reason: a hand edit hides a real layout change.
 - 2026-11-16: Field paths follow `ai_docs_kit.render.marks.FIELD_PATTERN`, and anchors are section ids and field paths, never page numbers or boxes. Reason: edits and comments must survive re-rendering.
+- 2026-11-17: The kit has two layers. The plugin's layer (engine, skills, agents, component library, neutral theme) is shared, read-only in use and replaced on update; the person's layer (the brand folder with its rulebook and `preferences.md`, working files, versions) is data the plugin reads and an update never writes, except a format migration the person runs. See `docs/DESIGN.md` section 10. Reason: people build their own brand and rules through the skills, and an update must not lose them.
+- 2026-11-17: Skills never edit plugin files and never change the engine during a session. They read the brand's rulebook and `preferences.md` before their first step, and offer to record a repeated correction as a rule, a preference or an upstream issue. Reason: a local edit to a skill is silently wiped by the next update.
+- 2026-11-17: A brand belongs to a project folder by default (`.brand/<slug>/`); `--root` points a project at a brand kept elsewhere. Reason: the owner's choice of default.
 
 ## Product rules
 
