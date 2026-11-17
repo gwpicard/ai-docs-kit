@@ -224,6 +224,7 @@ def _manifest(
     residual: list[Residual] | None,
     cost: Cost | None,
     now: Callable[[], datetime] | None,
+    extra_outputs: list[str],
 ) -> Manifest:
     counts = Counter(f.severity for f in findings)
     gaps = [
@@ -255,7 +256,7 @@ def _manifest(
         doctype=doc.front.get("doctype"),
         format=doc.format,
         sections=len(doc.sections),
-        outputs=[f"{doc_path.stem}.pdf"],
+        outputs=[f"{doc_path.stem}.pdf", *extra_outputs],
         pdf_sha256=hashlib.sha256(pdf.read_bytes()).hexdigest(),
         gaps=gaps,
         chosen=chosen,
@@ -283,6 +284,7 @@ def write_version(
     cost: Cost | None = None,
     now: Callable[[], datetime] | None = None,
     sheet: Path | None = None,
+    pptx: Path | None = None,
 ) -> Version:
     root = doc_path.parent / f"{doc_path.stem}.versions"
     root.mkdir(parents=True, exist_ok=True)
@@ -296,8 +298,12 @@ def write_version(
     temporary = None
     try:
         temporary = Path(tempfile.mkdtemp(prefix=".version-", dir=root))
-        manifest = _manifest(number, doc_path, doc, pdf, findings, theme, final, look, residual, cost, now)
+        manifest = _manifest(
+            number, doc_path, doc, pdf, findings, theme, final, look, residual, cost, now, [pptx.name] if pptx else []
+        )
         shutil.copyfile(pdf, temporary / f"{doc_path.stem}.pdf")
+        if pptx is not None:
+            shutil.copyfile(pptx, temporary / pptx.name)
         (temporary / "composition.json").write_text(comp.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "layout.json").write_text(facts.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "findings.json").write_bytes(TypeAdapter(list[Finding]).dump_json(findings, indent=2))

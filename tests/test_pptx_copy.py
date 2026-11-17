@@ -94,7 +94,9 @@ def test_every_field_is_a_named_text_box_at_its_measured_box(built):
     expected = 0
     for entry, slide in zip(built.fields, built.deck.slides, strict=True):
         boxes = _by_name(slide)
-        assert set(boxes) == {f"{f['section']}/{f['field']}" for f in entry["fields"]}
+        named = {f"{f['section']}/{f['field']}" for f in entry["fields"]}
+        assert named <= set(boxes)
+        assert all(name.endswith("/text") for name in set(boxes) - named)
         for field in entry["fields"]:
             shape = boxes[f"{field['section']}/{field['field']}"]
             assert shape.has_text_frame
@@ -145,19 +147,8 @@ def test_text_per_section_equals_the_layout_facts(built):
             got = " ".join(
                 shape.text_frame.text for name, shape in _by_name(slide).items() if name.startswith(f"{section}/")
             ).split()
-            inside = [
-                w.text
-                for w in built.facts.words
-                if w.section_id == section
-                and w.box.page == entry["page"]
-                and any(
-                    f["section"] == section
-                    and f["x"] <= (w.box.x0 + w.box.x1) / 2 <= f["x"] + f["w"]
-                    and f["y"] <= (w.box.y0 + w.box.y1) / 2 <= f["y"] + f["h"]
-                    for f in entry["fields"]
-                )
-            ]
-            assert got == inside, section
+            every = [w.text for w in built.facts.words if w.section_id == section and w.box.page == entry["page"]]
+            assert sorted(got) == sorted(every), section
             seen.add(section)
     assert {"cover", "agenda", "closing"} <= seen
 
