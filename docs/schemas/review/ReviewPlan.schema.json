@@ -1,0 +1,378 @@
+{
+  "$defs": {
+    "CommentItem": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The person's decision; set by the person, not by `review read`.",
+          "title": "Accepted"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "enum": [
+                "apply",
+                "redraft",
+                "skip"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What accepting does.",
+          "title": "Action"
+        },
+        "anchor": {
+          "description": "The words the comment is attached to.",
+          "title": "Anchor",
+          "type": "string"
+        },
+        "ask": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The redraft ask to write on the section, for redraft.",
+          "title": "Ask"
+        },
+        "author": {
+          "title": "Author",
+          "type": "string"
+        },
+        "kind": {
+          "const": "comment",
+          "default": "comment",
+          "title": "Kind",
+          "type": "string"
+        },
+        "proposal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The new wording of the section, for apply.",
+          "title": "Proposal"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The shape name the comment is attached to, if any.",
+          "title": "Shape"
+        },
+        "slide": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The slide number (1-based, sent order), for a deck comment.",
+          "title": "Slide"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author",
+        "text",
+        "anchor"
+      ],
+      "title": "CommentItem",
+      "type": "object"
+    },
+    "Emphasis": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "bold",
+            "italic",
+            "colour"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The colour as hex, for a colour hint.",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "Emphasis",
+      "type": "object"
+    },
+    "SectionPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "confirm": {
+          "items": {
+            "$ref": "#/$defs/CommentItem"
+          },
+          "title": "Confirm",
+          "type": "array"
+        },
+        "emphasis": {
+          "items": {
+            "$ref": "#/$defs/Emphasis"
+          },
+          "title": "Emphasis",
+          "type": "array"
+        },
+        "fields": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The applied text of each changed field, by field path (decks).",
+          "title": "Fields",
+          "type": "object"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "const": "human",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "human when a reviewer wrote the wording.",
+          "title": "Owner"
+        },
+        "wording": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The applied wording of the section, null when it is unchanged.",
+          "title": "Wording"
+        }
+      },
+      "required": [
+        "wording",
+        "owner"
+      ],
+      "title": "SectionPlan",
+      "type": "object"
+    },
+    "StructureItem": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The person's decision; set by the person, not by `review read`.",
+          "title": "Accepted"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "const": "restructure",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when the item can be applied.",
+          "title": "Action"
+        },
+        "after": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The section an unplaced text follows, if any.",
+          "title": "After"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "kind": {
+          "enum": [
+            "delete",
+            "reorder",
+            "unplaced"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "order": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The new section order, for a reorder item.",
+          "title": "Order"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The deleted section, for a delete item.",
+          "title": "Section"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "StructureItem",
+      "type": "object"
+    },
+    "Warning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Warning",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "confirm": {
+      "items": {
+        "$ref": "#/$defs/StructureItem"
+      },
+      "title": "Confirm",
+      "type": "array"
+    },
+    "review_copy": {
+      "description": "The file name of the review copy.",
+      "title": "Review Copy",
+      "type": "string"
+    },
+    "sections": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SectionPlan"
+      },
+      "title": "Sections",
+      "type": "object"
+    },
+    "sent_version": {
+      "description": "The sent version the copy was compared with.",
+      "title": "Sent Version",
+      "type": "integer"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/Warning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "sent_version",
+    "review_copy",
+    "sections"
+  ],
+  "title": "ReviewPlan",
+  "type": "object"
+}
