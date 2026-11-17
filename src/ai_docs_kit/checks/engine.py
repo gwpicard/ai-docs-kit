@@ -161,6 +161,13 @@ def _in_scope(finding: Finding, rule: Rule, ctx: CheckContext) -> bool:
     return True
 
 
+def _on_probation(rule: Rule, findings: list[Finding]) -> list[Finding]:
+    """A probation rule only warns, so it never blocks a build or `sent`."""
+    if rule.status != "probation":
+        return findings
+    return [f.model_copy(update={"severity": "warning"}) if f.severity == "error" else f for f in findings]
+
+
 def run_checks(rules: list[Rule], ctx: CheckContext) -> list[Finding]:
     applicable = [(rule, _check_for(rule)) for rule in rules if _applies(rule, ctx)]
     blocked: set[str | None] = set()
@@ -170,7 +177,7 @@ def run_checks(rules: list[Rule], ctx: CheckContext) -> list[Finding]:
             f
             for rule, check in applicable
             if (check.tier or rule.tier) == tier
-            for f in check.run(ctx, rule)
+            for f in _on_probation(rule, check.run(ctx, rule))
             if _in_scope(f, rule, ctx)
         ]
         kept = [f for f in produced if f.section_id not in blocked]

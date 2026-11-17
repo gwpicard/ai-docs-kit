@@ -27,6 +27,8 @@ class ValueSource(BaseModel):
     question: str | None = None
     from_: list[str] = Field(default_factory=list, alias="from")
     note: str | None = None
+    review_copy: str | None = None
+    comment: str | None = None
 
 
 class ValueProvenance(BaseModel):
@@ -44,8 +46,8 @@ class ValueProvenance(BaseModel):
             raise ValueError("derived values require from")
         if self.label == "inferred" and not (source.note and source.note.strip()):
             raise ValueError("inferred values require a note")
-        if self.label == "answered" and not (source.question and source.question.strip()):
-            raise ValueError("answered values require a question")
+        if self.label == "answered" and not ((source.question or source.comment or "").strip()):
+            raise ValueError("answered values require a question or a comment")
         return self
 
 
