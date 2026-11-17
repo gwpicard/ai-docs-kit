@@ -55,7 +55,10 @@ Added for this project:
 
 ## Lessons
 
-- Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
+- Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
+- A new engine option needs a caller in a real build path in the same issue, or it ships unused.
+- A command that appends to a record (`sent_to`, `forced_reason`) needs a run-twice test.
+- A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback.
 
 ## Standing approvals
 
@@ -82,3 +85,4 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 - Issue 8: `tests/test_pptx_copy.py` reads `<file>.pptx` from the out folder (`build/`, beside the PDF) and from the version folder; a section's loose words (those outside its fields) get their own `<section-id>/text` box, as sections with no fields already do, so the text per section compares every word of the section; the speaker-notes field is `note`.
 - Issue 8: the picture is the text-hidden PDF rasterised by pdfium at the default scale; every run in a box takes the font family, size and colour of the box's first word; the build writes the copy for slides only, and the manifest `outputs` lists it.
 - Issue 5: the agent's findings live in `look.agent` of the manifest (`null` means no look entry, `[]` means looked and found nothing); `sent_on` holds the dates beside `sent_to`. `update_manifest` now also accepts a `LookRecord` for `look`. `sent` is gated by `store.gate.sent_gate`, which refuses a missing look record, unlooked pages (`look.could_not`), engine errors (`findings.error`, `look.clean` false), a missing agent look entry and agent errors; it does not call `ship_gate` (no gaps or vision checks). `look --findings` exits 2 when the version has no look record. `--force` on `sent` appends its reason to any earlier `forced_reason`. Regenerated `docs/schemas/store/Manifest.schema.json`.
+- Issue 48: `check_force_reason` in `store/gate.py` is the one check for `--force`/`--reason`, also rejecting a reason without `--force`; `mark_ready` now appends to an earlier `forced_reason` like `mark_sent`. The conftest clean-up raises `RuntimeError` naming the path it cannot remove.

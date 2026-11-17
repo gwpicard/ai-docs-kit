@@ -23,7 +23,12 @@ def fixtures_left_unchanged():
     yield
     # Shallowest first, so a new folder goes with everything inside it.
     for path in sorted(_paths() - before, key=lambda p: len(p.parts)):
-        if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
-        else:
-            path.unlink(missing_ok=True)
+        try:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+        except FileNotFoundError:
+            pass  # already gone, for instance removed with its parent folder
+        except OSError as error:
+            raise RuntimeError(f"could not remove {path}: {error}") from error
