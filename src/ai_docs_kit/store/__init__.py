@@ -317,8 +317,8 @@ def write_version(
         shutil.copyfile(pdf, temporary / f"{doc_path.stem}.pdf")
         for copy in (pptx, docx):
             if copy is not None:
+                stamp(copy, number)
                 shutil.copyfile(copy, temporary / copy.name)
-                stamp(temporary / copy.name, number)
         (temporary / "composition.json").write_text(comp.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "layout.json").write_text(facts.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "findings.json").write_bytes(TypeAdapter(list[Finding]).dump_json(findings, indent=2))
