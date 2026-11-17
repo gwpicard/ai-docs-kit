@@ -16,6 +16,12 @@ class CommentItem(_Model):
     author: str
     text: str
     anchor: str = Field(description="The words the comment is attached to.")
+    accepted: bool | None = Field(
+        default=None, description="The person's decision; set by the person, not by `review read`."
+    )
+    action: Literal["apply", "redraft", "skip"] | None = Field(default=None, description="What accepting does.")
+    proposal: str | None = Field(default=None, description="The new wording of the section, for apply.")
+    ask: str | None = Field(default=None, description="The redraft ask to write on the section, for redraft.")
 
 
 class Emphasis(_Model):
@@ -38,6 +44,10 @@ class StructureItem(_Model):
     after: str | None = Field(default=None, description="The section an unplaced text follows, if any.")
     author: str | None = None
     order: list[str] | None = Field(default=None, description="The new section order, for a reorder item.")
+    accepted: bool | None = Field(
+        default=None, description="The person's decision; set by the person, not by `review read`."
+    )
+    action: Literal["restructure"] | None = Field(default=None, description="Set when the item can be applied.")
 
 
 class Warning(_Model):
