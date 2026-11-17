@@ -61,12 +61,21 @@ class Cost(_Model):
     by_role: dict[str, float] = Field(default_factory=dict)
 
 
+class LookFinding(_Model):
+    severity: Literal["error", "warning", "info"]
+    rule: str
+    page: int
+    section: str
+    message: str
+
+
 class LookRecord(_Model):
     pages: int
     method: str = "marks"
     could_not: list[str] = Field(default_factory=list)
     clean: bool
     tiers: dict[str, str] = Field(default_factory=dict)
+    agent: list[LookFinding] | None = None
 
 
 class Manifest(_Model):
@@ -91,6 +100,7 @@ class Manifest(_Model):
     cost: Cost
     state: Literal["draft", "ready", "sent"] = "draft"
     sent_to: list[str] = Field(default_factory=list)
+    sent_on: list[str] = Field(default_factory=list)
     forced_reason: str | None = None
 
 
@@ -319,7 +329,9 @@ def write_version(
 
 
 def update_manifest(path: Path, **changes: Any) -> Manifest:
-    if changes.keys() - {"state", "sent_to", "forced_reason"}:
+    if "look" in changes and not isinstance(changes["look"], LookRecord):
+        raise VersionImmutable("Only delivery fields may change")
+    if changes.keys() - {"state", "sent_to", "sent_on", "forced_reason", "look"}:
         raise VersionImmutable("Only delivery fields may change")
     manifest = Manifest.model_validate({**load_version(path).manifest.model_dump(), **changes})
     fd, name = tempfile.mkstemp(prefix=".manifest-", dir=path)
