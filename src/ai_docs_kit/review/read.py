@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from ai_docs_kit.review.apply import add_apply_command, run_apply
 from ai_docs_kit.review.plan import (
     CommentItem,
     Emphasis,
@@ -33,6 +34,7 @@ def add_review_commands(subparsers: argparse._SubParsersAction) -> None:  # type
     commands = review.add_subparsers(dest="review_command", required=True)
     read = commands.add_parser("read", help="read a Word or PowerPoint review copy into a review plan")
     read.add_argument("copy", type=Path, help="the review copy (.docx or .pptx), kept beside the working file")
+    add_apply_command(commands)
 
 
 def _norm(text: str) -> str:
@@ -227,6 +229,8 @@ def summary(plan: ReviewPlan, path: Path) -> list[str]:
 
 
 def run_review(args: argparse.Namespace) -> int:
+    if args.review_command == "apply":
+        return run_apply(args)
     copy: Path = args.copy
     try:
         if not copy.is_file():

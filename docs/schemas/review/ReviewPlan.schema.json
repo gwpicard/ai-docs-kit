@@ -3,10 +3,54 @@
     "CommentItem": {
       "additionalProperties": false,
       "properties": {
+        "accepted": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The person's decision; set by the person, not by `review read`.",
+          "title": "Accepted"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "enum": [
+                "apply",
+                "redraft",
+                "skip"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What accepting does.",
+          "title": "Action"
+        },
         "anchor": {
           "description": "The words the comment is attached to.",
           "title": "Anchor",
           "type": "string"
+        },
+        "ask": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The redraft ask to write on the section, for redraft.",
+          "title": "Ask"
         },
         "author": {
           "title": "Author",
@@ -17,6 +61,19 @@
           "default": "comment",
           "title": "Kind",
           "type": "string"
+        },
+        "proposal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The new wording of the section, for apply.",
+          "title": "Proposal"
         },
         "shape": {
           "anyOf": [
@@ -155,6 +212,33 @@
     "StructureItem": {
       "additionalProperties": false,
       "properties": {
+        "accepted": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The person's decision; set by the person, not by `review read`.",
+          "title": "Accepted"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "const": "restructure",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when the item can be applied.",
+          "title": "Action"
+        },
         "after": {
           "anyOf": [
             {

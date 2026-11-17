@@ -207,7 +207,7 @@ project folder on disk  ⇄  server (file watcher; external edits are picked up)
 ```
 docla/
   pyproject.toml            # uv-managed; package `docla`
-  LICENSE                   # Apache-2.0 recommended (see 17.5)
+  LICENSE                   # MIT (chosen 2026-11-17; see docs/decisions.md)
   .gitattributes            # * text=auto eol=lf
   src/docla/
     cli.py                  # `docla serve|init|ingest|build|check|theme ...`
@@ -2388,7 +2388,7 @@ serve only generated artefacts by id, never arbitrary paths.
 
 ### 17.5 Licensing
 
-* Project code: Apache-2.0 recommended; MIT is the alternative. Consequences compared in 17.6. Pick before the first public commit.
+* Project code: MIT, chosen on 2026-11-17 (`docs/decisions.md`); earlier releases stay under Apache-2.0. Consequences compared in 17.6.
 * Dependencies: avoid AGPL in the default install (PyMuPDF is AGPL). Verify with a licence report in CI (`pip-licenses`). LibreOffice and `git` are separate programs invoked as subprocesses.
 * Typst: Apache-2.0 (invoked as a separate process; no linking concern).
 * The shipped neutral theme: OFL fonts (include their licence files), original icons and imagery or CC0, an original logo. No third-party brand names, marks or text anywhere in the repo, fixtures, tests or docs. Review git history before the first public push, or start from a fresh history.
@@ -2418,7 +2418,7 @@ Consequences for this project:
 * **Patents matter more than usual here** because a contributor who holds patents could otherwise assert them against users of their own contribution. Apache-2.0's express grant and retaliation clause close that gap; MIT leaves it ambiguous. This does not depend on the methods here being novel: the individual techniques (render-and-inspect loops, vision critics, lint checks, feedback to rules) are established practice, and no prior-art search has been done.
 * **Adoption friction** is slightly higher for Apache-2.0 in some small-project cultures and slightly lower in corporate ones; both are on every company's allow-list.
 * **Dependencies** are compatible either way: Typst (Apache-2.0), the Anthropic SDK (MIT), pdfplumber and pdfminer.six (MIT), pypdfium2 (Apache-2.0/BSD), python-pptx and python-docx (MIT), lxml (BSD), Pillow (HPND), FastAPI/Pydantic (MIT). LibreOffice (MPL-2.0) and `git` (GPLv2) are invoked as separate programs, which creates no obligations for your code. The one trap remains PyMuPDF (AGPL).
-* **Recommendation: Apache-2.0**, with a short `NOTICE` file, and a **DCO** (`Signed-off-by`) for contributions rather than a CLA, which keeps the process light for a single maintainer.
+* **Recommendation at the time: Apache-2.0**, with a short `NOTICE` file, and a **DCO** (`Signed-off-by`) for contributions rather than a CLA. The owner later chose MIT, without `NOTICE`, for the open-source skills (2026-11-17); the DCO stays.
 
 ---
 
