@@ -55,7 +55,8 @@ Added for this project:
 
 ## Lessons
 
-- Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
+- Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
+- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
 - A command that appends to a record (`sent_to`, `forced_reason`) needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback.
