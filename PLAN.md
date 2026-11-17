@@ -64,6 +64,7 @@ Added for this project:
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
 - A command that appends to a record (`sent_to`, `forced_reason`) needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback.
+- Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers.
 
 ## Standing approvals
 
