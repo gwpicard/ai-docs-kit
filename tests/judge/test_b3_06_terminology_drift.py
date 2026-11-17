@@ -170,10 +170,10 @@ def test_D3_matching_fields_boundaries_and_exclusions():
         ],
     )
     findings = engine.run_checks([_rule()], engine.CheckContext(doc, theme=theme))
-    assert len(findings) == 3
-    assert {f.measured["field"] for f in findings} == {"title", "items", "paragraphs"}
+    assert len(findings) == 5
+    assert {f.measured["field"] for f in findings} == {"title", "items", "paragraphs", "spoken"}
+    assert {f.section_id for f in findings if f.measured["field"] == "spoken"} == {"one", "two"}
     for finding in findings:
-        assert finding.section_id == "one"
         assert finding.measured == {"field": finding.measured["field"], "avoid": ["client"], "preferred": ["customer"]}
         assert "customer" in finding.message and "client" in finding.message
 

@@ -21,6 +21,7 @@ shaping. Where an issue and this file differ, this file wins.
 - 2026-11-17: Skills never edit plugin files and never change the engine during a session. They read the brand's rulebook and `preferences.md` before their first step, and offer to record a repeated correction as a rule, a preference or an upstream issue. Reason: a local edit to a skill is silently wiped by the next update.
 - 2026-11-17: A brand belongs to a project folder by default (`.brand/<slug>/`); `--root` points a project at a brand kept elsewhere. Reason: the owner's choice of default.
 - 2026-11-17: The project is licensed under MIT, not Apache-2.0, and has no `NOTICE` file. Releases before this change stay available under Apache-2.0. Reason: the owner's choice; these are open-source skills, not the docla product, and every commit so far is the owner's.
+- 2026-11-17: The brand's voice rules (`source.banned-terms`, `source.terminology-drift`) apply to `spoken`, but not to `note` or `source_line`. Reason: the audience hears `spoken`; `note` is private to the presenter and never shown, and a citation must keep the source's own wording, such as a report titled "Synergy report".
 
 ## Product rules
 
