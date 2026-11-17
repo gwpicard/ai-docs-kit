@@ -148,6 +148,26 @@ def _sheet(built: _Built, result: Any, out: Path) -> Path:
     return contact_sheet(result.pngs, labels, out / "contact.png")
 
 
+def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Path | None:
+    """Write the PowerPoint copy beside the PDF; a document has none."""
+    if built.comp.format != "slides":
+        return None
+    from ai_docs_kit.render.pptx_copy import write_pptx
+
+    try:
+        return write_pptx(
+            out / f"{file.stem}.pptx",
+            facts=facts,
+            comp=built.comp,
+            doc=built.doc,
+            main=built.main,
+            render=built.render,
+            font_paths=font_paths(built.render),
+        )
+    except TypstError as error:
+        raise _BuildFailed(str(error)) from error
+
+
 def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
     from ai_docs_kit.loop.look import LookContext, look
     from ai_docs_kit.store import write_version
@@ -175,6 +195,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         )
     )
     sheet = _sheet(built, result, out)
+    pptx = _pptx(file, out, built, result.facts, theme)
     version = write_version(
         file,
         built.doc,
@@ -188,6 +209,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         final=final,
         look=result.record(),
         sheet=sheet,
+        pptx=pptx,
     )
     print(version.path)
     return _gate_report(ship_gate(version)) if final else 0
