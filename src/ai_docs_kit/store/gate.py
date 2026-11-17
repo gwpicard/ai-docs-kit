@@ -45,9 +45,13 @@ def sent_gate(version: Version) -> list[str]:
     return reasons
 
 
+def check_force_reason(force: bool, reason: str | None) -> None:
+    if (force and (reason is None or not reason.strip())) or (reason is not None and not force):
+        raise ValueError("--reason requires --force and must be non-blank when forced")
+
+
 def mark_sent(version: Version, to: str, *, force: bool = False, reason: str | None = None) -> list[str]:
-    if force and (reason is None or not reason.strip()):
-        raise ValueError("--force requires a non-blank --reason")
+    check_force_reason(force, reason)
     reasons = sent_gate(version)
     if reasons and not force:
         return reasons
@@ -64,11 +68,11 @@ def mark_sent(version: Version, to: str, *, force: bool = False, reason: str | N
 
 
 def mark_ready(version: Version, *, force: bool = False, reason: str | None = None) -> list[str]:
-    if force and (reason is None or not reason.strip()):
-        raise ValueError("--force requires a non-blank --reason")
+    check_force_reason(force, reason)
     reasons = ship_gate(version)
     if force:
-        update_manifest(version.path, state="ready", forced_reason=reason)
+        forced = "; ".join(filter(None, [version.manifest.forced_reason, reason]))
+        update_manifest(version.path, state="ready", forced_reason=forced)
     elif not reasons:
         update_manifest(version.path, state="ready")
     return reasons

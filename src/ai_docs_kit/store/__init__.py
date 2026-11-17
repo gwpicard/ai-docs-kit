@@ -336,7 +336,7 @@ def write_version(
 
 def update_manifest(path: Path, **changes: Any) -> Manifest:
     if "look" in changes and not isinstance(changes["look"], LookRecord):
-        raise VersionImmutable("Only delivery fields may change")
+        raise VersionImmutable(f"look must be a LookRecord, got {type(changes['look']).__name__}")
     if changes.keys() - {"state", "sent_to", "sent_on", "forced_reason", "look"}:
         raise VersionImmutable("Only delivery fields may change")
     manifest = Manifest.model_validate({**load_version(path).manifest.model_dump(), **changes})
