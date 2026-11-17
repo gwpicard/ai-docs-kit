@@ -47,5 +47,5 @@ Session minutes: 90
 Parallel: 3
 Builder model: sonnet
 Reviewer model: sonnet
-Protected paths: `.claude/`, `.githooks/`, `.github/`, `LICENSE`, `NOTICE`
+Protected paths: `.claude/`, `.githooks/`, `.github/`, `LICENSE`
 Check command: `uv run ruff check . && uv run ruff format --check .`
