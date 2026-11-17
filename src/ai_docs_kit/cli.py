@@ -171,6 +171,15 @@ def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Pat
         raise _BuildFailed(str(error)) from error
 
 
+def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
+    """Write the Word copy beside the PDF; slides have none."""
+    if built.comp.format != "doc":
+        return None
+    from ai_docs_kit.render.word import write_docx
+
+    return write_docx(out / f"{file.stem}.docx", comp=built.comp, theme=theme)
+
+
 def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
     from ai_docs_kit.loop.look import LookContext, look
     from ai_docs_kit.store import write_version
@@ -199,6 +208,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
     )
     sheet = _sheet(built, result, out)
     pptx = _pptx(file, out, built, result.facts, theme)
+    docx = _docx(file, out, built, theme)
     version = write_version(
         file,
         built.doc,
@@ -213,6 +223,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         look=result.record(),
         sheet=sheet,
         pptx=pptx,
+        docx=docx,
     )
     print(version.path)
     return _gate_report(ship_gate(version)) if final else 0
