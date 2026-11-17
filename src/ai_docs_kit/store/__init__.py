@@ -20,6 +20,7 @@ from ai_docs_kit.model import Document, Finding, Format
 from ai_docs_kit.render.compose import Composition, component_for
 from ai_docs_kit.render.marks import ElementMark, SectionMark
 from ai_docs_kit.render.typst import TYPST_VERSION
+from ai_docs_kit.store.stamp import stamp
 from ai_docs_kit.theme import Theme
 
 
@@ -317,6 +318,7 @@ def write_version(
         for copy in (pptx, docx):
             if copy is not None:
                 shutil.copyfile(copy, temporary / copy.name)
+                stamp(temporary / copy.name, number)
         (temporary / "composition.json").write_text(comp.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "layout.json").write_text(facts.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "findings.json").write_bytes(TypeAdapter(list[Finding]).dump_json(findings, indent=2))
