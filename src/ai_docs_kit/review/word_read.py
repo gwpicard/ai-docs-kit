@@ -35,12 +35,12 @@ class WordText:
     tracked: bool = False
 
 
-def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool) -> bytes | None:
+def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool, kind: str = "Word") -> bytes | None:
     try:
         info = archive.getinfo(name)
     except KeyError:
         if required:
-            raise ValueError(f"{label}: not a Word file (no {name})") from None
+            raise ValueError(f"{label}: not a {kind} file (no {name})") from None
         return None
     if info.file_size > MAX_PART:
         raise ValueError(f"{label}: {name} is too large to read safely")
@@ -60,15 +60,19 @@ def _parse(data: bytes, label: str, name: str) -> etree._Element:
         raise ValueError(f"{label}: {name} cannot be read safely: {error}") from None
 
 
+def check_archive(archive: zipfile.ZipFile, label: str) -> None:
+    infos = archive.infolist()
+    if len(infos) > MAX_ENTRIES:
+        raise ValueError(f"{label}: too many entries in the archive ({len(infos)})")
+    if sum(i.file_size for i in infos) > MAX_TOTAL:
+        raise ValueError(f"{label}: the archive is too large to read safely")
+
+
 def _open(path: Path) -> tuple[etree._Element, etree._Element | None]:
     label = path.name
     try:
         with zipfile.ZipFile(path) as archive:
-            infos = archive.infolist()
-            if len(infos) > MAX_ENTRIES:
-                raise ValueError(f"{label}: too many entries in the archive ({len(infos)})")
-            if sum(i.file_size for i in infos) > MAX_TOTAL:
-                raise ValueError(f"{label}: the archive is too large to read safely")
+            check_archive(archive, label)
             body = _part(archive, "word/document.xml", label, required=True)
             notes = _part(archive, "word/comments.xml", label, required=False)
     except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError) as error:

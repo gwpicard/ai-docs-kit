@@ -18,6 +18,32 @@
           "title": "Kind",
           "type": "string"
         },
+        "shape": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The shape name the comment is attached to, if any.",
+          "title": "Shape"
+        },
+        "slide": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The slide number (1-based, sent order), for a deck comment.",
+          "title": "Slide"
+        },
         "text": {
           "title": "Text",
           "type": "string"
@@ -84,6 +110,14 @@
           },
           "title": "Emphasis",
           "type": "array"
+        },
+        "fields": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The applied text of each changed field, by field path (decks).",
+          "title": "Fields",
+          "type": "object"
         },
         "owner": {
           "anyOf": [
