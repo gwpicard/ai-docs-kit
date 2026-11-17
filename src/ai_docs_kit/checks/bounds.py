@@ -124,7 +124,7 @@ class MinFont:
         for word in facts.words:
             if word.section_id is not None:
                 smallest[word.section_id] = min(smallest.get(word.section_id, word), word, key=lambda w: w.size)
-        return [_font_finding(rule, ctx, word, minimum) for word in smallest.values() if word.size < minimum]
+        return [_font_finding(rule, ctx, word, minimum) for word in smallest.values() if word.size < minimum - 1e-6]
 
 
 RULES: list[Rule] = [

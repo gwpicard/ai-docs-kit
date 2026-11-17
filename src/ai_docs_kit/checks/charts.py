@@ -1,3 +1,4 @@
+import re
 from math import hypot
 from typing import Any
 
@@ -18,10 +19,50 @@ def _gaps(a: ElementMark, b: ElementMark) -> tuple[float, float]:
     )
 
 
-def _labels(ctx: CheckContext, rule: Rule, labels: list[ElementMark], marks: list[ElementMark]) -> list[Finding]:
+def _union(group: list[ElementMark]) -> ElementMark:
+    x0 = min(m.x for m in group)
+    y0 = min(m.y for m in group)
+    first = group[0]
+    return first.model_copy(
+        update={"x": x0, "y": y0, "w": max(m.x + m.w for m in group) - x0, "h": max(m.y + m.h for m in group) - y0}
+    )
+
+
+def _by_field(labels: list[ElementMark], marks: list[ElementMark]) -> list[tuple[ElementMark, ElementMark]] | None:
+    """Pair each label with the marks of its category, read from the `field` paths; None when they do not say."""
+    groups: dict[str, list[ElementMark]] = {}
+    for mark in marks:
+        found = re.search(r"values\[(\d+)\]$", mark.field or "")
+        if found is None:
+            return None
+        groups.setdefault(found.group(1), []).append(mark)
+    pairs = []
+    for label in labels:
+        found = re.fullmatch(r"data\.categories\[(\d+)\]", label.field or "")
+        if found is None or found.group(1) not in groups:
+            return None
+        pairs.append((label, _union(groups[found.group(1)])))
+    return pairs
+
+
+def _labels(
+    ctx: CheckContext, rule: Rule, labels: list[ElementMark], marks: list[ElementMark], data: dict[str, Any] | None
+) -> list[Finding]:
     findings = []
     tolerance = float(rule.check["tolerance_pt"])
-    for index, (label, mark) in enumerate(zip(labels, marks, strict=False)):
+    by_field = _by_field(labels, marks)
+    if by_field is not None:
+        pairs = by_field
+    elif (
+        data is not None
+        and len(labels) == len(data.get("categories", []))
+        and len(marks) == len(labels) * len(data.get("series", []))
+    ):
+        per = len(data["series"])
+        pairs = [(label, _union(marks[i * per : (i + 1) * per])) for i, label in enumerate(labels)]
+    else:
+        pairs = list(zip(labels, marks, strict=False))
+    for index, (label, mark) in enumerate(pairs):
         dx, dy = _gaps(label, mark)
         if dx > 2 * tolerance and dy > 2 * tolerance:
             findings.append(
@@ -105,8 +146,8 @@ class ChartLabels:
         findings: list[Finding] = []
         for section_id, group in groups.items():
             marks = group["chart-mark"]
-            findings.extend(_labels(ctx, rule, group["chart-label"], marks))
             data = _data(ctx, section_id)
+            findings.extend(_labels(ctx, rule, group["chart-label"], marks, data))
             if data is not None:
                 findings.extend(_lengths(ctx, rule, marks, data))
         return findings
