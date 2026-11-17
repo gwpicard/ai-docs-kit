@@ -31,7 +31,7 @@ class TextPattern:
         regex = rule.check["regex"]
         must_match = rule.check.get("must_match", False)
         findings = []
-        for section in ctx.doc.sections:
+        for index, section in enumerate(ctx.doc.sections):
             breaking = next(
                 (text for text in _texts(section, field) if bool(re.search(regex, text)) != must_match), None
             )
@@ -44,6 +44,7 @@ class TextPattern:
                         section_id=section.id,
                         role=field,
                         measured={"field": field, "text": breaking},
+                        key=None if section.id is not None else f"section-{index}",
                     )
                 )
         return findings

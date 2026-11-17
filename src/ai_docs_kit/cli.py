@@ -23,6 +23,7 @@ from ai_docs_kit.model import Document, Finding
 from ai_docs_kit.render.compose import ComposeError, Composition, assemble, compose, font_paths
 from ai_docs_kit.render.kit import read_tokens
 from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError, compile_pdf, typst_version
+from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_section_commands, run_section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
@@ -171,6 +172,15 @@ def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Pat
         raise _BuildFailed(str(error)) from error
 
 
+def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
+    """Write the Word copy beside the PDF; slides have none."""
+    if built.comp.format != "doc":
+        return None
+    from ai_docs_kit.render.word import write_docx
+
+    return write_docx(out / f"{file.stem}.docx", comp=built.comp, theme=theme)
+
+
 def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
     from ai_docs_kit.loop.look import LookContext, look
     from ai_docs_kit.store import write_version
@@ -199,6 +209,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
     )
     sheet = _sheet(built, result, out)
     pptx = _pptx(file, out, built, result.facts, theme)
+    docx = _docx(file, out, built, theme)
     version = write_version(
         file,
         built.doc,
@@ -213,6 +224,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         look=result.record(),
         sheet=sheet,
         pptx=pptx,
+        docx=docx,
     )
     print(version.path)
     return _gate_report(ship_gate(version)) if final else 0
@@ -449,6 +461,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_brand_commands(subparsers)
     add_section_commands(subparsers)
+    add_review_commands(subparsers)
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
     init = subparsers.add_parser("init", help="initialise a project")
     init.add_argument("directory", type=Path, help="project folder")
@@ -529,6 +542,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_brand(args)
     if args.command == "section":
         return run_section(args)
+    if args.command == "review":
+        return run_review(args)
     if args.command == "doctor":
         return _doctor()
     if args.command == "init":

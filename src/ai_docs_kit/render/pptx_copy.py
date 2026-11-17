@@ -109,12 +109,18 @@ def write_pptx(
         hidden = Path(scratch) / "hidden.pdf"
         compile_pdf(main, render, hidden, font_paths, hide_text=True)
         pictures = PdfiumRasteriser().render(hidden, Path(scratch) / "pages")
-        for entry, picture in zip(field_index(facts, comp), pictures, strict=True):
+        wordy = {w.section_id for w in facts.words}
+        one_each = len(comp.sections) == len(pictures)  # a section with no words sits on the slide at its position
+        for number, (entry, picture) in enumerate(zip(field_index(facts, comp), pictures, strict=True)):
             slide = deck.slides.add_slide(deck.slide_layouts[BLANK_LAYOUT])
             slide.shapes.add_picture(str(picture), 0, 0, deck.slide_width, deck.slide_height)
             words = [w for w in facts.words if w.box.page == entry["page"]]
             present = {w.section_id for w in words}
-            slide_notes = [notes[s.id] for s in comp.sections if s.id in present and s.id in notes]
+            slide_notes = [
+                notes[s.id]
+                for i, s in enumerate(comp.sections)
+                if s.id in notes and (s.id in present or (s.id not in wordy and one_each and i == number))
+            ]
             _fill_slide(slide, entry, words, slide_notes)
         deck.save(str(path))
     return path

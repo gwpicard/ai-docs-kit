@@ -285,6 +285,7 @@ def write_version(
     now: Callable[[], datetime] | None = None,
     sheet: Path | None = None,
     pptx: Path | None = None,
+    docx: Path | None = None,
 ) -> Version:
     root = doc_path.parent / f"{doc_path.stem}.versions"
     root.mkdir(parents=True, exist_ok=True)
@@ -299,11 +300,23 @@ def write_version(
     try:
         temporary = Path(tempfile.mkdtemp(prefix=".version-", dir=root))
         manifest = _manifest(
-            number, doc_path, doc, pdf, findings, theme, final, look, residual, cost, now, [pptx.name] if pptx else []
+            number,
+            doc_path,
+            doc,
+            pdf,
+            findings,
+            theme,
+            final,
+            look,
+            residual,
+            cost,
+            now,
+            [c.name for c in (pptx, docx) if c],
         )
         shutil.copyfile(pdf, temporary / f"{doc_path.stem}.pdf")
-        if pptx is not None:
-            shutil.copyfile(pptx, temporary / pptx.name)
+        for copy in (pptx, docx):
+            if copy is not None:
+                shutil.copyfile(copy, temporary / copy.name)
         (temporary / "composition.json").write_text(comp.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "layout.json").write_text(facts.model_dump_json(indent=2), encoding="utf-8")
         (temporary / "findings.json").write_bytes(TypeAdapter(list[Finding]).dump_json(findings, indent=2))
