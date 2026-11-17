@@ -8,8 +8,8 @@ version = "0.0.1"
 description = "Claude skills that write branded reports and decks as PDF, check every build against a brand rulebook, and learn from comments in Word and PowerPoint."
 readme = "README.md"
 requires-python = ">=3.12"
-license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Guillaume Picard" }]
 classifiers = ["Development Status :: 1 - Planning"]
 dependencies = ["python-docx", "python-pptx", "anthropic", "fonttools", "openpyxl", "pdfplumber>=0.11", "Pillow>=13", "pydantic>=2", "pypdfium2>=5.14", "PyYAML>=6"]

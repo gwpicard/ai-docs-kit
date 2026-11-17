@@ -86,6 +86,8 @@ def _office(path: Path, kind: FileType) -> tuple[int | None, Format | None, str 
     fmt: Format = "slides" if kind in ("pptx", "potx") else "doc"
     try:
         with zipfile.ZipFile(path) as archive:
+            if not {"[Content_Types].xml", "docProps/app.xml"} & set(archive.namelist()):
+                return None, fmt, "Could not read this file as an Office archive"
             if fmt == "slides":
                 return sum(bool(re.fullmatch(r"ppt/slides/slide\d+\.xml", n)) for n in archive.namelist()), fmt, None
             try:

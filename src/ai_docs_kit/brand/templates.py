@@ -162,7 +162,11 @@ def _part(part: Any) -> str:
 
 
 def _theme(master: Any, warnings: list[str]) -> tuple[list[TemplateColour], list[TemplateFont]]:
-    part = master.part.part_related_by(RT.THEME)
+    try:
+        part = master.part.part_related_by(RT.THEME)
+    except KeyError:
+        warnings.append("no theme")
+        return [], []
     location = _part(part)
     colours, theme_warnings = theme_colours(part.blob, location)
     warnings.extend(theme_warnings)

@@ -17,6 +17,10 @@ shaping. Where an issue and this file differ, this file wins.
 - 2026-11-16: The skills ship as a Claude Code plugin from this repository and call the engine through `bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder. Reason: one install for skills and engine.
 - 2026-11-16: Judges already in `tests/judge/` came over from docla and stay frozen. Golden facts files (`tests/fixtures/components/*.facts.json`) are regenerated with `scripts/golden_facts.py <name>`, never edited by hand. Reason: a hand edit hides a real layout change.
 - 2026-11-16: Field paths follow `ai_docs_kit.render.marks.FIELD_PATTERN`, and anchors are section ids and field paths, never page numbers or boxes. Reason: edits and comments must survive re-rendering.
+- 2026-11-17: The kit has two layers. The plugin's layer (engine, skills, agents, component library, neutral theme) is shared, read-only in use and replaced on update; the person's layer (the brand folder with its rulebook and `preferences.md`, working files, versions) is data the plugin reads and an update never writes, except a format migration the person runs. See `docs/DESIGN.md` section 10. Reason: people build their own brand and rules through the skills, and an update must not lose them.
+- 2026-11-17: Skills never edit plugin files and never change the engine during a session. They read the brand's rulebook and `preferences.md` before their first step, and offer to record a repeated correction as a rule, a preference or an upstream issue. Reason: a local edit to a skill is silently wiped by the next update.
+- 2026-11-17: A brand belongs to a project folder by default (`.brand/<slug>/`); `--root` points a project at a brand kept elsewhere. Reason: the owner's choice of default.
+- 2026-11-17: The project is licensed under MIT, not Apache-2.0, and has no `NOTICE` file. Releases before this change stay available under Apache-2.0. Reason: the owner's choice; these are open-source skills, not the docla product, and every commit so far is the owner's.
 
 ## Product rules
 
@@ -51,11 +55,16 @@ Added for this project:
 - anything touching billing, payment, API keys or the Anthropic account
 - a live Claude call outside a recorded cassette
 - the CI workflow or anything under `.github/`
-- `LICENSE`, `NOTICE` or the package metadata (`pyproject.toml` name, version, authors), publishing to PyPI or a plugin marketplace
+- `LICENSE` or the package metadata (`pyproject.toml` name, version, authors), publishing to PyPI or a plugin marketplace
 
 ## Lessons
 
 - Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
+- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
+- A new engine option needs a caller in a real build path in the same issue, or it ships unused.
+- A command that appends to a record (`sent_to`, `forced_reason`) needs a run-twice test.
+- A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback.
+- Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers.
 
 ## Standing approvals
 
@@ -72,6 +81,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 70: intake treats a zip as an Office archive if it holds `[Content_Types].xml` or `docProps/app.xml`, because the locked `test_b_03_intake.py` builds a `.dotx` with only `docProps/app.xml` and expects it read.
 - Issue 33: `tests/conftest.py` has a session-wide autouse fixture that removes every path under `tests/fixtures` created during the run, instead of editing the locked in-place builders. Folders left by earlier runs stay, since they existed at the start (the ignored `doc.versions` and `.ai_docs_kit` under `pix.blank-page` in this worktree predate it; a fresh clone has none).
 - Issue 4: the reverse index in `pages/pages.json` is the top-level key `sections`, mapping each section id to its sorted page numbers; the tests read that name. New fixtures `tests/fixtures/slides/deck.md` (the gallery needs image assets that do not exist) and `tests/fixtures/doc/report.md` (five pages).
 - Issue 4: every build rasterises into `<out>/look/pages`, not `<out>/pages`, because the locked test `test_m4_01_pixel_tier.py::test_D4_check_rasterises_but_build_does_not` still expects a build to leave no `<out>/pages`; the version's own `pages/` holds the PNGs. `tests/judge/test_m4_11_ship_gate.py::test_D5_plain_build_retains_output` was updated as the person approved.
@@ -79,5 +89,9 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 - Issue 6: `--from` holds one section block (`::: {#id .section ...}` to `:::`); a refused or failed `section` command exits 1, a missing file exits 2; with `--redraft-done` the replacement's own `because=` is kept and `redraft=` is dropped. Tests in `tests/test_section_command.py` lock this.
 - Issue 16: the brand skill does not name `segment`, `extract`, `tie` or `calibrate`, because they call a model and skills make none (PLAN.md decision); the session's Claude reads the guidelines and records answers with `brand set`.
 - Issue 21: with `--redraft-done` a missing `because=` becomes `redrafted: <old redraft ask>`, even when only the old section had one (the issue's third case); `no ask recorded` stands in if no ask exists.
+- Issue 8: `tests/test_pptx_copy.py` reads `<file>.pptx` from the out folder (`build/`, beside the PDF) and from the version folder; a section's loose words (those outside its fields) get their own `<section-id>/text` box, as sections with no fields already do, so the text per section compares every word of the section; the speaker-notes field is `note`.
+- Issue 8: the picture is the text-hidden PDF rasterised by pdfium at the default scale; every run in a box takes the font family, size and colour of the box's first word; the build writes the copy for slides only, and the manifest `outputs` lists it.
 - Issue 5: the agent's findings live in `look.agent` of the manifest (`null` means no look entry, `[]` means looked and found nothing); `sent_on` holds the dates beside `sent_to`. `update_manifest` now also accepts a `LookRecord` for `look`. `sent` is gated by `store.gate.sent_gate`, which refuses a missing look record, unlooked pages (`look.could_not`), engine errors (`findings.error`, `look.clean` false), a missing agent look entry and agent errors; it does not call `ship_gate` (no gaps or vision checks). `look --findings` exits 2 when the version has no look record. `--force` on `sent` appends its reason to any earlier `forced_reason`. Regenerated `docs/schemas/store/Manifest.schema.json`.
+- Issue 48: `check_force_reason` in `store/gate.py` is the one check for `--force`/`--reason`, also rejecting a reason without `--force`; `mark_ready` now appends to an earlier `forced_reason` like `mark_sent`. The conftest clean-up raises `RuntimeError` naming the path it cannot remove.
+- Issue 35: `geo.min-font` allows 1e-6 pt of float noise (a word at 19.99999999999997 pt failed a 20 pt minimum once the chart labels moved to fractional positions). `geo.chart-labels` pairs by the `field` paths first (works without chart data), then by the section's data, then one to one. Bar and column marks now report their drawn position (the bar is padded into place instead of centred by the grid, because `el` records the position before alignment).
 - Issue 9: `tests/test_word_copy.py` builds a doc of body, callout and two chart sections, because a doc build refuses the `table` and `bullets` intents and has no figure component yet. The PDF has no captions, so charts are numbered by order of appearance among charts (`[Chart 1: <title>]`), and tables and figures are not tested. A `.docx` beside the PDF means `build/<file>.docx` next to `build/<file>.pdf`.

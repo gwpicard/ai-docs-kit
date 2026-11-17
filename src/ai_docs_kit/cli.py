@@ -7,7 +7,7 @@ import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -27,6 +27,9 @@ from ai_docs_kit.section_command import add_section_commands, run_section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
 from ai_docs_kit.theme.rules import load_theme_rules
+
+if TYPE_CHECKING:
+    from ai_docs_kit.store import LookFinding
 
 MIN_PYTHON = (3, 12)
 
@@ -148,6 +151,26 @@ def _sheet(built: _Built, result: Any, out: Path) -> Path:
     return contact_sheet(result.pngs, labels, out / "contact.png")
 
 
+def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Path | None:
+    """Write the PowerPoint copy beside the PDF; a document has none."""
+    if built.comp.format != "slides":
+        return None
+    from ai_docs_kit.render.pptx_copy import write_pptx
+
+    try:
+        return write_pptx(
+            out / f"{file.stem}.pptx",
+            facts=facts,
+            comp=built.comp,
+            doc=built.doc,
+            main=built.main,
+            render=built.render,
+            font_paths=font_paths(built.render),
+        )
+    except TypstError as error:
+        raise _BuildFailed(str(error)) from error
+
+
 def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
     from ai_docs_kit.loop.look import LookContext, look
     from ai_docs_kit.store import write_version
@@ -175,6 +198,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         )
     )
     sheet = _sheet(built, result, out)
+    pptx = _pptx(file, out, built, result.facts, theme)
     version = write_version(
         file,
         built.doc,
@@ -188,6 +212,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         final=final,
         look=result.record(),
         sheet=sheet,
+        pptx=pptx,
     )
     print(version.path)
     return _gate_report(ship_gate(version)) if final else 0
@@ -205,11 +230,6 @@ def _ready(args: argparse.Namespace) -> int:
     from ai_docs_kit.store import load_version
     from ai_docs_kit.store.gate import mark_ready
 
-    if (args.force and (args.reason is None or not args.reason.strip())) or (
-        args.reason is not None and not args.force
-    ):
-        print("--reason requires --force and must be non-blank when forced", file=sys.stderr)
-        return 2
     try:
         version = load_version(args.version_dir)
         reasons = mark_ready(version, force=args.force, reason=args.reason)
@@ -224,14 +244,25 @@ def _ready(args: argparse.Namespace) -> int:
     return 0
 
 
-def _look_pages(version_dir: Path) -> int:
+def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
     pages_path = version_dir / "pages" / "pages.json"
-    findings_path = version_dir / "findings.json"
     try:
         pages = json.loads(pages_path.read_text(encoding="utf-8"))["pages"]
-        lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
-    except (KeyError, TypeError) as error:
+        if not isinstance(pages, list):
+            raise TypeError("pages is not a list")
+        for page in pages:
+            page["page"], ", ".join(page["sections"])
+    except OSError as error:
+        raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
+    except (KeyError, TypeError, ValueError) as error:
         raise ValueError(f"{pages_path}: malformed page index ({error!r})") from error
+    return pages
+
+
+def _look_pages(version_dir: Path) -> int:
+    findings_path = version_dir / "findings.json"
+    pages = _read_pages(version_dir)
+    lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
     try:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
         notes = [
@@ -244,13 +275,17 @@ def _look_pages(version_dir: Path) -> int:
     return 0
 
 
+def _same_finding(a: "LookFinding", b: "LookFinding") -> bool:
+    return (a.page, a.section, a.severity, a.message) == (b.page, b.section, b.severity, b.message)
+
+
 def _look_findings(version_dir: Path, file: Path) -> int:
     from pydantic import ValidationError
 
     from ai_docs_kit.store import LookFinding, load_version, update_manifest
 
     version = load_version(version_dir)
-    pages = json.loads((version_dir / "pages" / "pages.json").read_text(encoding="utf-8"))["pages"]
+    pages = _read_pages(version_dir)
     raw = json.loads(file.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
         print(f"{file}: expected a JSON array of findings", file=sys.stderr)
@@ -279,8 +314,15 @@ def _look_findings(version_dir: Path, file: Path) -> int:
     if record is None:
         print(f"{version_dir}: no look record; the engine's look has not run", file=sys.stderr)
         return 2
-    update_manifest(version_dir, look=record.model_copy(update={"agent": [*(record.agent or []), *accepted]}))
-    print(f"recorded {len(accepted)} findings")
+    merged = list(record.agent or [])
+    added = 0
+    for finding in accepted:
+        if not any(_same_finding(finding, known) for known in merged):
+            merged.append(finding)
+            added += 1
+    if added or record.agent is None:
+        update_manifest(version_dir, look=record.model_copy(update={"agent": merged}))
+    print(f"recorded {added} findings")
     return 0
 
 
@@ -311,11 +353,6 @@ def _sent(args: argparse.Namespace) -> int:
         return 0
     if args.version_dir is None or args.to is None:
         print("sent needs a version folder and --to, or --latest", file=sys.stderr)
-        return 2
-    if (args.force and (args.reason is None or not args.reason.strip())) or (
-        args.reason is not None and not args.force
-    ):
-        print("--reason requires --force and must be non-blank when forced", file=sys.stderr)
         return 2
     try:
         reasons = mark_sent(load_version(args.version_dir), args.to, force=args.force, reason=args.reason)
