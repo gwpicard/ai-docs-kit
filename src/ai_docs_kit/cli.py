@@ -300,7 +300,10 @@ def _look_findings(version_dir: Path, file: Path) -> int:
                 f"finding {i}: {'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors()
             )
             continue
-        if not 1 <= finding.page <= len(pages):
+        blank = [name for name in ("rule", "message") if not getattr(finding, name).strip()]
+        if blank:
+            problems.append(f"finding {i}: {' and '.join(blank)} must not be blank")
+        elif not 1 <= finding.page <= len(pages):
             problems.append(f"finding {i}: page {finding.page} is out of range 1-{len(pages)}")
         elif finding.section not in pages[finding.page - 1]["sections"]:
             problems.append(f"finding {i}: section {finding.section} is not on page {finding.page}")
