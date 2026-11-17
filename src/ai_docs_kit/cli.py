@@ -27,6 +27,7 @@ from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_section_commands, run_section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
+from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
 
 if TYPE_CHECKING:
@@ -462,6 +463,7 @@ def _build_parser() -> argparse.ArgumentParser:
     add_brand_commands(subparsers)
     add_section_commands(subparsers)
     add_review_commands(subparsers)
+    add_rule_commands(subparsers)
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
     init = subparsers.add_parser("init", help="initialise a project")
     init.add_argument("directory", type=Path, help="project folder")
@@ -544,6 +546,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_section(args)
     if args.command == "review":
         return run_review(args)
+    if args.command == "rule":
+        return run_rule(args)
     if args.command == "doctor":
         return _doctor()
     if args.command == "init":
