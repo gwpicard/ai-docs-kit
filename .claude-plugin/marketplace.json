@@ -1,0 +1,11 @@
+{
+  "name": "ai-docs-kit",
+  "owner": { "name": "Guillaume Picard" },
+  "plugins": [
+    {
+      "name": "ai-docs-kit",
+      "source": "./",
+      "description": "Skills that write branded reports and decks as PDF and check every build against a brand rulebook."
+    }
+  ]
+}

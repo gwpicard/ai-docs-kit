@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import os
 import shutil
 import sys
@@ -22,6 +23,7 @@ from ai_docs_kit.model import Document, Finding
 from ai_docs_kit.render.compose import ComposeError, Composition, assemble, compose, font_paths
 from ai_docs_kit.render.kit import read_tokens
 from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError, compile_pdf, typst_version
+from ai_docs_kit.section_command import add_section_commands, run_section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
 from ai_docs_kit.theme.rules import load_theme_rules
@@ -128,10 +130,25 @@ def _line(finding: Finding) -> str:
 def _build(file: Path, out: Path, theme: Theme, *, final: bool = False) -> int:
     built = _render(file, out, theme)
     print(built.pdf)
-    return _final_build(file, out, theme, built) if final else 0
+    return _version_build(file, out, theme, built, final)
 
 
-def _final_build(file: Path, out: Path, theme: Theme, built: _Built) -> int:
+def _sheet(built: _Built, result: Any, out: Path) -> Path:
+    """Draw the contact sheet for slides, or the facing-page spreads for a document."""
+    from ai_docs_kit.facts.sheets import contact_sheet, page_labels, spread_sheet
+    from ai_docs_kit.store import page_index
+
+    if built.comp.format != "slides":
+        return spread_sheet(result.pngs, page_labels(result.facts), out / "spreads.png")
+    components = {s.id: s.component for s in built.comp.sections}
+    labels = [
+        " ".join([str(page["page"]), *(components[s] for s in page["sections"] if s in components)])
+        for page in page_index(result.facts, [])
+    ]
+    return contact_sheet(result.pngs, labels, out / "contact.png")
+
+
+def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
     from ai_docs_kit.loop.look import LookContext, look
     from ai_docs_kit.store import write_version
     from ai_docs_kit.store.gate import ship_gate
@@ -149,14 +166,15 @@ def _final_build(file: Path, out: Path, theme: Theme, built: _Built) -> int:
                 theme=theme,
                 main=built.main,
                 project=file.parent,
-                workdir=out,
+                workdir=out / "look",
                 rules=rules,
                 critic=None,
-                final=True,
+                final=final,
                 assets=[file.parent / "assets", theme.root / "assets"],
             ),
         )
     )
+    sheet = _sheet(built, result, out)
     version = write_version(
         file,
         built.doc,
@@ -167,11 +185,12 @@ def _final_build(file: Path, out: Path, theme: Theme, built: _Built) -> int:
         result.pngs,
         None,
         theme=theme,
-        final=True,
+        final=final,
         look=result.record(),
+        sheet=sheet,
     )
     print(version.path)
-    return _gate_report(ship_gate(version))
+    return _gate_report(ship_gate(version)) if final else 0
 
 
 def _gate_report(reasons: list[str]) -> int:
@@ -203,6 +222,121 @@ def _ready(args: argparse.Namespace) -> int:
         return 1
     print(f"ready (forced: {args.reason})" if args.force else "ready")
     return 0
+
+
+def _look_pages(version_dir: Path) -> int:
+    pages_path = version_dir / "pages" / "pages.json"
+    findings_path = version_dir / "findings.json"
+    try:
+        pages = json.loads(pages_path.read_text(encoding="utf-8"))["pages"]
+        lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
+    except (KeyError, TypeError) as error:
+        raise ValueError(f"{pages_path}: malformed page index ({error!r})") from error
+    try:
+        findings = json.loads(findings_path.read_text(encoding="utf-8"))
+        notes = [
+            f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}"
+            for f in findings
+        ]
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ValueError(f"{findings_path}: malformed findings ({error!r})") from error
+    print("\n".join([*lines, "engine findings (do not repeat):", *notes]))
+    return 0
+
+
+def _look_findings(version_dir: Path, file: Path) -> int:
+    from pydantic import ValidationError
+
+    from ai_docs_kit.store import LookFinding, load_version, update_manifest
+
+    version = load_version(version_dir)
+    pages = json.loads((version_dir / "pages" / "pages.json").read_text(encoding="utf-8"))["pages"]
+    raw = json.loads(file.read_text(encoding="utf-8"))
+    if not isinstance(raw, list):
+        print(f"{file}: expected a JSON array of findings", file=sys.stderr)
+        return 2
+    problems: list[str] = []
+    accepted: list[LookFinding] = []
+    for i, item in enumerate(raw, 1):
+        try:
+            finding = LookFinding.model_validate(item)
+        except ValidationError as error:
+            problems.extend(
+                f"finding {i}: {'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors()
+            )
+            continue
+        if not 1 <= finding.page <= len(pages):
+            problems.append(f"finding {i}: page {finding.page} is out of range 1-{len(pages)}")
+        elif finding.section not in pages[finding.page - 1]["sections"]:
+            problems.append(f"finding {i}: section {finding.section} is not on page {finding.page}")
+        else:
+            accepted.append(finding)
+    if problems:
+        for problem in problems:
+            print(problem, file=sys.stderr)
+        return 2
+    record = version.manifest.look
+    if record is None:
+        print(f"{version_dir}: no look record; the engine's look has not run", file=sys.stderr)
+        return 2
+    update_manifest(version_dir, look=record.model_copy(update={"agent": [*(record.agent or []), *accepted]}))
+    print(f"recorded {len(accepted)} findings")
+    return 0
+
+
+def _look(args: argparse.Namespace) -> int:
+    if args.pages == (args.findings is not None):
+        print("give exactly one of --pages or --findings", file=sys.stderr)
+        return 2
+    try:
+        if args.pages:
+            return _look_pages(args.version_dir)
+        return _look_findings(args.version_dir, args.findings)
+    except (OSError, ValueError) as error:
+        print(error, file=sys.stderr)
+        return 2
+
+
+def _sent(args: argparse.Namespace) -> int:
+    from ai_docs_kit.store import load_version
+    from ai_docs_kit.store.gate import mark_sent
+
+    if args.latest is not None:
+        root = args.latest.parent / f"{args.latest.stem}.versions"
+        sent = [
+            (v.number, d) for d in root.glob("v*") if (v := _try_load(d)) is not None and v.manifest.state == "sent"
+        ]
+        if sent:
+            print(max(sent)[1])
+        return 0
+    if args.version_dir is None or args.to is None:
+        print("sent needs a version folder and --to, or --latest", file=sys.stderr)
+        return 2
+    if (args.force and (args.reason is None or not args.reason.strip())) or (
+        args.reason is not None and not args.force
+    ):
+        print("--reason requires --force and must be non-blank when forced", file=sys.stderr)
+        return 2
+    try:
+        reasons = mark_sent(load_version(args.version_dir), args.to, force=args.force, reason=args.reason)
+    except (OSError, ValueError) as error:
+        print(error, file=sys.stderr)
+        return 2
+    if reasons and not args.force:
+        for reason in reasons:
+            print(f"not sent: {reason}")
+        return 1
+    print(f"sent to {args.to} (forced: {args.reason})" if reasons else f"sent to {args.to}")
+    return 0
+
+
+def _try_load(directory: Path) -> Any:
+    from ai_docs_kit.store import load_version
+
+    try:
+        return load_version(directory)
+    except (OSError, ValueError):
+        return None
 
 
 def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline: bool = False) -> int:
@@ -274,6 +408,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"ai_docs_kit {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_brand_commands(subparsers)
+    add_section_commands(subparsers)
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
     init = subparsers.add_parser("init", help="initialise a project")
     init.add_argument("directory", type=Path, help="project folder")
@@ -284,6 +419,16 @@ def _build_parser() -> argparse.ArgumentParser:
     ready.add_argument("version_dir", type=Path)
     ready.add_argument("--force", action="store_true")
     ready.add_argument("--reason")
+    look = subparsers.add_parser("look", help="print the pages for the look agent or record its findings")
+    look.add_argument("version_dir", type=Path)
+    look.add_argument("--pages", action="store_true")
+    look.add_argument("--findings", type=Path)
+    sent = subparsers.add_parser("sent", help="record that a version was sent")
+    sent.add_argument("version_dir", type=Path, nargs="?")
+    sent.add_argument("--to")
+    sent.add_argument("--latest", type=Path)
+    sent.add_argument("--force", action="store_true")
+    sent.add_argument("--reason")
     write = subparsers.choices["write"]
     write.add_argument("--approve", action="store_true")
     write.add_argument("--yes", action="store_true")
@@ -342,12 +487,18 @@ def main(argv: list[str] | None = None) -> int:
         raise
     if args.command == "brand":
         return run_brand(args)
+    if args.command == "section":
+        return run_section(args)
     if args.command == "doctor":
         return _doctor()
     if args.command == "init":
         return _init(args.directory)
     if args.command == "ready":
         return _ready(args)
+    if args.command == "look":
+        return _look(args)
+    if args.command == "sent":
+        return _sent(args)
     if args.command in ("write", *FILE_COMMANDS) and not args.file.is_file():
         print(f"{args.file}: no such working file", file=sys.stderr)
         return 2

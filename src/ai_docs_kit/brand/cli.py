@@ -13,6 +13,7 @@ from typing import Any
 import yaml  # type: ignore[import-untyped]
 
 from ai_docs_kit.brand import agents
+from ai_docs_kit.brand.answers import answer_question
 from ai_docs_kit.brand.changes import Evidence, begin_change, change_log, record_change
 from ai_docs_kit.brand.claims import extract_claims, load_claims
 from ai_docs_kit.brand.departures import _proposal, set_token
@@ -109,10 +110,25 @@ def add_brand_commands(subparsers: Any) -> None:
     actions.add_argument("--explain")
     corrections.add_argument("--note")
     corrections.add_argument("--person", default="owner")
+    answer = commands.add_parser("answer", help="record an answer to a brand question")
+    answer.add_argument("slug")
+    answer.add_argument("question_id")
+    answer.add_argument("--root", type=Path, default=default_root())
+    answer.add_argument("--option")
+    answer.add_argument("--text")
+    answer.add_argument("--person", default="owner")
     specimen = commands.add_parser("specimen", help="render brand specimens")
     specimen.add_argument("slug")
     specimen.add_argument("--root", type=Path, default=default_root())
     specimen.add_argument("--doctype")
+
+
+def _answer(brand: Path, args: argparse.Namespace) -> int:
+    if args.option and args.text:
+        raise BrandError("Give --option or --text, not both")
+    result = answer_question(brand, args.question_id, option=args.option, text=args.text, person=args.person)
+    print(f"Answered {result.question.id}")
+    return 0
 
 
 def _corrections(brand: Path, args: argparse.Namespace) -> int:
@@ -654,6 +670,8 @@ def run_brand(args: argparse.Namespace) -> int:
             return _calibrate(brand_path(args.slug, args.root), args.doctype)
         elif args.brand_command == "corrections":
             return _corrections(brand_path(args.slug, args.root), args)
+        elif args.brand_command == "answer":
+            return _answer(brand_path(args.slug, args.root), args)
         elif args.brand_command == "specimen":
             return _specimen(brand_path(args.slug, args.root), args.doctype)
         elif args.brand_command == "intake":

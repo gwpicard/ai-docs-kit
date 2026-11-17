@@ -1,0 +1,8 @@
+{
+  "name": "ai-docs-kit",
+  "version": "0.0.1",
+  "description": "Skills that write branded reports and decks as PDF, check every build against a brand rulebook, and learn from comments in Word and PowerPoint.",
+  "author": { "name": "Guillaume Picard" },
+  "repository": "https://github.com/gwpicard/ai-docs-kit",
+  "license": "Apache-2.0"
+}

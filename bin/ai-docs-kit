@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs the ai-docs-kit package from the plugin folder, or from this repository when run outside a plugin.
+root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+exec uv run --project "$root" ai-docs-kit "$@"
