@@ -77,6 +77,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 - The review readers: Word and PowerPoint files from outside, including malformed, oversized or hostile archives.
 - The editable copies: text, names and bookmarks that must map back to sections.
 - The rulebook and checks, including the seeded-defect fixtures.
+- 2026-11-17: The brand's voice rules (`source.banned-terms`, `source.terminology-drift`) apply to `spoken`, but not to `note` or `source_line`. Reason: the audience hears `spoken`; `note` is private to the presenter and never shown, and a citation must keep the source's own wording, such as a report titled "Synergy report".
 - The renderer: Typst components, composition, layout facts and golden files.
 - The skills and agents: commands they name, paths they write, what they promise the person.
 

@@ -13,6 +13,8 @@ def _texts(section: Section, field: str) -> list[str]:
         return [section.title] if section.title else []
     if field == "paragraphs":
         return section.paragraphs
+    if field == "spoken":
+        return [section.spoken] if section.spoken else []
     if field == "items":
         return [
             text

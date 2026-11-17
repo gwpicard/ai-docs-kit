@@ -7,6 +7,9 @@ from ai_docs_kit.model import Finding, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
 from ai_docs_kit.theme.voice import Term, load_voice
 
+# Text the audience reads or hears; `note` and `source_line` are exempt.
+VOICE_FIELDS = ("title", "items", "paragraphs", "spoken")
+
 
 def _term_pattern(term: str) -> str:
     """Word boundaries apply only at an edge that is a word character."""
@@ -51,7 +54,7 @@ class BannedTerms:
         return [
             finding
             for index, section in enumerate(ctx.doc.sections)
-            for field in ("title", "items", "paragraphs")
+            for field in VOICE_FIELDS
             if (finding := _field_finding(ctx, rule, section, field, banned, index)) is not None
         ]
 
@@ -93,7 +96,7 @@ class TerminologyDrift:
         return [
             finding
             for index, section in enumerate(ctx.doc.sections)
-            for field in ("title", "items", "paragraphs")
+            for field in VOICE_FIELDS
             if (finding := _terminology_finding(ctx, rule, section, field, terminology, index)) is not None
         ]
 
