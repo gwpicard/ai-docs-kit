@@ -15,7 +15,9 @@ def _term_pattern(term: str) -> str:
     return start + re.escape(term) + end
 
 
-def _field_finding(ctx: CheckContext, rule: Rule, section: Section, field: str, banned: list[str]) -> Finding | None:
+def _field_finding(
+    ctx: CheckContext, rule: Rule, section: Section, field: str, banned: list[str], index: int
+) -> Finding | None:
     terms = sorted(
         {
             term
@@ -34,6 +36,7 @@ def _field_finding(ctx: CheckContext, rule: Rule, section: Section, field: str, 
         section_id=section.id,
         role=field,
         measured={"field": field, "terms": terms},
+        key=None if section.id is not None else f"section-{index}",
     )
 
 
@@ -47,14 +50,14 @@ class BannedTerms:
         banned = load_voice(ctx.theme).banned
         return [
             finding
-            for section in ctx.doc.sections
+            for index, section in enumerate(ctx.doc.sections)
             for field in ("title", "items", "paragraphs")
-            if (finding := _field_finding(ctx, rule, section, field, banned)) is not None
+            if (finding := _field_finding(ctx, rule, section, field, banned, index)) is not None
         ]
 
 
 def _terminology_finding(
-    ctx: CheckContext, rule: Rule, section: Section, field: str, terminology: list[Term]
+    ctx: CheckContext, rule: Rule, section: Section, field: str, terminology: list[Term], index: int
 ) -> Finding | None:
     matches = sorted(
         (avoid, term.preferred)
@@ -75,6 +78,7 @@ def _terminology_finding(
         section_id=section.id,
         role=field,
         measured={"field": field, "avoid": avoided, "preferred": preferred},
+        key=None if section.id is not None else f"section-{index}",
     )
 
 
@@ -88,9 +92,9 @@ class TerminologyDrift:
         terminology = load_voice(ctx.theme).terminology
         return [
             finding
-            for section in ctx.doc.sections
+            for index, section in enumerate(ctx.doc.sections)
             for field in ("title", "items", "paragraphs")
-            if (finding := _terminology_finding(ctx, rule, section, field, terminology)) is not None
+            if (finding := _terminology_finding(ctx, rule, section, field, terminology, index)) is not None
         ]
 
 
