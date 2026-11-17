@@ -106,5 +106,5 @@ def test_commands_the_skill_names_turn_a_synthetic_pack_into_a_theme_that_builds
     gallery = (ROOT / "tests/fixtures/slides/gallery.md").read_text(encoding="utf-8")
     working.write_text(gallery.split("::: {#quote")[0], encoding="utf-8")
     built = run("build", str(working), "--theme", str(theme), "--out", str(tmp_path / "out"), cwd=tmp_path)
-    assert built.returncode in (0, 1), built.stderr + built.stdout
+    assert built.returncode == 0, built.stderr + built.stdout
     assert list((tmp_path / "out").rglob("*.pdf"))
