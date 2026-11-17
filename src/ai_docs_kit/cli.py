@@ -227,11 +227,6 @@ def _ready(args: argparse.Namespace) -> int:
     from ai_docs_kit.store import load_version
     from ai_docs_kit.store.gate import mark_ready
 
-    if (args.force and (args.reason is None or not args.reason.strip())) or (
-        args.reason is not None and not args.force
-    ):
-        print("--reason requires --force and must be non-blank when forced", file=sys.stderr)
-        return 2
     try:
         version = load_version(args.version_dir)
         reasons = mark_ready(version, force=args.force, reason=args.reason)
@@ -333,11 +328,6 @@ def _sent(args: argparse.Namespace) -> int:
         return 0
     if args.version_dir is None or args.to is None:
         print("sent needs a version folder and --to, or --latest", file=sys.stderr)
-        return 2
-    if (args.force and (args.reason is None or not args.reason.strip())) or (
-        args.reason is not None and not args.force
-    ):
-        print("--reason requires --force and must be non-blank when forced", file=sys.stderr)
         return 2
     try:
         reasons = mark_sent(load_version(args.version_dir), args.to, force=args.force, reason=args.reason)
