@@ -17,6 +17,9 @@ shaping. Where an issue and this file differ, this file wins.
 - 2026-11-16: The skills ship as a Claude Code plugin from this repository and call the engine through `bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder. Reason: one install for skills and engine.
 - 2026-11-16: Judges already in `tests/judge/` came over from docla and stay frozen. Golden facts files (`tests/fixtures/components/*.facts.json`) are regenerated with `scripts/golden_facts.py <name>`, never edited by hand. Reason: a hand edit hides a real layout change.
 - 2026-11-16: Field paths follow `ai_docs_kit.render.marks.FIELD_PATTERN`, and anchors are section ids and field paths, never page numbers or boxes. Reason: edits and comments must survive re-rendering.
+- 2026-11-17: The kit has two layers. The plugin's layer (engine, skills, agents, component library, neutral theme) is shared, read-only in use and replaced on update; the person's layer (the brand folder with its rulebook and `preferences.md`, working files, versions) is data the plugin reads and an update never writes, except a format migration the person runs. See `docs/DESIGN.md` section 10. Reason: people build their own brand and rules through the skills, and an update must not lose them.
+- 2026-11-17: Skills never edit plugin files and never change the engine during a session. They read the brand's rulebook and `preferences.md` before their first step, and offer to record a repeated correction as a rule, a preference or an upstream issue. Reason: a local edit to a skill is silently wiped by the next update.
+- 2026-11-17: A brand belongs to a project folder by default (`.brand/<slug>/`); `--root` points a project at a brand kept elsewhere. Reason: the owner's choice of default.
 
 ## Product rules
 
@@ -56,6 +59,10 @@ Added for this project:
 ## Lessons
 
 - Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
+- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
+- A new engine option needs a caller in a real build path in the same issue, or it ships unused.
+- A command that appends to a record (`sent_to`, `forced_reason`) needs a run-twice test.
+- A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback.
 
 ## Standing approvals
 
@@ -82,3 +89,5 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 - Issue 8: `tests/test_pptx_copy.py` reads `<file>.pptx` from the out folder (`build/`, beside the PDF) and from the version folder; a section's loose words (those outside its fields) get their own `<section-id>/text` box, as sections with no fields already do, so the text per section compares every word of the section; the speaker-notes field is `note`.
 - Issue 8: the picture is the text-hidden PDF rasterised by pdfium at the default scale; every run in a box takes the font family, size and colour of the box's first word; the build writes the copy for slides only, and the manifest `outputs` lists it.
 - Issue 5: the agent's findings live in `look.agent` of the manifest (`null` means no look entry, `[]` means looked and found nothing); `sent_on` holds the dates beside `sent_to`. `update_manifest` now also accepts a `LookRecord` for `look`. `sent` is gated by `store.gate.sent_gate`, which refuses a missing look record, unlooked pages (`look.could_not`), engine errors (`findings.error`, `look.clean` false), a missing agent look entry and agent errors; it does not call `ship_gate` (no gaps or vision checks). `look --findings` exits 2 when the version has no look record. `--force` on `sent` appends its reason to any earlier `forced_reason`. Regenerated `docs/schemas/store/Manifest.schema.json`.
+- Issue 48: `check_force_reason` in `store/gate.py` is the one check for `--force`/`--reason`, also rejecting a reason without `--force`; `mark_ready` now appends to an earlier `forced_reason` like `mark_sent`. The conftest clean-up raises `RuntimeError` naming the path it cannot remove.
+- Issue 35: `geo.min-font` allows 1e-6 pt of float noise (a word at 19.99999999999997 pt failed a 20 pt minimum once the chart labels moved to fractional positions). `geo.chart-labels` pairs by the `field` paths first (works without chart data), then by the section's data, then one to one. Bar and column marks now report their drawn position (the bar is padded into place instead of centred by the grid, because `el` records the position before alignment).
