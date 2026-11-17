@@ -110,9 +110,63 @@
       "title": "Gap",
       "type": "object"
     },
+    "LookFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        },
+        "section": {
+          "title": "Section",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "severity",
+        "rule",
+        "page",
+        "section",
+        "message"
+      ],
+      "title": "LookFinding",
+      "type": "object"
+    },
     "LookRecord": {
       "additionalProperties": false,
       "properties": {
+        "agent": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/LookFinding"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
         "clean": {
           "title": "Clean",
           "type": "boolean"
@@ -288,6 +342,13 @@
     "sections": {
       "title": "Sections",
       "type": "integer"
+    },
+    "sent_on": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Sent On",
+      "type": "array"
     },
     "sent_to": {
       "items": {
