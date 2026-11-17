@@ -99,8 +99,10 @@ def run_test(rule_path: Path, example: str, theme_folder: Path | None) -> int:
     rule = _load_rule(rule_path)
     theme = _theme(theme_folder)
     folder, section_id = _example(example)
-    marker = _tested_marker(theme, rule)
-    marker.unlink(missing_ok=True)
+    # The neutral theme belongs to the plugin and is read-only in use: only a named theme keeps a marker.
+    marker = _tested_marker(theme, rule) if theme_folder is not None else None
+    if marker is not None:
+        marker.unlink(missing_ok=True)
     problems: list[str] = []
     if section_id not in _fires(rule, _example_doc(folder, section_id), theme):
         problems.append(f"misses the example {folder.name}/{section_id}")
@@ -111,8 +113,9 @@ def run_test(rule_path: Path, example: str, theme_folder: Path | None) -> int:
         print(f"{rule.id} {problem}")
     if problems:
         return 1
-    marker.parent.mkdir(parents=True, exist_ok=True)
-    marker.write_text(rule.id, encoding="utf-8")
+    if marker is not None:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(rule.id, encoding="utf-8")
     print(f"{rule.id} fires on {folder.name}/{section_id} and on no approved exemplar")
     return 0
 
