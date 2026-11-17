@@ -80,6 +80,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 70: intake treats a zip as an Office archive if it holds `[Content_Types].xml` or `docProps/app.xml`, because the locked `test_b_03_intake.py` builds a `.dotx` with only `docProps/app.xml` and expects it read.
 - Issue 33: `tests/conftest.py` has a session-wide autouse fixture that removes every path under `tests/fixtures` created during the run, instead of editing the locked in-place builders. Folders left by earlier runs stay, since they existed at the start (the ignored `doc.versions` and `.ai_docs_kit` under `pix.blank-page` in this worktree predate it; a fresh clone has none).
 - Issue 4: the reverse index in `pages/pages.json` is the top-level key `sections`, mapping each section id to its sorted page numbers; the tests read that name. New fixtures `tests/fixtures/slides/deck.md` (the gallery needs image assets that do not exist) and `tests/fixtures/doc/report.md` (five pages).
 - Issue 4: every build rasterises into `<out>/look/pages`, not `<out>/pages`, because the locked test `test_m4_01_pixel_tier.py::test_D4_check_rasterises_but_build_does_not` still expects a build to leave no `<out>/pages`; the version's own `pages/` holds the PNGs. `tests/judge/test_m4_11_ship_gate.py::test_D5_plain_build_retains_output` was updated as the person approved.
