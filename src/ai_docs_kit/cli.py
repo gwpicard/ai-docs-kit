@@ -241,14 +241,25 @@ def _ready(args: argparse.Namespace) -> int:
     return 0
 
 
-def _look_pages(version_dir: Path) -> int:
+def _read_pages(version_dir: Path) -> list[dict]:
     pages_path = version_dir / "pages" / "pages.json"
-    findings_path = version_dir / "findings.json"
     try:
         pages = json.loads(pages_path.read_text(encoding="utf-8"))["pages"]
-        lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
-    except (KeyError, TypeError) as error:
+        if not isinstance(pages, list):
+            raise TypeError("pages is not a list")
+        for page in pages:
+            page["page"], ", ".join(page["sections"])
+    except OSError as error:
+        raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
+    except (KeyError, TypeError, ValueError) as error:
         raise ValueError(f"{pages_path}: malformed page index ({error!r})") from error
+    return pages
+
+
+def _look_pages(version_dir: Path) -> int:
+    findings_path = version_dir / "findings.json"
+    pages = _read_pages(version_dir)
+    lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
     try:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
         notes = [
@@ -261,13 +272,17 @@ def _look_pages(version_dir: Path) -> int:
     return 0
 
 
+def _same_finding(a, b) -> bool:
+    return (a.page, a.section, a.severity, a.message) == (b.page, b.section, b.severity, b.message)
+
+
 def _look_findings(version_dir: Path, file: Path) -> int:
     from pydantic import ValidationError
 
     from ai_docs_kit.store import LookFinding, load_version, update_manifest
 
     version = load_version(version_dir)
-    pages = json.loads((version_dir / "pages" / "pages.json").read_text(encoding="utf-8"))["pages"]
+    pages = _read_pages(version_dir)
     raw = json.loads(file.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
         print(f"{file}: expected a JSON array of findings", file=sys.stderr)
@@ -296,8 +311,15 @@ def _look_findings(version_dir: Path, file: Path) -> int:
     if record is None:
         print(f"{version_dir}: no look record; the engine's look has not run", file=sys.stderr)
         return 2
-    update_manifest(version_dir, look=record.model_copy(update={"agent": [*(record.agent or []), *accepted]}))
-    print(f"recorded {len(accepted)} findings")
+    merged = list(record.agent or [])
+    added = 0
+    for finding in accepted:
+        if not any(_same_finding(finding, known) for known in merged):
+            merged.append(finding)
+            added += 1
+    if added or record.agent is None:
+        update_manifest(version_dir, look=record.model_copy(update={"agent": merged}))
+    print(f"recorded {added} findings")
     return 0
 
 
