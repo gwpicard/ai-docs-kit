@@ -7,7 +7,7 @@ import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -27,6 +27,9 @@ from ai_docs_kit.section_command import add_section_commands, run_section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
 from ai_docs_kit.theme.rules import load_theme_rules
+
+if TYPE_CHECKING:
+    from ai_docs_kit.store import LookFinding
 
 MIN_PYTHON = (3, 12)
 
@@ -241,7 +244,7 @@ def _ready(args: argparse.Namespace) -> int:
     return 0
 
 
-def _read_pages(version_dir: Path) -> list[dict]:
+def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
     pages_path = version_dir / "pages" / "pages.json"
     try:
         pages = json.loads(pages_path.read_text(encoding="utf-8"))["pages"]
@@ -272,7 +275,7 @@ def _look_pages(version_dir: Path) -> int:
     return 0
 
 
-def _same_finding(a, b) -> bool:
+def _same_finding(a: "LookFinding", b: "LookFinding") -> bool:
     return (a.page, a.section, a.severity, a.message) == (b.page, b.section, b.severity, b.message)
 
 
