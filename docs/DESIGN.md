@@ -38,6 +38,9 @@ components fitted to the brand, from the brand's guidelines, templates and appro
 | S7 | **No version reaches a person unlooked-at.** A version is marked sent only when its look record has no open error. | The same guarantee as the engine's ship gate, extended to the look agent. |
 | S8 | **Formatting never round-trips.** Bold, colour, a resized box or a moved shape in a review copy is read as intent, never copied. | The brand cannot leak out through the review loop. |
 | S9 | **Brand-neutral.** No third-party brand names, logos, fonts or images ship. | A neutral theme with an open-licensed font is the showcase. |
+| S10 | **Two layers: the plugin and the person's layer.** The plugin (engine, skills, agents, component library, neutral theme) is shared code, replaced on every update. The person's layer (brand folder, preferences, working files, versions) is data the plugin reads. | An update never loses what a person built. See section 10. |
+| S11 | **Skills are read-only in use.** A skill never edits plugin files and never changes the engine during a session. | Behaviour changes through the person's layer or through an issue and pull request here, never through a local edit an update would wipe. |
+| S12 | **A repeated correction is recorded, not patched.** It becomes a rule, a preference or an upstream issue. | The kit learns from use the same way it learns from comments (section 7). |
 
 ## 3. Skills and agents
 
@@ -165,3 +168,53 @@ Caches and the render kit live under the plugin's data folder, never in the proj
 * A web interface, a browser editor, hosted collaboration, accounts.
 * Exporting the deliverable as Office files. The editable copy is a review surface.
 * A model call made by the engine or by a skill outside the session's Claude.
+
+## 10. What the person owns and what the plugin owns
+
+People build their own brand, rules and habits by using the skills. None of that may live in the
+plugin, because Claude Code replaces the plugin's files on every update.
+
+### 10.1 The plugin's layer
+
+The engine package and its command, the three skills, their agents, the component library, the
+neutral theme and the engine's own rule catalogue. It is installed into Claude Code's plugin folder,
+versioned, and replaced as a whole on update. It is read-only in use: no skill or agent writes there,
+and a session never changes engine code. A new capability (an output, a component, a rule kind)
+reaches the engine as an issue and a pull request on this repository, built and tested like any other.
+
+### 10.2 The person's layer
+
+Everything the person grows lives in their project folder and is theirs:
+
+* the brand folder, `.brand/<slug>/` by default (the `brand` skill's `--root` points elsewhere): the
+  materials, the theme (tokens, voice, rules, each with its source), the rulebook with the rules
+  learned from comments, and later the brand's own components;
+* `preferences.md` in the brand folder: how the person wants the skills to work, in their own words
+  and dated;
+* the working files and versions of section 8.
+
+A brand belongs to a project folder by default. A person who uses one brand across many projects keeps
+it in one place and points each project at it with `--root`.
+
+### 10.3 Changing behaviour without editing the plugin
+
+The skills read the brand's rulebook and `preferences.md` before their first step. When a person
+corrects the same behaviour twice, the skill offers to record it in one of three places:
+
+| The correction is... | Example | Recorded as |
+|---|---|---|
+| checkable on the page or the source | "never say 'leverage'", "charts start at zero" | a rule, through the rule flow of section 7, on probation |
+| a way of working | "ask me before redrafting the summary" | a dated line in `preferences.md` |
+| an improvement for everyone | a missing check, a better outline step | an issue on this repository, drafted for the person to send |
+
+A person may still write their own skill. Plugin skills are namespaced, so theirs sits beside ours
+under its own name instead of replacing it. That is supported but carries no guarantee across updates.
+
+### 10.4 Updates
+
+An update replaces the plugin's layer and never writes in the person's layer, with one exception: a
+format migration the person runs. The brand folder records its format version; the engine reads the
+current version and the one before; `ai-docs-kit doctor` reports an older folder and names the command
+that upgrades it, and the upgrade keeps a copy of what it replaced and writes an entry to the brand's
+log.
+

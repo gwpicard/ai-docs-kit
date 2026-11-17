@@ -20,7 +20,8 @@ def _field_finding(ctx: CheckContext, rule: Rule, section: Section, field: str, 
         {
             term
             for term in banned
-            if any(re.search(_term_pattern(term), text, re.IGNORECASE) for text in _texts(section, field))
+            if term.strip()
+            and any(re.search(_term_pattern(term), text, re.IGNORECASE) for text in _texts(section, field))
         }
     )
     if not terms:
@@ -59,7 +60,8 @@ def _terminology_finding(
         (avoid, term.preferred)
         for term in terminology
         for avoid in term.avoid
-        if any(re.search(_term_pattern(avoid), text, re.IGNORECASE) for text in _texts(section, field))
+        if avoid.strip()
+        and any(re.search(_term_pattern(avoid), text, re.IGNORECASE) for text in _texts(section, field))
     )
     if not matches:
         return None

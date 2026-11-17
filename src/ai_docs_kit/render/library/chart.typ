@@ -27,18 +27,23 @@
           let low = spec.scale.min
           el("chart-plot", sec.id, {
             if kind == "bar" {
-              let rows = ()
+              let groups = ()
               for (i, category) in categories.enumerate() {
+                let rows = ()
                 for (j, s) in series.enumerate() {
                   let value = s.values.at(i, default: 0)
-                  rows.push(block(height: if categories.len() * series.len() <= 8 { 30pt } else { 18pt }, grid(columns: (120pt, plot-w * (calc.min(0, value) - low) / span, plot-w * calc.abs(value) / span), align: horizon, gutter: 0pt,
-                    el("chart-label", sec.id, field: "data.categories[" + str(i) + "]", str(category)),
+                  let row-h = if categories.len() * series.len() <= 8 { 30pt } else { 18pt }
+                  rows.push(block(height: row-h, grid(columns: (plot-w * (calc.min(0, value) - low) / span, plot-w * calc.abs(value) / span), align: top, gutter: 0pt,
                     [],
-                    el("chart-mark", sec.id, field: "data.series[" + str(j) + "].values[" + str(i) + "]", rect(width: plot-w * calc.abs(value) / span, height: 12pt, fill: chart-role(s.colour.palette, s.colour.index), stroke: none)),
+                    pad(top: (row-h - 12pt) / 2, el("chart-mark", sec.id, field: "data.series[" + str(j) + "].values[" + str(i) + "]", rect(width: plot-w * calc.abs(value) / span, height: 12pt, fill: chart-role(s.colour.palette, s.colour.index), stroke: none))),
                   )))
                 }
+                groups.push(grid(columns: (120pt, auto), align: top, gutter: 0pt,
+                  context pad(top: calc.round((rows.len() * rows.first().height - measure(str(category)).height) / 1pt / 2) * 1pt, el("chart-label", sec.id, field: "data.categories[" + str(i) + "]", str(category))),
+                  stack(dir: ttb, spacing: 0pt, ..rows),
+                ))
               }
-              stack(dir: ttb, spacing: 0pt, ..rows)
+              stack(dir: ttb, spacing: 0pt, ..groups)
             } else {
               let slot = plot-w / calc.max(1, categories.len())
               let count = calc.max(1, series.len())
@@ -55,15 +60,17 @@
               })
               let labels = ()
               for (i, category) in categories.enumerate() {
-                for s in series {
-                  labels.push(el("chart-label", sec.id, field: "data.categories[" + str(i) + "]", rotate(90deg, reflow: true, str(category))))
-                }
+                let turned = rotate(90deg, reflow: true, str(category))
+                labels.push(context pad(left: (slot - measure(turned).width) / 2, el("chart-label", sec.id, field: "data.categories[" + str(i) + "]", turned)))
               }
-              pad(left: 100pt, grid(columns: (slot / count,) * labels.len(), ..labels))
+              pad(left: 100pt - slot * 0.3 / (2 * count), grid(columns: (slot,) * labels.len(), ..labels))
             }
           })
           if spec.legend {
-            el("chart-legend", sec.id, series.map(s => s.name).join("   "))
+            el("chart-legend", sec.id, stack(dir: ltr, spacing: 14pt, ..series.map(s => stack(dir: ltr, spacing: 4pt,
+              box(width: 8pt, height: 8pt, fill: chart-role(s.colour.palette, s.colour.index), stroke: none),
+              s.name,
+            ))))
           }
         }
         if source-line != "" {
