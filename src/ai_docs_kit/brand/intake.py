@@ -116,10 +116,22 @@ def _entry(brand: Path, path: Path) -> MaterialEntry:
     parts = relative.parts
     role = cast(Role, parts[1] if len(parts) > 2 and parts[1] in MATERIAL_CLASSES else "unsorted")
     kind = _file_type(path)
-    data = path.read_bytes()
     pages: int | None = None
     fmt: Format | None = None
     unread = None
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return MaterialEntry(
+            path=relative.as_posix(),
+            role=role,
+            type=kind,
+            sha256="",
+            size=0,
+            pages=None,
+            format=None,
+            unread="Could not read this file",
+        )
     if kind == "pdf":
         pages, fmt, unread = _pdf(path)
     elif kind in ("pptx", "potx", "docx", "dotx"):
