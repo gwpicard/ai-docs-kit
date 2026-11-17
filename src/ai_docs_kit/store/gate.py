@@ -1,5 +1,7 @@
 """Deterministic readiness checks for stored versions."""
 
+from datetime import UTC, datetime
+
 from pydantic import TypeAdapter
 
 from ai_docs_kit.model import Finding
@@ -20,6 +22,32 @@ def ship_gate(version: Version) -> list[str]:
     findings = TypeAdapter(list[Finding]).validate_json((version.path / "findings.json").read_bytes())
     if any(f.tier == "semantic" and f.severity == "error" and f.corroborated is not True for f in findings):
         reasons.append("unacknowledged vision findings")
+    return reasons
+
+
+def sent_gate(version: Version) -> list[str]:
+    look = version.manifest.look
+    if look is None or look.agent is None:
+        return ["no look entry"]
+    errors = sum(f.severity == "error" for f in look.agent)
+    return [f"{errors} look errors"] if errors else []
+
+
+def mark_sent(version: Version, to: str, *, force: bool = False, reason: str | None = None) -> list[str]:
+    if force and (reason is None or not reason.strip()):
+        raise ValueError("--force requires a non-blank --reason")
+    reasons = sent_gate(version)
+    if reasons and not force:
+        return reasons
+    manifest = version.manifest
+    changes = {
+        "state": "sent",
+        "sent_to": [*manifest.sent_to, to],
+        "sent_on": [*manifest.sent_on, datetime.now(UTC).strftime("%Y-%m-%d")],
+    }
+    if reasons:
+        changes["forced_reason"] = reason
+    update_manifest(version.path, **changes)
     return reasons
 
 
