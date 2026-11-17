@@ -334,6 +334,9 @@ def _sent(args: argparse.Namespace) -> int:
     if args.version_dir is None or args.to is None:
         print("sent needs a version folder and --to, or --latest", file=sys.stderr)
         return 2
+    if not args.to.strip():
+        print("--to must name a recipient", file=sys.stderr)
+        return 2
     if (args.force and (args.reason is None or not args.reason.strip())) or (
         args.reason is not None and not args.force
     ):
