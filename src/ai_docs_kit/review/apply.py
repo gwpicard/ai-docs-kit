@@ -5,8 +5,10 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 from ai_docs_kit.model import Document, Patch, PatchOp, Section
+from ai_docs_kit.render.marks import FIELD_PATTERN, FieldError, field_value
 from ai_docs_kit.review.plan import ReviewPlan, StructureItem
 from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev
 from ai_docs_kit.source.ids import IdStore
@@ -53,35 +55,94 @@ def _load_doc(path: Path) -> Document:
     return doc
 
 
-def _sent_paragraphs(path: Path, number: int) -> dict[str, str]:
+def _sent_props(path: Path, number: int) -> dict[str, dict[str, Any]]:
     composition = path.parent / f"{path.stem}.versions" / f"v{number}" / "composition.json"
     try:
         data = json.loads(composition.read_text(encoding="utf-8"))
-        return {
-            s["id"]: "\n\n".join(s["props"].get("paragraphs", []))
-            for s in data["sections"]
-            if isinstance(s.get("id"), str)
-        }
+        return {s["id"]: dict(s["props"]) for s in data["sections"] if isinstance(s.get("id"), str)}
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise ApplyError(f"{composition}: cannot read the sent version: {' '.join(str(error).split())}", 2) from error
 
 
-def _decisions(plan: ReviewPlan) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
-    """The wording, proposals and redraft asks the person accepted, by section id."""
-    wording: dict[str, str] = {}
-    proposals: dict[str, str] = {}
-    asks: dict[str, str] = {}
-    for section_id, item in plan.sections.items():
-        if item.wording:
-            wording[section_id] = item.wording
-        for comment in item.confirm:
-            if comment.accepted is not True:
-                continue
-            if comment.action == "apply" and comment.proposal:
-                proposals[section_id] = comment.proposal
-            elif comment.action == "redraft":
-                asks[section_id] = comment.ask or comment.text
-    return wording, proposals, asks
+def _words(value: Any) -> str:
+    return _norm(value if isinstance(value, str) else "\n\n".join(value) if isinstance(value, list) else "")
+
+
+def _field_text(holder: Any, field: str) -> str | None:
+    try:
+        return _words(field_value(holder, field))
+    except FieldError:
+        return None
+
+
+def _target(section: Section, field: str) -> str:
+    """The field a box path stands for; a `text` box holds a section's loose words."""
+    if field != "text":
+        return field
+    if section.title:
+        return "title"
+    if section.paragraphs and not section.items:
+        return "paragraphs"
+    raise ApplyError(f"{section.id}: the loose text box cannot be matched to one field")
+
+
+def _set_field(section: Section, field: str, text: str) -> Section:
+    """Return a copy of the section with the text of one field path replaced."""
+    field = _target(section, field)
+    if field == "paragraphs":
+        return section.model_copy(update={"paragraphs": _paragraphs(text)}, deep=True)
+    if not FIELD_PATTERN.fullmatch(field) or field.startswith(("image", "data")):
+        raise ApplyError(f"{section.id}: the field {field} cannot be applied")
+    new = section.model_copy(deep=True)
+    tokens = [(n, int(i) if i else None) for n, i in re.findall(r"([a-z_]+)|\[(\d+)\]", field)]
+    holder: Any = new
+    for position, (name, index) in enumerate(tokens):
+        last = position == len(tokens) - 1
+        try:
+            if index is not None:
+                if last:
+                    holder[index] = text
+                else:
+                    holder = holder[index]
+            elif last:
+                setattr(holder, name, text)
+            else:
+                holder = getattr(holder, name)
+        except (IndexError, AttributeError, TypeError) as error:
+            raise ApplyError(f"{section.id}: the working file has no field {field}") from error
+    return new
+
+
+class _Decisions:
+    """What the person accepted, by section id."""
+
+    def __init__(self, plan: ReviewPlan) -> None:
+        self.wording: dict[str, str] = {}
+        self.fields: dict[str, dict[str, str]] = {}
+        self.proposals: dict[str, str] = {}
+        self.asks: dict[str, str] = {}
+        for section_id, item in plan.sections.items():
+            if item.wording:
+                self.wording[section_id] = item.wording
+            if item.fields:
+                self.fields[section_id] = item.fields
+            for comment in item.confirm:
+                if comment.accepted is not True:
+                    continue
+                if comment.action == "apply" and comment.proposal:
+                    self.proposals[section_id] = comment.proposal
+                elif comment.action == "redraft":
+                    self.asks[section_id] = comment.ask or comment.text
+
+    def paragraph_words(self, section_id: str) -> str | None:
+        return self.proposals.get(section_id) or self.wording.get(section_id)
+
+    def rewritten(self) -> list[str]:
+        return [
+            *self.wording,
+            *(s for s in self.proposals if s not in self.wording),
+            *(s for s in self.fields if s not in self.wording and s not in self.proposals),
+        ]
 
 
 def _accepted_structure(plan: ReviewPlan) -> list[StructureItem]:
@@ -105,30 +166,34 @@ def _move_ops(order: list[str], wanted: list[str]) -> tuple[list[PatchOp], list[
     return ops, moved
 
 
-def _replace(old: Section, words: str) -> PatchOp:
-    new = old.model_copy(update={"paragraphs": _paragraphs(words), "owner": "human"}, deep=True)
-    return PatchOp(op="replace_section", section_id=old.id or "", value=new)
+def _stale(by_id: dict[str | None, Section], sent: dict[str, dict[str, Any]], decided: _Decisions) -> list[str]:
+    """Touched sections whose words in the working file differ from the sent version."""
+    stale: set[str] = set()
+    for section_id in {*decided.wording, *decided.proposals, *decided.asks}:
+        props = sent.get(section_id, {})
+        if _words(props.get("paragraphs")) != _words(by_id[section_id].paragraphs):
+            stale.add(section_id)
+    for section_id, fields in decided.fields.items():
+        for field in fields:
+            target = _target(by_id[section_id], field)
+            before, now = _field_text(sent.get(section_id, {}), target), _field_text(by_id[section_id], target)
+            if before is not None and before != now:
+                stale.add(section_id)
+    return sorted(stale)
 
 
 def apply_plan(path: Path, plan_path: Path) -> dict[str, list[str]]:
     plan = _load_plan(plan_path)
     doc = _load_doc(path)
-    by_id = {s.id: s for s in doc.sections if s.id}
-    wording, proposals, asks = _decisions(plan)
+    by_id = {s.id: s for s in doc.sections}
+    decided = _Decisions(plan)
     structure = _accepted_structure(plan)
     deletes = [i.section for i in structure if i.kind == "delete" and i.section]
-    touched = [*wording, *proposals, *asks, *deletes]
+    touched = [*decided.rewritten(), *decided.asks, *deletes]
     unknown = sorted({s for s in touched if s not in by_id})
     if unknown:
         raise ApplyError(f"the plan names sections the working file does not have: {', '.join(unknown)}")
-    sent = _sent_paragraphs(path, plan.sent_version)
-    changed = sorted(
-        {
-            s
-            for s in touched
-            if _norm("\n\n".join(by_id[s].paragraphs)) != _norm(sent.get(s, "\n\n".join(by_id[s].paragraphs)))
-        }
-    )
+    changed = _stale(by_id, _sent_props(path, plan.sent_version), decided)
     if changed:
         raise ApplyError(
             f"the working file changed since version v{plan.sent_version} was sent in: {', '.join(changed)}; "
@@ -136,11 +201,20 @@ def apply_plan(path: Path, plan_path: Path) -> dict[str, list[str]]:
         )
     ops: list[PatchOp] = []
     applied: list[str] = []
-    for section_id in [*wording, *(s for s in proposals if s not in wording)]:
-        ops.append(_replace(by_id[section_id], proposals.get(section_id) or wording[section_id]))
+    for section_id in decided.rewritten():
+        new = by_id[section_id]
+        words = decided.paragraph_words(section_id)
+        if words:
+            new = new.model_copy(update={"paragraphs": _paragraphs(words)}, deep=True)
+        for field, text in decided.fields.get(section_id, {}).items():
+            new = _set_field(new, field, text)
+        new.owner = "human"
+        ops.append(PatchOp(op="replace_section", section_id=section_id, value=new))
         applied.append(section_id)
-    redrafted = [s for s in asks if s not in deletes]
-    ops.extend(PatchOp(op="set_attr", section_id=s, fields={"name": "redraft", "value": asks[s]}) for s in redrafted)
+    redrafted = [s for s in decided.asks if s not in deletes]
+    ops.extend(
+        PatchOp(op="set_attr", section_id=s, fields={"name": "redraft", "value": decided.asks[s]}) for s in redrafted
+    )
     ops.extend(PatchOp(op="delete_section", section_id=s) for s in deletes)
     order = [s.id for s in doc.sections if s.id and s.id not in deletes]
     moved: list[str] = []

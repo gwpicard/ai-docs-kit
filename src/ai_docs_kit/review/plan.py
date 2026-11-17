@@ -22,6 +22,8 @@ class CommentItem(_Model):
     action: Literal["apply", "redraft", "skip"] | None = Field(default=None, description="What accepting does.")
     proposal: str | None = Field(default=None, description="The new wording of the section, for apply.")
     ask: str | None = Field(default=None, description="The redraft ask to write on the section, for redraft.")
+    slide: int | None = Field(default=None, description="The slide number (1-based, sent order), for a deck comment.")
+    shape: str | None = Field(default=None, description="The shape name the comment is attached to, if any.")
 
 
 class Emphasis(_Model):
@@ -33,6 +35,9 @@ class Emphasis(_Model):
 class SectionPlan(_Model):
     wording: str | None = Field(description="The applied wording of the section, null when it is unchanged.")
     owner: Literal["human"] | None = Field(description="human when a reviewer wrote the wording.")
+    fields: dict[str, str] = Field(
+        default_factory=dict, description="The applied text of each changed field, by field path (decks)."
+    )
     confirm: list[CommentItem] = Field(default_factory=list)
     emphasis: list[Emphasis] = Field(default_factory=list)
 
