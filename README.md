@@ -20,4 +20,4 @@ like the slides, or a Word document with the text.
 - The design is in [`docs/DESIGN.md`](docs/DESIGN.md); the engine underneath is in [`docs/ENGINE.md`](docs/ENGINE.md).
 - The decisions every change follows are in [`PLAN.md`](PLAN.md).
 
-Licensed under Apache-2.0.
+Licensed under the MIT License.

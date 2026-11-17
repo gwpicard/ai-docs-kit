@@ -2806,7 +2806,7 @@ silent change to anything a person has not been able to inspect.
 | 6 | Adaptive: observe, propose, build extensions, learn over time (20) | 2026-11-02 |
 | 7 | Claude required; PDF-only output; neutral open theme ships | earlier |
 | 8 | Name: doclo | 2026-11-03 |
-| 9 | Licence: **Apache-2.0** (confirmed); copyright holder Guillaume Picard; personal GitHub account `gwpicard` | 2026-11-03 |
+| 9 | Licence: **Apache-2.0** (confirmed; replaced by MIT on 2026-11-17, see `docs/decisions.md`); copyright holder Guillaume Picard; personal GitHub account `gwpicard` | 2026-11-03 |
 | 10 | Contributions: **DCO** (`Signed-off-by`), no CLA | 2026-11-03 |
 | 11 | LibreOffice is **required only when Office files are uploaded**; the UI prompts to install it at that point (7.8.1) | 2026-11-03 |
 | 12 | Git history is a **separate hidden git dir** (`.docla/git`); spike S7 verifies coexistence with a project's own repo (19.1) | 2026-11-03 |
