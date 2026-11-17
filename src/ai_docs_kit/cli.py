@@ -329,9 +329,6 @@ def _sent(args: argparse.Namespace) -> int:
     if args.version_dir is None or args.to is None:
         print("sent needs a version folder and --to, or --latest", file=sys.stderr)
         return 2
-    if not args.to.strip():
-        print("--to must name a recipient", file=sys.stderr)
-        return 2
     try:
         reasons = mark_sent(load_version(args.version_dir), args.to, force=args.force, reason=args.reason)
     except (OSError, ValueError) as error:
