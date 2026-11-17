@@ -1,6 +1,7 @@
 """Deterministic readiness checks for stored versions."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import TypeAdapter
 
@@ -40,7 +41,7 @@ def mark_sent(version: Version, to: str, *, force: bool = False, reason: str | N
     if reasons and not force:
         return reasons
     manifest = version.manifest
-    changes = {
+    changes: dict[str, Any] = {
         "state": "sent",
         "sent_to": [*manifest.sent_to, to],
         "sent_on": [*manifest.sent_on, datetime.now(UTC).strftime("%Y-%m-%d")],
