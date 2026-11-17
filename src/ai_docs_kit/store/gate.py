@@ -52,6 +52,8 @@ def check_force_reason(force: bool, reason: str | None) -> None:
 
 def mark_sent(version: Version, to: str, *, force: bool = False, reason: str | None = None) -> list[str]:
     check_force_reason(force, reason)
+    if not to.strip():
+        raise ValueError("--to must name a recipient")
     reasons = sent_gate(version)
     if reasons and not force:
         return reasons
