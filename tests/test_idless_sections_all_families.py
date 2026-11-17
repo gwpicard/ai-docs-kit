@@ -100,7 +100,7 @@ CASES = {
         lambda: _doc(
             "slides",
             _bullets("A", items=_cited("Sales rose 99.")),
-            _bullets("B", items=_cited("Sales rose 98.")),
+            _bullets("B", items=_cited("Costs rose 99.")),
         ),
         {"source_facts": [Fact(text="Sales rose 12.", source_key="S1", kind="number")]},
     ),
