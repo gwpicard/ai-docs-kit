@@ -19,7 +19,7 @@ from ai_docs_kit.cli import main
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NS = {"w": W}
-SCHEMA = Path(__file__).resolve().parents[1] / "docs" / "schemas" / "ReviewPlan.schema.json"
+SCHEMA = Path(__file__).resolve().parents[1] / "docs" / "schemas" / "review" / "ReviewPlan.schema.json"
 
 SOURCE = """---
 doctype: report
@@ -414,11 +414,11 @@ def test_an_oversized_part_is_refused(work, capsys):
 
 def test_too_many_entries_are_refused(work, capsys):
     copy = _copy(work)
-    with zipfile.ZipFile(copy, "a") as archive:
+    shutil.copyfile(copy, work / "many.docx")
+    with zipfile.ZipFile(work / "many.docx", "a") as archive:
         for number in range(20000):
             archive.writestr(f"extra/{number}.txt", b"x")
     _plan(work, _copy(work), capsys)
-    shutil.copyfile(copy, work / "many.docx")
     assert _run(["review", "read", str(work / "many.docx")]) == 2
     assert "Traceback" not in capsys.readouterr().err
 
