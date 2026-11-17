@@ -83,11 +83,11 @@ def test_force_overrides_unlooked_pages(version, tmp_path):
     assert _state(version) == "sent"
 
 
-def test_findings_run_twice_append(version, tmp_path):
+def test_findings_run_twice_does_not_duplicate(version, tmp_path):
     page = json.loads((version / "pages" / "pages.json").read_text())["pages"][0]
     item = {"severity": "info", "rule": "r", "page": 1, "section": page["sections"][0], "message": "m"}
     file = tmp_path / "one.json"
     file.write_text(json.dumps([item]))
     for _ in range(2):
         assert main(["look", str(version), "--findings", str(file)]) == 0
-    assert len(json.loads((version / "manifest.json").read_text())["look"]["agent"]) == 2
+    assert len(json.loads((version / "manifest.json").read_text())["look"]["agent"]) == 1

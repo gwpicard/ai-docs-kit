@@ -162,7 +162,11 @@ def _part(part: Any) -> str:
 
 
 def _theme(master: Any, warnings: list[str]) -> tuple[list[TemplateColour], list[TemplateFont]]:
-    part = master.part.part_related_by(RT.THEME)
+    try:
+        part = master.part.part_related_by(RT.THEME)
+    except KeyError:
+        warnings.append("no theme")
+        return [], []
     location = _part(part)
     colours, theme_warnings = theme_colours(part.blob, location)
     warnings.extend(theme_warnings)
@@ -499,8 +503,11 @@ def read_templates(brand: Path) -> TemplateReport:
             try:
                 reader = read_docx if entry.type in ("docx", "dotx") else read_pptx
                 templates.append(reader(brand / entry.path, entry.path))
-            except Exception as error:
-                unread.append(UnreadTemplate(file=entry.path, reason=str(error) or type(error).__name__))
+            except TemplateError as error:
+                unread.append(UnreadTemplate(file=entry.path, reason=str(error)))
+            except Exception:
+                reason = f"{Path(entry.path).name} is not a readable Office file"
+                unread.append(UnreadTemplate(file=entry.path, reason=reason))
     report = TemplateReport(templates=templates, unread=unread)
     destination = brand / "theme/ingest/templates.json"
     destination.parent.mkdir(parents=True, exist_ok=True)

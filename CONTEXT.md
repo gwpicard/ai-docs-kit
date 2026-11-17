@@ -40,3 +40,6 @@ The words the skills add, used the same way in skills, agents, code and docs:
 - *Review copy*: An editable copy that came back from a reviewer, with edits, tracked changes or comments.
 - *Review plan*: The engine's reading of a review copy: wording applied per section, and the items that need the person's yes (comments, deletions, reorders, unplaced text).
 - *Redraft*: An ask written on a section (`redraft=`) that the `write-section` agent carries out from the section's own facts. A comment redrafts; it is never pasted in.
+- *Plugin layer*: The engine, skills, agents, component library and neutral theme as installed. Shared, read-only in use, replaced on every update.
+- *Person's layer*: What the person owns and grows: the brand folder (theme, rulebook, `preferences.md`), working files and versions. The plugin reads it and an update never writes it, except a migration the person runs.
+- *Preferences*: The person's own instructions for how the skills work, kept dated in `preferences.md` in the brand folder. The skills read them before their first step.
