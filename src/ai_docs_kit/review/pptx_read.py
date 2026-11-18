@@ -123,7 +123,7 @@ def _modern(
         text = "\n".join(_paragraphs(body)) if body is not None else ""
         marker = node.find(f".//{_q(AC, 'spMk')}")
         shape = names.get(marker.get("id") or "") if marker is not None else None
-        who = authors.get(node.get("authorId") or "", "")
+        who = authors.get(node.get("authorId") or "")
         identifier = node.get("id")
         anchor = [shape] if shape else []
         found.append(DeckComment(who, text.strip(), anchor, slide=number, shape=shape, id=identifier))
