@@ -22,7 +22,10 @@ def hashed_name(section_id: str) -> str:
 
 
 def bookmark_name(section_id: str) -> str:
-    """A Word-valid bookmark name that is distinct ignoring case (Word compares names that way): the id itself when it is lowercase and Word accepts it, else a reversible encoding, else a short hash.
+    """A Word-valid bookmark name, distinct from every other id's name when compared ignoring case.
+
+    It is the id itself when the id is lowercase and Word accepts it, else a reversible encoding
+    (uppercase letters escaped), else a short hash.
 
     A hashed name (`Xh_` plus a hash) cannot be reversed; the copy stores the map to the id.
     """
