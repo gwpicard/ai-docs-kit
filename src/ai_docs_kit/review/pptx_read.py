@@ -109,7 +109,7 @@ def _legacy(archive: zipfile.ZipFile, label: str, part: str, authors: dict[str, 
     for node in root.iter(_q(P, "cm")) if root is not None else []:
         text = node.find(_q(P, "text"))
         who = authors.get(node.get("authorId") or "", "")
-        found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], number))
+        found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], slide=number))
     return found
 
 
@@ -125,7 +125,8 @@ def _modern(
         shape = names.get(marker.get("id") or "") if marker is not None else None
         who = authors.get(node.get("authorId") or "", "")
         identifier = node.get("id")
-        found.append(DeckComment(who, text.strip(), [shape] if shape else [], number, shape, identifier))
+        anchor = [shape] if shape else []
+        found.append(DeckComment(who, text.strip(), anchor, slide=number, shape=shape, id=identifier))
         for reply in node.iterfind(f"{_q(P188, 'replyLst')}/{_q(P188, 'reply')}"):
             reply_body = reply.find(_q(P188, "txBody"))
             reply_text = "\n".join(_paragraphs(reply_body)) if reply_body is not None else ""
@@ -134,11 +135,11 @@ def _modern(
                 DeckComment(
                     reply_who,
                     reply_text.strip(),
-                    [shape] if shape else [],
-                    number,
-                    shape,
-                    reply.get("id"),
-                    identifier,
+                    anchor,
+                    slide=number,
+                    shape=shape,
+                    id=reply.get("id"),
+                    reply_to=identifier,
                 )
             )
     return found
