@@ -14,6 +14,7 @@ from ai_docs_kit.loop.micro import LoopContext, SectionWriter, write_section
 from ai_docs_kit.model import Document, Patch, PatchOp, Section
 from ai_docs_kit.render.compose import component_for
 from ai_docs_kit.source.parser import parse
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme
 
 
@@ -31,7 +32,7 @@ def load_cases(folder: Path) -> list[HealCase]:
     data = yaml.safe_load((folder / "cases.yaml").read_text())
     cases = []
     for entry in data["cases"]:
-        document, findings = parse((folder / entry["file"]).read_text())
+        document, findings = parse(read_source(folder / entry["file"]))
         if any(f.severity == "error" for f in findings):
             raise ValueError(f"Invalid case: {entry['id']}")
         cases.append(HealCase(**entry, document=document))

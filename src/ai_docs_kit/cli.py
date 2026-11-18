@@ -28,6 +28,7 @@ from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError,
 from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_section_commands, run_section
 from ai_docs_kit.source.parser import parse
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
@@ -100,7 +101,7 @@ def _out_dir(file: Path, out: Path | None) -> Path:
 
 def _parse(file: Path) -> tuple[Document, list[Finding]]:
     try:
-        text = file.read_text(encoding="utf-8-sig")
+        text = read_source(file)
     except UnicodeDecodeError as error:
         raise _BuildFailed(f"{file}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
     doc, findings = parse(text)

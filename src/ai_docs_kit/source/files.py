@@ -8,6 +8,7 @@ from ai_docs_kit.model import Document, Patch
 from ai_docs_kit.source.ids import IdStore, stamp
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import FactGuard, PatchRejected, apply_patch, inverse_ops
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.source.serialiser import serialise
 
 UNPARSEABLE_RULES = ("source.parse-error", "source.appearance-in-source")
@@ -56,7 +57,7 @@ def _append_log(
 
 
 def _parse_editable(path: Path) -> Document:
-    doc, findings = parse(path.read_bytes().decode("utf-8"))
+    doc, findings = parse(read_source(path))
     broken = sorted({f.rule_id for f in findings if f.rule_id in UNPARSEABLE_RULES})
     if broken:
         raise PatchRejected("unparseable", f"{path.name} cannot be edited safely: {', '.join(broken)}")

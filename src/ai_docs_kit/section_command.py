@@ -10,6 +10,7 @@ from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_r
 from ai_docs_kit.source.ids import IdStore
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import PatchRejected
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.source.serialiser import _section
 
 
@@ -43,7 +44,7 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
 def _load(path: Path) -> Document:
     if not path.is_file():
         raise _Refused(f"{path}: no such working file", 2)
-    doc, findings = parse(path.read_bytes().decode("utf-8", errors="replace"))
+    doc, findings = parse(read_source(path, errors="replace"))
     broken = sorted({f.rule_id for f in findings if f.rule_id in UNPARSEABLE_RULES})
     if broken:
         raise _Refused(f"{path}: cannot be read safely: {', '.join(broken)}", 2)
@@ -86,7 +87,7 @@ def _get(doc: Document, section_id: str) -> int:
 def _replacement(path: Path) -> Section:
     if not path.is_file():
         raise _Refused(f"{path}: no such file", 2)
-    doc, _ = parse(path.read_bytes().decode("utf-8", errors="replace"))
+    doc, _ = parse(read_source(path, errors="replace"))
     if len(doc.sections) != 1:
         raise _Refused(f"{path}: must hold exactly one section block, found {len(doc.sections)}")
     return doc.sections[0]
