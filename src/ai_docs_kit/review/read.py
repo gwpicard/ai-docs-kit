@@ -200,7 +200,13 @@ def build_deck_plan(sent: DeckText, copy: DeckText, number: int, name: str) -> R
             number_in_sent = sent.slide_of[owner]
             sections[owner].confirm.append(
                 CommentItem(
-                    author=comment.author, text=comment.text, anchor=anchor, slide=number_in_sent, shape=comment.shape
+                    author=comment.author,
+                    text=comment.text,
+                    anchor=anchor,
+                    slide=number_in_sent,
+                    shape=comment.shape,
+                    id=comment.id,
+                    reply_to=comment.reply_to,
                 )
             )
         else:

@@ -20,7 +20,7 @@ def _q(tag: str) -> str:
 
 @dataclass
 class Comment:
-    author: str
+    author: str | None
     text: str
     anchor: list[str] = field(default_factory=list)
 

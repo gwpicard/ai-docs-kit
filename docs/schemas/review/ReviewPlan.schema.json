@@ -53,8 +53,29 @@
           "title": "Ask"
         },
         "author": {
-          "title": "Author",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The commenter; null when the file does not name them.",
+          "title": "Author"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The comment's id in the file, for a modern deck comment.",
+          "title": "Id"
         },
         "kind": {
           "const": "comment",
@@ -74,6 +95,19 @@
           "default": null,
           "description": "The new wording of the section, for apply.",
           "title": "Proposal"
+        },
+        "reply_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The id of the comment this one replies to, if a reply.",
+          "title": "Reply To"
         },
         "shape": {
           "anyOf": [

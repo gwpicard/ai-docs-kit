@@ -25,6 +25,8 @@ Hint = tuple[str, str, str | None]
 class DeckComment(Comment):
     slide: int = 0
     shape: str | None = None
+    id: str | None = None
+    reply_to: str | None = None
 
 
 @dataclass
@@ -122,7 +124,23 @@ def _modern(
         marker = node.find(f".//{_q(AC, 'spMk')}")
         shape = names.get(marker.get("id") or "") if marker is not None else None
         who = authors.get(node.get("authorId") or "", "")
-        found.append(DeckComment(who, text.strip(), [shape] if shape else [], number, shape))
+        identifier = node.get("id")
+        found.append(DeckComment(who, text.strip(), [shape] if shape else [], number, shape, identifier))
+        for reply in node.iterfind(f"{_q(P188, 'replyLst')}/{_q(P188, 'reply')}"):
+            reply_body = reply.find(_q(P188, "txBody"))
+            reply_text = "\n".join(_paragraphs(reply_body)) if reply_body is not None else ""
+            reply_who = authors.get(reply.get("authorId") or "")
+            found.append(
+                DeckComment(
+                    reply_who,
+                    reply_text.strip(),
+                    [shape] if shape else [],
+                    number,
+                    shape,
+                    reply.get("id"),
+                    identifier,
+                )
+            )
     return found
 
 
