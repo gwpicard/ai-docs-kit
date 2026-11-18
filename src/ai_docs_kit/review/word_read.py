@@ -30,10 +30,20 @@ class Comment:
 class WordText:
     order: list[str] = field(default_factory=list)
     paragraphs: dict[str, list[str]] = field(default_factory=dict)
+    items: dict[str, list[str]] = field(default_factory=dict)
     emphasis: dict[str, list[tuple[str, str, str | None]]] = field(default_factory=dict)
     comments: list[tuple[str | None, Comment]] = field(default_factory=list)
     unplaced: list[tuple[str | None, str]] = field(default_factory=list)
     tracked: bool = False
+
+
+def _is_list_item(node: etree._Element) -> bool:
+    props = node.find(_q("pPr"))
+    if props is None:
+        return False
+    style = props.find(_q("pStyle"))
+    name = (style.get(_q("val")) or "") if style is not None else ""
+    return name.startswith("List") or props.find(_q("numPr")) is not None
 
 
 def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool, kind: str = "Word") -> bytes | None:
@@ -104,6 +114,7 @@ class _Walker:
         self.buffer: list[str] = []
         self.hints: list[tuple[str, str, str | None]] = []
         self.last: str | None = None
+        self.listing: str | None = None
 
     def current(self) -> str | None:
         return next(iter(self.open.values()), None)
@@ -150,8 +161,13 @@ class _Walker:
         self._children(node)
         text = "".join(self.buffer).strip()
         section = self.touched[0] if self.touched else None
+        listed = _is_list_item(node)
+        if section is None and listed and text:
+            section = self.listing
+        self.listing = section if listed and section is not None else None
         if text and section is not None:
-            self.result.paragraphs.setdefault(section, []).append(text)
+            target = self.result.items if listed else self.result.paragraphs
+            target.setdefault(section, []).append(text)
         elif text:
             self.result.unplaced.append((self.last, text))
         if section is not None:
