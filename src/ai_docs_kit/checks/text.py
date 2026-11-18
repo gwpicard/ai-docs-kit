@@ -12,7 +12,8 @@ VOICE_FIELDS = ("title", "items", "paragraphs", "spoken")
 
 
 def _term_pattern(term: str) -> str:
-    """Word boundaries apply only at an edge that is a word character."""
+    """Word boundaries apply only at an edge that is a word character; padding is ignored."""
+    term = term.strip()
     start = r"\b" if re.match(r"\w", term) else ""
     end = r"\b" if re.search(r"\w$", term) else ""
     return start + re.escape(term) + end
