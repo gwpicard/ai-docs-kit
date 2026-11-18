@@ -124,8 +124,12 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
             structure.append(StructureItem(kind="unplaced", text=text, after=follows))
     for owner, comment in copy.comments:
         anchor = _norm("".join(comment.anchor))
+        spans = [name for name in comment.spans if name in sections]
         if owner in sections:
-            sections[owner].confirm.append(CommentItem(author=comment.author, text=comment.text, anchor=anchor))
+            spans = spans or [owner]
+            for name in spans:
+                note = CommentItem(author=comment.author, text=comment.text, anchor=anchor, spans=spans)
+                sections[name].confirm.append(note)
         else:
             structure.append(
                 StructureItem(
