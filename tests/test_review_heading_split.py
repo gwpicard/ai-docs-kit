@@ -27,7 +27,7 @@ Alpha keeps its original wording here.
 ## Beta
 
 Beta
- 
+
 Beta holds a second line for the note.
 :::
 """
@@ -120,7 +120,7 @@ def test_a_first_paragraph_that_repeats_the_title_is_kept(tmp_path, capsys):
     assert beta.get("title") is None
     section = _apply(tmp_path, plan, capsys)["beta01"]
     assert section.title == "Beta"
-    assert section.paragraphs == ["Beta", "Beta holds a second closing line for the note."]
+    assert section.paragraphs == ["Beta", "Beta holds a closing line for the note."]
 
 
 def test_a_plan_with_a_title_keeps_a_body_paragraph_equal_to_the_old_title(tmp_path, capsys):
