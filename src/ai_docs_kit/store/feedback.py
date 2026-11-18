@@ -11,7 +11,7 @@ from pathlib import Path
 
 from ai_docs_kit.model import DEFAULT_PERSON, Feedback, FeedbackState
 from ai_docs_kit.render.marks import FIELD_PATTERN
-from ai_docs_kit.source import parse
+from ai_docs_kit.source import parse, read_source
 
 _LOCK = threading.Lock()
 
@@ -67,7 +67,7 @@ def add_feedback(
     if not text:
         raise FeedbackError("empty-text", "A comment needs text")
     if section_id is not None:
-        document, _ = parse(doc_path.read_text(encoding="utf-8"))
+        document, _ = parse(read_source(doc_path))
         if section_id not in {s.id for s in document.sections}:
             raise FeedbackError("unknown-section", f"Unknown section: {section_id}")
     if field is not None:
