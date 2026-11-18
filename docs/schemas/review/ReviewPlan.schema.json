@@ -101,6 +101,14 @@
           "description": "The slide number (1-based, sent order), for a deck comment.",
           "title": "Slide"
         },
+        "spans": {
+          "description": "The ids of every section the comment's range overlaps, in document order; each copy carries all.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
         "text": {
           "title": "Text",
           "type": "string"
