@@ -34,6 +34,9 @@ def brand_path(slug: str, root: Path | None = None) -> Path:
     return path
 
 
+PREFERENCES = "\n\n".join(f"## {name}" for name in ("All skills", "brand", "create", "review")) + "\n"
+
+
 def _populate(path: Path, slug: str) -> None:
     for folder in [*(f"materials/{name}" for name in MATERIAL_CLASSES), "theme/fonts", "reports"]:
         directory = path / folder
@@ -41,6 +44,7 @@ def _populate(path: Path, slug: str) -> None:
         (directory / ".gitkeep").touch()
     info = {"name": slug, "version": "0.1.0", "formats": ["slides", "doc"]}
     (path / "theme/theme.yaml").write_text(yaml.safe_dump(info, sort_keys=False, default_flow_style=None))
+    (path / "preferences.md").write_text(PREFERENCES)
     (path / ".gitignore").write_text("reports/*/.ai_docs_kit/\n")
 
 
