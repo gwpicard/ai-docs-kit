@@ -47,8 +47,15 @@ def _family(font: str) -> str:
 
 
 def _is_turned(words: list[PlacedWord]) -> bool:
-    """A label turned a quarter: the facts give one word per letter, stacked in one column."""
-    return len(words) > 1 and all(abs(w.box.x0 - words[0].box.x0) < 1 and w.box.y0 >= words[0].box.y0 for w in words)
+    """A label turned a quarter: the facts give one single-letter word per letter, stacked in one column.
+
+    Ordinary text wrapped to one word per line stacks the same way, so the letters decide.
+    """
+    return (
+        len(words) > 1
+        and all(len(w.text) == 1 for w in words)
+        and all(abs(w.box.x0 - words[0].box.x0) < 1 and w.box.y0 >= words[0].box.y0 for w in words)
+    )
 
 
 def _turned_text(words: list[PlacedWord]) -> str:
