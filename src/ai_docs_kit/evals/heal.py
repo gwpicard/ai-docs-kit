@@ -54,10 +54,10 @@ class ScriptedWriter:
     def __init__(self, case: HealCase):
         self.case = case
 
-    async def draft(self, job: Any) -> Section:
+    async def draft(self, job: Any) -> Section:  # noqa: ARG002 - fixed by the draft protocol
         return self.case.document.sections[0]
 
-    async def repair(self, job: Any, state: Any, history: Any, *, strategy: str | None = None) -> Patch:
+    async def repair(self, job: Any, state: Any, history: Any, *, strategy: str | None = None) -> Patch:  # noqa: ARG002 - fixed by the repair protocol
         return Patch(
             base_rev=self.case.document.rev,
             author="ai",

@@ -119,7 +119,7 @@ class FactGuard:
         self.unsupported: list[str] = []
         self.resolved: dict[str, list[str]] = {}
 
-    def __call__(self, doc: Document, section: Section) -> bool:
+    def __call__(self, doc: Document, section: Section) -> bool:  # noqa: ARG002 - fixed by the guard protocol
         calculations = [
             calculation
             for line in (section.note or "").splitlines()
