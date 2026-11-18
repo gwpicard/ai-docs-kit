@@ -1,6 +1,5 @@
 """Read a Word file into per-section text, comments and emphasis; the archive is treated as hostile."""
 
-import re
 import zipfile
 import zlib
 from dataclasses import dataclass, field
@@ -8,33 +7,15 @@ from pathlib import Path
 
 from lxml import etree  # type: ignore[import-untyped]
 
+from ai_docs_kit.bookmark_names import is_hashed, section_of
+from ai_docs_kit.store.stamp import read_custom_properties
+
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 MAX_ENTRIES = 2000
 MAX_PART = 32 << 20
 MAX_TOTAL = 128 << 20
 SKIPPED = {"del", "moveFrom", "delText", "instrText"}
 PARSER_OPTIONS = {"resolve_entities": False, "no_network": True, "load_dtd": False, "huge_tree": False}
-
-
-ENCODED = "Xenc_"
-PLAIN_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,39}")
-
-
-def bookmark_name(section_id: str) -> str:
-    """A Word-valid bookmark name for a section id: the id itself when Word accepts it, else a reversible encoding."""
-    if PLAIN_NAME.fullmatch(section_id) and not section_id.startswith(ENCODED):
-        return section_id
-    body = "".join(c if c.isascii() and c.isalnum() else "__" if c == "_" else f"_x{ord(c):x}_" for c in section_id)
-    return ENCODED + body
-
-
-def section_of(name: str) -> str:
-    """The section id a bookmark name stands for; a name not made by `bookmark_name` is returned as it is."""
-    if not name.startswith(ENCODED):
-        return name
-    return re.sub(
-        r"__|_x([0-9a-f]+)_", lambda m: "_" if m.group(1) is None else chr(int(m.group(1), 16)), name[len(ENCODED) :]
-    )
 
 
 def _q(tag: str) -> str:
@@ -129,8 +110,11 @@ def _read_comments(root: etree._Element | None) -> dict[str, Comment]:
 
 
 class _Walker:
-    def __init__(self, sections: set[str] | None, comments: dict[str, Comment]) -> None:
+    def __init__(
+        self, sections: set[str] | None, comments: dict[str, Comment], stored: dict[str, str] | None = None
+    ) -> None:
         self.known = sections
+        self.stored = stored or {}
         self.result = WordText()
         self.comments = comments
         self.open: dict[str, str] = {}
@@ -222,7 +206,10 @@ class _Walker:
                 self.result.tracked = True
                 self._children(child)
             elif tag == "bookmarkStart":
-                name = section_of(child.get(_q("name")) or "")
+                raw = child.get(_q("name")) or ""
+                name = section_of(raw, self.stored)
+                if is_hashed(raw) and raw not in self.stored:
+                    continue
                 if self.known is None or name in self.known:
                     self.open[identifier] = name
                     self._start(name)
@@ -259,7 +246,7 @@ def read_word(path: Path, sections: set[str] | None = None) -> WordText:
     """
     document, notes = _open(path)
     comments = _read_comments(notes)
-    walker = _Walker(sections, comments)
+    walker = _Walker(sections, comments, read_custom_properties(path))
     walker._children(document)
     result = walker.result
     return result

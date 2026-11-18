@@ -112,7 +112,12 @@ same layout facts the checks read. A reviewer who retypes a bullet edits one nam
 ### 5.2 Word
 
 Headings, paragraphs and lists, in section order. Each section sits inside a bookmark named by its
-id. A table, chart or figure becomes one line: `[Table 2: <title>]`. Fonts and colours come from the
+id. Word accepts only names of at most 40 letters, digits and `_` that start with a letter, so
+`bookmark_names.py` keeps a valid id as it is, writes any other id as `Xenc_` plus an escape (`__` for
+`_`, `_x<hex>_` for another character) and, when that runs past 40 characters, as `Xh_` plus a hash of
+the id. The copy stores the map from each `Xh_` name to its id in its custom document properties, so
+a copy that travels alone still reads back; `review read` reports text under an `Xh_` name missing
+from the map as `unplaced`. A table, chart or figure becomes one line: `[Table 2: <title>]`. Fonts and colours come from the
 theme's tokens; nothing else is styled.
 
 ## 6. The review round trip

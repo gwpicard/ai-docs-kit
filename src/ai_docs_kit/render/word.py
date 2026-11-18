@@ -9,8 +9,9 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import RGBColor
 
+from ai_docs_kit.bookmark_names import bookmark_name, is_hashed
 from ai_docs_kit.render.compose import ComposedSection, Composition
-from ai_docs_kit.review.word_read import bookmark_name
+from ai_docs_kit.store.stamp import add_docx_properties
 from ai_docs_kit.theme import Theme
 
 LABELS = {
@@ -80,13 +81,17 @@ def write_docx(path: Path, *, comp: Composition, theme: Theme) -> Path:
     _style(document, "List Bullet", families[scale["body"].family], roles["ink"])
     _style(document, "Heading 1", families[scale["h1"].family], roles["ink"])
     numbers: dict[str, int] = {}
+    stored: dict[str, str] = {}
     for number, section in enumerate(comp.sections, 1):
         paragraphs = [document.add_paragraph(_clean(text), style=style) for style, text in _lines(section, numbers)]
         if not paragraphs:
             paragraphs = [document.add_paragraph("")]
-        paragraphs[0]._p.insert(
-            1 if paragraphs[0]._p.pPr is not None else 0, _bookmark("bookmarkStart", number, bookmark_name(section.id))
-        )
+        name = bookmark_name(section.id)
+        if is_hashed(name):
+            stored[name] = section.id
+        paragraphs[0]._p.insert(1 if paragraphs[0]._p.pPr is not None else 0, _bookmark("bookmarkStart", number, name))
         paragraphs[-1]._p.append(_bookmark("bookmarkEnd", number))
     document.save(str(path))
+    if stored:
+        add_docx_properties(path, stored)
     return path

@@ -2,7 +2,7 @@
 
 import pytest
 
-from ai_docs_kit.review.word_read import bookmark_name, section_of
+from ai_docs_kit.bookmark_names import bookmark_name, section_of
 
 
 @pytest.mark.parametrize("section_id", ["beta01", "my-section", "a_b", "_x2d_", "1st", "Xenc_a", "é"])
