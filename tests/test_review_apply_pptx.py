@@ -94,12 +94,30 @@ def test_a_loose_text_box_edit_lands_in_the_title(work, capsys):
     assert _sections(work)["statement"].title == "A sharper direction"
 
 
-def test_a_field_changed_since_sending_is_refused_naming_the_section(work, capsys):
+def test_a_field_changed_since_sending_is_applied_naming_the_section(work, capsys):
     plan = _plan(work, {"cover/paragraphs[0]": "A reworded deck line."}, capsys)
     path = work / "deck.md"
     path.write_text(path.read_text().replace("A short deck", "An edited deck"), encoding="utf-8")
-    before = path.read_bytes()
     code = _run(["review", "apply", str(path), "--plan", str(plan)])
-    err = capsys.readouterr().err
-    assert code == 1 and "cover" in err
-    assert path.read_bytes() == before
+    out = capsys.readouterr().out
+    assert code == 0
+    assert any(line.startswith("changed since v") and "cover" in line for line in out.splitlines())
+    assert "A reworded deck line." in path.read_text()
+
+
+def test_an_unchanged_section_with_items_prints_no_changed_line(work, capsys):
+    plan = _plan(work, {"agenda/items[1].body": "Compare the three options"}, capsys)
+    code = _run(["review", "apply", str(work / "deck.md"), "--plan", str(plan)])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "changed since" not in out
+
+
+def test_an_items_edit_since_sending_is_named(work, capsys):
+    plan = _plan(work, {"agenda/items[1].body": "Compare the three options"}, capsys)
+    path = work / "deck.md"
+    path.write_text(path.read_text().replace("Discuss next steps", "Discuss the plan"), encoding="utf-8")
+    code = _run(["review", "apply", str(path), "--plan", str(plan)])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "changed since v1: agenda (items)" in out.splitlines()
