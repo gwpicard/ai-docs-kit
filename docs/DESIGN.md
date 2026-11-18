@@ -35,7 +35,7 @@ components fitted to the brand, from the brand's guidelines, templates and appro
 | S4 | **The Word copy is the text.** Headings, paragraphs and lists, with a one-line reference in place of each table, chart or figure. | Reviewers comment on wording, which is what a document review is about. No attempt at page fidelity. |
 | S5 | **Checks run on every build, never on request.** There is no separate check skill. | A version cannot reach a person without its look record. |
 | S6 | **The session's Claude is the model.** Skills and agents make no API calls of their own. | No API key, no cassettes on the skill path. The engine stays deterministic. |
-| S7 | **No version reaches a person unlooked-at.** A version is marked sent only when its look record has no open error. | The same guarantee as the engine's ship gate, extended to the look agent. |
+| S7 | **No version reaches a person unlooked-at.** A version is handed over with its look summary line, which names every open error and every page not looked at. | The person is never told a version is clean when it is not: the summary line states the open errors and the unlooked pages plainly. |
 | S8 | **Formatting never round-trips.** Bold, colour, a resized box or a moved shape in a review copy is read as intent, never copied. | The brand cannot leak out through the review loop. |
 | S9 | **Brand-neutral.** No third-party brand names, logos, fonts or images ship. | A neutral theme with an open-licensed font is the showcase. |
 | S10 | **Two layers: the plugin and the person's layer.** The plugin (engine, skills, agents, component library, neutral theme) is shared code, replaced on every update. The person's layer (brand folder, preferences, working files, versions) is data the plugin reads. | An update never loses what a person built. See section 10. |
@@ -50,8 +50,8 @@ when it reaches that stage.
 | Skill | Does |
 |---|---|
 | `brand` | Reads guidelines, templates and approved examples; drafts tokens, voice and rules, each with its source; asks the person to confirm only what was inferred rather than read; writes the brand folder. Wraps the engine's existing `brand` commands. |
-| `create` | Survey or resume; name the document type; gather facts with sources; agree the outline (the one stop); draft through agents; build; look at every page and fix what was found, at most two rounds; mark the version sent. |
-| `review` | Read a review copy; compare it with the sent version by section; apply wording; classify comments; ask once for the structural items; redraft; rebuild through the same look; propose rules from lasting preferences; mark the next version sent. |
+| `create` | Survey or resume; name the document type; gather facts with sources; agree the outline (the one stop); draft through agents; build; look at every page and fix what was found, at most two rounds; give the person the PDF, the editable copy and the look summary line. |
+| `review` | Read a review copy; compare it with the version it was built from by section; apply wording; classify comments; ask once for the structural items; redraft; rebuild through the same look; propose rules from lasting preferences; give the person the next version with its look summary line. |
 
 | Step | Who | Why |
 |---|---|---|
@@ -88,8 +88,8 @@ The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit 
 version's look record. The skill fixes what was found and rebuilds, at most twice, then reports what
 remains by section.
 
-`ai-docs-kit sent <version> --to <who>` refuses while the look record has an open error or a page that
-was not looked at.
+The skill gives the person the PDF, the editable copy and the summary line of `look`, which names any
+open error and any page not looked at.
 
 ## 5. The editable copies
 
@@ -117,12 +117,12 @@ theme's tokens; nothing else is styled.
 
 ## 6. The review round trip
 
-`ai-docs-kit review read <review-copy>` finds the working file and the sent version the copy came
+`ai-docs-kit review read <review-copy>` finds the working file and the version the copy came
 from, reads it, and writes a review plan.
 
 | The reviewer did | Detected by | Becomes |
 |---|---|---|
-| Rewrote text inside a section | bookmark (Word) or shape name (PowerPoint); diff against the sent copy | The wording is applied; the section's text becomes `owner="human"` |
+| Rewrote text inside a section | bookmark (Word) or shape name (PowerPoint); diff against the copy it was built from | The wording is applied; the section's text becomes `owner="human"` |
 | Left a comment | comment anchor mapped to a section | A confirm item; the agent proposes `apply` (the comment is the wording), `redraft` (an ask) or `restructure` |
 | Deleted a slide or a section | section id missing | A structural confirm item |
 | Reordered | id sequence differs | A structural confirm item |
@@ -137,7 +137,7 @@ and, when given, a shape.
 
 `ai-docs-kit review apply <name>.md --plan <decided.json>` applies wording, writes `redraft=` asks,
 applies the structural items the person accepted, and prints what it touched. It refuses when the
-working file changed since the sent version in a section the plan touches, and says which.
+working file changed since the version the copy came from in a section the plan touches, and says which. It also reports sections that changed since then or went missing.
 
 A section with `owner="human"` is never rewritten by an agent. A redrafted section stays agent-owned
 and carries `because="redrafted for <who> at v<N>: <the ask>"`.
