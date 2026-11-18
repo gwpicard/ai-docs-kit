@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, get_args
 
 from ai_docs_kit.facts.layout import LayoutFacts
-from ai_docs_kit.model import Box, Document, Finding, Rule
+from ai_docs_kit.model import Box, Document, Finding, Rule, Section
 from ai_docs_kit.model.rules import Severity, Tier
 from ai_docs_kit.render.compose import Composition
 from ai_docs_kit.theme import Theme
@@ -97,6 +97,22 @@ def _page_size(ctx: CheckContext, page: int | None) -> tuple[float, float] | Non
     return (chosen.width, chosen.height)
 
 
+def section_key(section: Section, index: int) -> str:
+    """The id of a section, or `section-<index>` when it has none."""
+    return section.id if section.id is not None else f"section-{index}"
+
+
+def finding_key(section: Section, index: int, detail: str | None = None) -> str | None:
+    """The `key` for a finding about one section; `detail` tells apart several findings in it.
+
+    A section with an id is already told apart by `section_id`, so it keeps `detail` alone.
+    """
+    if section.id is not None:
+        return detail
+    key = section_key(section, index)
+    return key if detail is None else f"{key}:{detail}"
+
+
 def make_finding(
     rule: Rule,
     ctx: CheckContext,
@@ -111,7 +127,7 @@ def make_finding(
     key: str | None = None,
 ) -> Finding:
     fp = fingerprint(rule.id, section_id, role, region, _page_size(ctx, page), key=key)
-    return Finding(
+    finding = Finding(
         id=_sha1(f"{rule.id}|{section_id}|{fp}")[:12],
         rule_id=rule.id,
         tier=rule.tier,
@@ -126,6 +142,8 @@ def make_finding(
         fingerprint=fp,
         remedy=rule.remedy,
     )
+    finding._key = key
+    return finding
 
 
 def _applies(rule: Rule, ctx: CheckContext) -> bool:
@@ -147,6 +165,13 @@ def _tiers_to_run(ctx: CheckContext) -> tuple[Tier, ...]:
     return tuple(tier for tier in TIERS if tier != "pixel" or ctx.pages_png)
 
 
+def _owner(finding: Finding) -> str | None:
+    """The section key a finding is about: its section id, or the `section-<index>` its key starts with."""
+    if finding.section_id is not None or finding._key is None:
+        return finding.section_id
+    return finding._key.split(":", 1)[0]
+
+
 def _in_scope(finding: Finding, rule: Rule, ctx: CheckContext) -> bool:
     scope = rule.scope
     if scope.components is not None and (
@@ -155,7 +180,7 @@ def _in_scope(finding: Finding, rule: Rule, ctx: CheckContext) -> bool:
     ):
         return False
     if scope.intents is not None and not any(
-        s.id is not None and s.id == finding.section_id and s.intent in scope.intents for s in ctx.doc.sections
+        section_key(s, i) == _owner(finding) and s.intent in scope.intents for i, s in enumerate(ctx.doc.sections)
     ):
         return False
     return True
@@ -180,8 +205,9 @@ def run_checks(rules: list[Rule], ctx: CheckContext) -> list[Finding]:
             for f in _on_probation(rule, check.run(ctx, rule))
             if _in_scope(f, rule, ctx)
         ]
-        kept = [f for f in produced if f.section_id not in blocked]
-        blocked |= {f.section_id for f in kept if f.severity == "error"}
+        # Block by owning section, so id-less sections do not share the key None; document-level findings block nothing.
+        kept = [f for f in produced if _owner(f) is None or _owner(f) not in blocked]
+        blocked |= {_owner(f) for f in kept if f.severity == "error"}
         findings.extend(kept)
     return _unique(findings)
 

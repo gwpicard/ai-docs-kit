@@ -2,7 +2,7 @@ import re
 from collections.abc import Iterator
 from typing import Any
 
-from ai_docs_kit.checks.engine import CheckContext, make_finding, register
+from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register
 from ai_docs_kit.checks.source import PROVENANCE
 from ai_docs_kit.model import Finding, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
@@ -42,8 +42,9 @@ class GapPresent:
                 section_id=section.id,
                 measured={"gaps": gaps},
                 severity="error" if ctx.final else "warning",
+                key=finding_key(section, index),
             )
-            for section in ctx.doc.sections
+            for index, section in enumerate(ctx.doc.sections)
             if (gaps := _section_gaps(section))
         ]
 

@@ -1,4 +1,4 @@
-from ai_docs_kit.checks.engine import CheckContext, make_finding, register
+from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register
 from ai_docs_kit.checks.source import PROVENANCE
 from ai_docs_kit.model import Finding, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
@@ -7,7 +7,7 @@ from ai_docs_kit.render.compose import component_for
 
 
 def _findings(
-    ctx: CheckContext, rule: Rule, section: Section, component: str, manifest: ComponentManifest
+    ctx: CheckContext, rule: Rule, section: Section, component: str, manifest: ComponentManifest, index: int
 ) -> list[Finding]:
     findings = []
     for name, (_, maximum) in manifest.capacity.items():
@@ -24,6 +24,7 @@ def _findings(
                     section_id=section.id,
                     role=name,
                     measured={"measure": name, "value": value, "max": maximum},
+                    key=finding_key(section, index, name),
                 )
             )
     return findings
@@ -44,7 +45,7 @@ class Capacity:
                 else component_for(section, ctx.doc.format, index, total)
             )
             if component is not None and component in manifests:
-                findings.extend(_findings(ctx, rule, section, component, manifests[component]))
+                findings.extend(_findings(ctx, rule, section, component, manifests[component], index))
         return findings
 
 

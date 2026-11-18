@@ -263,7 +263,7 @@ async def run_write(
     run_dir = project / ".ai_docs_kit" / "write" / file.stem
     oplog = project / ".ai_docs_kit" / "oplog.jsonl"
     ids = IdStore(project / ".ai_docs_kit" / "ids.json")
-    doc, _ = parse(file.read_text())
+    doc, _ = parse(file.read_text(encoding="utf-8-sig"))
     if not approve:
         if doc.sections:
             _outline_output(file, doc)
@@ -335,7 +335,7 @@ async def run_write(
                 if s.owner != "human" and not s.lock and s.id not in summaries
             )
         )
-        updated, _ = parse(file.read_text())
+        updated, _ = parse(file.read_text(encoding="utf-8-sig"))
         macro_dir = out / "macro"
         if macro_dir.exists():
             shutil.rmtree(macro_dir)
