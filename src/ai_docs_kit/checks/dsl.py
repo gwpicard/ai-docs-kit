@@ -9,6 +9,7 @@ from ai_docs_kit.checks.engine import (
     finding_key,
     make_finding,
     register,
+    section_key,
 )
 from ai_docs_kit.facts.layout import PlacedShape, PlacedWord
 from ai_docs_kit.model import Finding, Rule, Section
@@ -92,8 +93,12 @@ def _section_value(values: dict[str, str], section_id: str | None) -> str | None
 
 
 def select(ctx: CheckContext, spec: dict[str, Any]) -> list[Selected]:
-    sections = {section.id: section.intent for section in ctx.doc.sections if section.id is not None}
-    components = {section.id: section.component for section in ctx.composition.sections} if ctx.composition else {}
+    sections = {section_key(section, i): section.intent for i, section in enumerate(ctx.doc.sections)}
+    composed = ctx.composition.sections if ctx.composition else []
+    components = {
+        section_key(section, i): c.component
+        for i, (section, c) in enumerate(zip(ctx.doc.sections, composed, strict=False))
+    }
     return [
         item
         for item in _selected(ctx, spec["kind"])

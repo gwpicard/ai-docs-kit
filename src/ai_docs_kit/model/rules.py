@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ai_docs_kit.model.source import Format
 from ai_docs_kit.model.text import NonBlank
@@ -70,6 +70,7 @@ class Finding(BaseModel):
     severity: Severity
     format: Format
     section_id: str | None = None
+    owner: str | None = None
     role: str | None = None
     page: int | None = None
     region: Box | None = None
@@ -80,4 +81,3 @@ class Finding(BaseModel):
     remedy: Remedy
     corroborated: bool | None = None
     confidence: float | None = None
-    _key: str | None = PrivateAttr(default=None)
