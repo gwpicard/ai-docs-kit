@@ -205,8 +205,9 @@ def run_checks(rules: list[Rule], ctx: CheckContext) -> list[Finding]:
             for f in _on_probation(rule, check.run(ctx, rule))
             if _in_scope(f, rule, ctx)
         ]
-        kept = [f for f in produced if f.section_id not in blocked]
-        blocked |= {f.section_id for f in kept if f.severity == "error"}
+        # Block by owning section, so id-less sections do not share the key None; document-level findings block nothing.
+        kept = [f for f in produced if _owner(f) is None or _owner(f) not in blocked]
+        blocked |= {_owner(f) for f in kept if f.severity == "error"}
         findings.extend(kept)
     return _unique(findings)
 
