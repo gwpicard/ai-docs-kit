@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 from ai_docs_kit.model.source import Format
 
@@ -79,3 +79,4 @@ class Finding(BaseModel):
     remedy: Remedy
     corroborated: bool | None = None
     confidence: float | None = None
+    _key: str | None = PrivateAttr(default=None)
