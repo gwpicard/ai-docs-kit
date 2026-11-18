@@ -1,6 +1,8 @@
 """Read a Word file into per-section text, comments and emphasis; the archive is treated as hostile."""
 
+import re
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -14,25 +16,57 @@ SKIPPED = {"del", "moveFrom", "delText", "instrText"}
 PARSER_OPTIONS = {"resolve_entities": False, "no_network": True, "load_dtd": False, "huge_tree": False}
 
 
+ENCODED = "Xenc_"
+PLAIN_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,39}")
+
+
+def bookmark_name(section_id: str) -> str:
+    """A Word-valid bookmark name for a section id: the id itself when Word accepts it, else a reversible encoding."""
+    if PLAIN_NAME.fullmatch(section_id) and not section_id.startswith(ENCODED):
+        return section_id
+    body = "".join(c if c.isascii() and c.isalnum() else "__" if c == "_" else f"_x{ord(c):x}_" for c in section_id)
+    return ENCODED + body
+
+
+def section_of(name: str) -> str:
+    """The section id a bookmark name stands for; a name not made by `bookmark_name` is returned as it is."""
+    if not name.startswith(ENCODED):
+        return name
+    return re.sub(
+        r"__|_x([0-9a-f]+)_", lambda m: "_" if m.group(1) is None else chr(int(m.group(1), 16)), name[len(ENCODED) :]
+    )
+
+
 def _q(tag: str) -> str:
     return f"{{{W}}}{tag}"
 
 
 @dataclass
 class Comment:
-    author: str
+    author: str | None
     text: str
     anchor: list[str] = field(default_factory=list)
+    spans: list[str] = field(default_factory=list)
 
 
 @dataclass
 class WordText:
     order: list[str] = field(default_factory=list)
     paragraphs: dict[str, list[str]] = field(default_factory=dict)
+    items: dict[str, list[str]] = field(default_factory=dict)
     emphasis: dict[str, list[tuple[str, str, str | None]]] = field(default_factory=dict)
     comments: list[tuple[str | None, Comment]] = field(default_factory=list)
     unplaced: list[tuple[str | None, str]] = field(default_factory=list)
     tracked: bool = False
+
+
+def _is_list_item(node: etree._Element) -> bool:
+    props = node.find(_q("pPr"))
+    if props is None:
+        return False
+    style = props.find(_q("pStyle"))
+    name = (style.get(_q("val")) or "") if style is not None else ""
+    return name.startswith("List") or props.find(_q("numPr")) is not None
 
 
 def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool, kind: str = "Word") -> bytes | None:
@@ -75,7 +109,7 @@ def _open(path: Path) -> tuple[etree._Element, etree._Element | None]:
             check_archive(archive, label)
             body = _part(archive, "word/document.xml", label, required=True)
             notes = _part(archive, "word/comments.xml", label, required=False)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError) as error:
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error) as error:
         raise ValueError(f"{label}: not a readable Word file ({error})") from None
     assert body is not None
     return _parse(body, label, "word/document.xml"), (_parse(notes, label, "word/comments.xml") if notes else None)
@@ -103,6 +137,7 @@ class _Walker:
         self.buffer: list[str] = []
         self.hints: list[tuple[str, str, str | None]] = []
         self.last: str | None = None
+        self.listing: str | None = None
 
     def current(self) -> str | None:
         return next(iter(self.open.values()), None)
@@ -120,6 +155,14 @@ class _Walker:
             self.result.order.append(name)
         if name not in self.touched:
             self.touched.append(name)
+        for identifier in self.ranges:
+            if identifier in self.comments:
+                self._span(self.comments[identifier], name)
+
+    @staticmethod
+    def _span(comment: Comment, name: str) -> None:
+        if name not in comment.spans:
+            comment.spans.append(name)
 
     def _run(self, node: etree._Element) -> None:
         text = "".join(t.text or "" for t in node.iter(_q("t")))
@@ -141,8 +184,13 @@ class _Walker:
         self._children(node)
         text = "".join(self.buffer).strip()
         section = self.touched[0] if self.touched else None
+        listed = _is_list_item(node)
+        if section is None and listed and text:
+            section = self.listing
+        self.listing = section if listed and section is not None else None
         if text and section is not None:
-            self.result.paragraphs.setdefault(section, []).append(text)
+            target = self.result.items if listed else self.result.paragraphs
+            target.setdefault(section, []).append(text)
         elif text:
             self.result.unplaced.append((self.last, text))
         if section is not None:
@@ -171,7 +219,7 @@ class _Walker:
                 self.result.tracked = True
                 self._children(child)
             elif tag == "bookmarkStart":
-                name = child.get(_q("name")) or ""
+                name = section_of(child.get(_q("name")) or "")
                 if self.known is None or name in self.known:
                     self.open[identifier] = name
                     self._start(name)
@@ -180,6 +228,9 @@ class _Walker:
             elif tag == "commentRangeStart":
                 self.ranges.add(identifier)
                 self._place(identifier)
+                if identifier in self.comments:
+                    for name in self.open.values():
+                        self._span(self.comments[identifier], name)
             elif tag == "commentRangeEnd":
                 self.ranges.discard(identifier)
             elif tag == "commentReference":
