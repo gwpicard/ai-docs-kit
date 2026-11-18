@@ -86,6 +86,10 @@ def _text(parts: WordText, section: str) -> str:
     return "\n\n".join(parts.paragraphs.get(section, []))
 
 
+def _items(parts: WordText, section: str) -> list[str]:
+    return [_norm(i) for i in parts.items.get(section, [])]
+
+
 def _present(parts: WordText, section: str) -> bool:
     return section in parts.order
 
@@ -96,11 +100,14 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
     changed = False
     for section in sent.order:
         before, after = _text(sent, section), _text(copy, section)
+        listed_before, listed_after = _items(sent, section), _items(copy, section)
         item = SectionPlan(wording=None, owner=None)
         if _present(copy, section) and after and _norm(before) != _norm(after):
             item.wording, item.owner = after, "human"
-        elif before and not after:
-            structure.append(StructureItem(kind="delete", section=section, text=before))
+        elif (before or listed_before) and not after and not listed_after:
+            structure.append(StructureItem(kind="delete", section=section, text=before or "\n".join(listed_before)))
+        if _present(copy, section) and (after or listed_after) and listed_before != listed_after:
+            item.items, item.owner = list(copy.items.get(section, [])), "human"
         seen = Counter((e[0], _norm(e[1]), e[2]) for e in sent.emphasis.get(section, []))
         for kind, text, value in copy.emphasis.get(section, []):
             key = (kind, _norm(text), value)
@@ -109,7 +116,7 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
             else:
                 item.emphasis.append(Emphasis(kind=kind, text=_norm(text), value=value))  # type: ignore[arg-type]
         sections[section] = item
-        changed = changed or bool(item.wording or item.emphasis)
+        changed = changed or bool(item.wording or item.emphasis or item.items is not None)
     placed = [s for s in sent.order if _present(copy, s)]
     order = [s for s in copy.order if s in placed]
     if order != placed:
@@ -225,6 +232,8 @@ def summary(plan: ReviewPlan, path: Path) -> list[str]:
         parts = []
         if item.wording or item.fields:
             parts.append("wording changed")
+        if item.items is not None:
+            parts.append("list items changed")
         if item.confirm:
             parts.append(f"{len(item.confirm)} comment(s)")
         if item.emphasis:
