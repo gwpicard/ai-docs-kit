@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -58,7 +59,11 @@ def _load_rule(path: Path) -> Rule:
 def _fires(rule: Rule, doc: Document, theme: Theme) -> list[str]:
     """The ids of the sections the rule fires on, whatever its own status."""
     probe = rule.model_copy(update={"status": "probation"})
-    findings = run_checks([probe], CheckContext(doc, theme=theme))
+    try:
+        findings = run_checks([probe], CheckContext(doc, theme=theme))
+    except (re.error, KeyError) as error:
+        detail = error.args[0] if isinstance(error, KeyError) and error.args else error
+        raise RuleError(f"{rule.id}: the check cannot run: {' '.join(str(detail).split())!r}", 2) from error
     return [f.section_id or "-" for f in findings]
 
 
