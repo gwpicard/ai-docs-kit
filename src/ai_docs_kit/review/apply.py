@@ -14,6 +14,7 @@ from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_r
 from ai_docs_kit.source.ids import IdStore
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import PatchRejected
+from ai_docs_kit.source.read import read_source
 
 
 class ApplyError(Exception):
@@ -48,7 +49,7 @@ def _load_plan(path: Path) -> ReviewPlan:
 def _load_doc(path: Path) -> Document:
     if not path.is_file():
         raise ApplyError(f"{path}: no such working file", 2)
-    doc, findings = parse(path.read_bytes().decode("utf-8", errors="replace"))
+    doc, findings = parse(read_source(path, errors="replace"))
     broken = sorted({f.rule_id for f in findings if f.rule_id in UNPARSEABLE_RULES})
     if broken:
         raise ApplyError(f"{path}: cannot be read safely: {', '.join(broken)}", 2)
