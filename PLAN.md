@@ -66,7 +66,7 @@ Added for this project:
 - Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
 - Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
-- A command that appends to a record (`sent_to`, `forced_reason`) needs a run-twice test.
+- A command that appends to a record needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback.
 - Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers.
 - `lxml` has no stubs under mypy strict (import with `# type: ignore[import-untyped]`); a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument.
@@ -120,3 +120,5 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 - Issue 124: `composition.json` now records each section's `intent` (`ComposedSection.intent`), since `rule test` had nothing to read; `rule test` falls back to `body` for older versions. A section's item heads and bodies are also offered as `paragraphs` in the example, because the locked test scopes a `paragraphs` rule to a bullets example whose words sit in `items`.
 - Issue 117: `replace_section` patches now record an inverse (the old section) in the oplog, so the words a `review apply` replaced stay in the history; the locked `test_review_apply.py` and `test_review_apply_pptx.py` staleness refusals now expect exit 0 and the `changed since` line.
 - Issue 170: a section id that Word rejects as a bookmark name (a hyphen, a leading digit, over 40 characters) is written as `Xenc_` plus an escape (`__` for `_`, `_x<hex>_` for other characters) and decoded by `read_word`; an id whose encoding runs past 40 characters is still too long for Word, since the reader has no other way to recover the id.
+- Issue 118: `Manifest` drops the old `state`, `sent_to`, `sent_on` and `forced_reason` keys with a before-validator, so older manifests still load although the model forbids extra keys. `update_manifest` accepts only `look`. The `look --findings` summary counts the engine's error findings plus the agent's errors. The person approved dropping `sent` steps from the fixtures and the `sent`/`ready` steps from `skills/create` and `skills/review`; the full skill and design rewrite stays in #119. `test_D4_ready_refuses_gap_and_accepts_clean` went with `ready`; `build --final` keeps the gap report (D1).
+- Issue 118: `test_tidy_delivery.py` still requires a Lessons line containing `run-twice`, so the line stays, reworded without `sent_to`.

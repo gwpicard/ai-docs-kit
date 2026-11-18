@@ -51,13 +51,12 @@ def test_D1_final_build_reports_gap_and_clean_gate(tmp_path, capsys):
     assert code == 1, out
     assert "not ready: 1 gaps" in out.splitlines()
     assert any(line.startswith("not ready: ") and line.endswith("error findings") for line in out.splitlines())
-    assert (manifest(version)["final"], manifest(version)["state"]) == (True, "draft")
+    assert manifest(version)["final"] is True
     (code, out, _), version = build(tmp_path / "clean", capsys)
     assert code == 0, out
     assert out.splitlines() == [str(tmp_path / "clean" / "out" / "deck.pdf"), str(version), "gate: passed"]
     assert manifest(version)["look"]["could_not"] == []
     assert manifest(version)["look"]["tiers"]["semantic"] == "skipped"
-    assert manifest(version)["state"] == "draft"
 
 
 def test_D2_ship_gate_evidence_and_reason_order(tmp_path, capsys):
@@ -111,32 +110,6 @@ def test_D2_ship_gate_evidence_and_reason_order(tmp_path, capsys):
     assert not any(reason.endswith(" gaps") for reason in reasons)
     corroborated = finding.model_copy(update={"corroborated": True})
     assert "unacknowledged vision findings" not in gate.ship_gate(write([corroborated], incomplete))
-
-
-def test_D3_force_requires_reason_and_records_it(tmp_path, capsys):
-    _, version = build(tmp_path, capsys, GAP)
-    path = version / "manifest.json"
-    assert path.is_file(), "final build must write a manifest"
-    before = path.read_bytes()
-    for extra in ([], ["--reason", "  "]):
-        code, _, err = run(["ready", str(version), "--force", *extra], capsys)
-        assert code == 2 and "--reason" in err
-        assert path.read_bytes() == before
-    code, out, _ = run(["ready", str(version), "--force", "--reason", "owner accepts the gap"], capsys)
-    assert code == 0 and out.splitlines() == ["ready (forced: owner accepts the gap)"]
-    assert (manifest(version)["state"], manifest(version)["forced_reason"]) == ("ready", "owner accepts the gap")
-
-
-def test_D4_ready_refuses_gap_and_accepts_clean(tmp_path, capsys):
-    _, refused = build(tmp_path / "gap", capsys, GAP)
-    code, out, _ = run(["ready", str(refused)], capsys)
-    assert code == 1
-    assert "not ready: 1 gaps" in out.splitlines()
-    assert manifest(refused)["state"] == "draft"
-    _, clean = build(tmp_path / "clean", capsys)
-    code, out, _ = run(["ready", str(clean)], capsys)
-    assert code == 0 and out.splitlines() == ["ready"]
-    assert (manifest(clean)["state"], manifest(clean)["forced_reason"]) == ("ready", None)
 
 
 def test_D5_plain_build_retains_output(tmp_path, capsys):

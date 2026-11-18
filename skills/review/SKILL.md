@@ -25,8 +25,7 @@ Before the first step, read the brand's rulebook and `preferences.md` (in `.bran
 4. Apply: write the decisions into the plan (`accepted`, `action`, `proposal` or `ask`) and run `ai-docs-kit review apply <working file> --plan <decided.json>`. It applies wording, writes the asks, applies the accepted structural items and prints what it touched. It refuses when the working file changed since that version, in a section the plan touches: report which sections and stop.
 5. Redraft: for each section that now carries a `redraft=` ask, write the new text through a `write-section` agent and `ai-docs-kit section put <file> <id> --from <block> --redraft-done`. Skip any section with `owner="human"`.
 6. Rebuild and look: run `ai-docs-kit build <working file>`, then have the `look` agent read every page and fix what it finds in at most two rounds, as the `create` skill does. Record the findings with `ai-docs-kit look <version> --findings <file>`.
-7. Mark sent: when the look record has no open error and every page was looked at, run `ai-docs-kit sent <version> --to <who>`. This is the only way a version is marked sent. Do not use `--force` unless the person says so and gives a reason, and then pass it as `--reason`.
-8. Report, in plain prose: what was applied, what was redrafted, what was declined, what is unplaced, the emphasis hints (never applied) and any rule proposed. Give the paths of the new PDF and editable copy.
+7. Report, in plain prose: any open error and any page not looked at (the summary line of `look --findings`), what was applied, what was redrafted, what was declined, what is unplaced, the emphasis hints (never applied) and any rule proposed. Give the paths of the new PDF and editable copy.
 
 ## Learning from comments
 

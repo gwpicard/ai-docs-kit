@@ -187,7 +187,7 @@ def _in_scope(finding: Finding, rule: Rule, ctx: CheckContext) -> bool:
 
 
 def _on_probation(rule: Rule, findings: list[Finding]) -> list[Finding]:
-    """A probation rule only warns, so it never blocks a build or `sent`."""
+    """A probation rule only warns, so it never blocks a build."""
     if rule.status != "probation":
         return findings
     return [f.model_copy(update={"severity": "warning"}) if f.severity == "error" else f for f in findings]
