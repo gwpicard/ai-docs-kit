@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from ai_docs_kit.brand.workspace import MATERIAL_CLASSES
 from ai_docs_kit.model.source import Format
+from ai_docs_kit.review.word_read import ARCHIVE_ERRORS
 
 Role = Literal["guidelines", "templates", "examples", "logos", "fonts", "notes", "unsorted"]
 FileType = Literal[
@@ -101,7 +102,7 @@ def _office(path: Path, kind: FileType) -> tuple[int | None, Format | None, str 
                 return int(pages) if pages is not None else None, fmt, None
             except KeyError:
                 return None, fmt, None
-    except (OSError, ValueError, RuntimeError, NotImplementedError, zipfile.BadZipFile, ElementTree.ParseError):
+    except (OSError, ValueError, ElementTree.ParseError, *ARCHIVE_ERRORS):
         return None, fmt, unreadable_office_reason(path.name)
 
 
