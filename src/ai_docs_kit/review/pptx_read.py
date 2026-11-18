@@ -3,13 +3,12 @@
 import posixpath
 import re
 import zipfile
-import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from lxml import etree  # type: ignore[import-untyped]
 
-from ai_docs_kit.review.word_read import Comment, _parse, _part, check_archive
+from ai_docs_kit.review.word_read import ARCHIVE_ERRORS, Comment, _parse, _part, check_archive
 
 P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 A = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -172,7 +171,7 @@ def read_deck(path: Path, sections: set[str] | None = None) -> DeckText:
         with zipfile.ZipFile(path) as archive:
             check_archive(archive, label)
             _read(archive, label, sections, result)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error) as error:
+    except ARCHIVE_ERRORS as error:
         raise ValueError(f"{label}: not a readable PowerPoint file ({error})") from None
     return result
 

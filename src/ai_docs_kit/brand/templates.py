@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from ai_docs_kit.brand.intake import unreadable_office_reason
 from ai_docs_kit.brand.pages import load_manifest
 from ai_docs_kit.model.source import Format
+from ai_docs_kit.review.word_read import ARCHIVE_ERRORS
 
 
 class TemplateBox(BaseModel):
@@ -153,8 +154,8 @@ def check_zip(path: Path) -> list[str]:
                     for rel in root:
                         if rel.get("TargetMode") == "External":
                             warnings.append(f"external link in {entry.filename}: {rel.get('Target')}")
-    except zipfile.BadZipFile as error:
-        raise TemplateError(f"Not a zip archive: {path}") from error
+    except ARCHIVE_ERRORS as error:
+        raise TemplateError(f"Not a readable zip archive: {path.name}") from error
     return warnings
 
 

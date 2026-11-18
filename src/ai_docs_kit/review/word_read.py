@@ -94,6 +94,9 @@ def _parse(data: bytes, label: str, name: str) -> etree._Element:
         raise ValueError(f"{label}: {name} cannot be read safely: {error}") from None
 
 
+ARCHIVE_ERRORS = (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error)
+
+
 def check_archive(archive: zipfile.ZipFile, label: str) -> None:
     infos = archive.infolist()
     if len(infos) > MAX_ENTRIES:
@@ -109,7 +112,7 @@ def _open(path: Path) -> tuple[etree._Element, etree._Element | None]:
             check_archive(archive, label)
             body = _part(archive, "word/document.xml", label, required=True)
             notes = _part(archive, "word/comments.xml", label, required=False)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error) as error:
+    except ARCHIVE_ERRORS as error:
         raise ValueError(f"{label}: not a readable Word file ({error})") from None
     assert body is not None
     return _parse(body, label, "word/document.xml"), (_parse(notes, label, "word/comments.xml") if notes else None)
