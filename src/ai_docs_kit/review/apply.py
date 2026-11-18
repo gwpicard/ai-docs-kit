@@ -166,23 +166,37 @@ def _move_ops(order: list[str], wanted: list[str]) -> tuple[list[PatchOp], list[
     return ops, moved
 
 
-def _stale(by_id: dict[str | None, Section], sent: dict[str, dict[str, Any]], decided: _Decisions) -> list[str]:
-    """Touched sections whose words in the working file differ from the sent version."""
-    stale: set[str] = set()
-    for section_id in {*decided.wording, *decided.proposals, *decided.asks}:
-        props = sent.get(section_id, {})
-        if _words(props.get("paragraphs")) != _words(by_id[section_id].paragraphs):
-            stale.add(section_id)
-    for section_id, fields in decided.fields.items():
-        for field in fields:
-            target = _target(by_id[section_id], field)
-            before, now = _field_text(sent.get(section_id, {}), target), _field_text(by_id[section_id], target)
-            if before is not None and before != now:
-                stale.add(section_id)
-    return sorted(stale)
+def _items_text(items: Any) -> str:
+    dumped = [i.model_dump(mode="json", exclude_none=True) if hasattr(i, "model_dump") else i for i in items or []]
+    return _norm(json.dumps(dumped, sort_keys=True))
 
 
-def apply_plan(path: Path, plan_path: Path) -> dict[str, list[str]]:
+def _changed_parts(
+    by_id: dict[str | None, Section], sent: dict[str, dict[str, Any]], decided: _Decisions
+) -> dict[str, list[str]]:
+    """Touched sections whose title, paragraphs, items or deck fields differ from the sent version, with the parts."""
+    changed: dict[str, list[str]] = {}
+    touched = {*decided.wording, *decided.proposals, *decided.asks, *decided.fields}
+    for section_id in sorted(touched):
+        props, section = sent.get(section_id, {}), by_id[section_id]
+        parts: list[str] = []
+        if "title" in props and _words(props["title"]) != _words(section.title):
+            parts.append("title")
+        if _words(props.get("paragraphs")) != _words(section.paragraphs):
+            parts.append("paragraphs")
+        if "items" in props and _items_text(props["items"]) != _items_text(section.items):
+            parts.append("items")
+        for field in decided.fields.get(section_id, {}):
+            target = _target(section, field)
+            before, now = _field_text(props, target), _field_text(section, target)
+            if before is not None and before != now and target not in parts:
+                parts.append(target)
+        if parts:
+            changed[section_id] = parts
+    return changed
+
+
+def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[str]]:
     plan = _load_plan(plan_path)
     doc = _load_doc(path)
     by_id = {s.id: s for s in doc.sections}
@@ -190,15 +204,16 @@ def apply_plan(path: Path, plan_path: Path) -> dict[str, list[str]]:
     structure = _accepted_structure(plan)
     deletes = [i.section for i in structure if i.kind == "delete" and i.section]
     touched = [*decided.rewritten(), *decided.asks, *deletes]
-    unknown = sorted({s for s in touched if s not in by_id})
-    if unknown:
-        raise ApplyError(f"the plan names sections the working file does not have: {', '.join(unknown)}")
-    changed = _stale(by_id, _sent_props(path, plan.version), decided)
-    if changed:
-        raise ApplyError(
-            f"the working file changed since version v{plan.version} was built: {', '.join(changed)}; "
-            "read the review copy again or settle those sections first"
-        )
+    missing = sorted({s for s in touched if s not in by_id})
+    for section_id in missing:
+        decided.wording.pop(section_id, None)
+        decided.fields.pop(section_id, None)
+        decided.proposals.pop(section_id, None)
+        decided.asks.pop(section_id, None)
+    deletes = [s for s in deletes if s in by_id]
+    changed = _changed_parts(by_id, _sent_props(path, plan.version), decided)
+    notes = [f"changed since v{plan.version}: {i} ({', '.join(parts)})" for i, parts in changed.items()]
+    notes.extend(f"missing: {i}" for i in missing)
     ops: list[PatchOp] = []
     applied: list[str] = []
     for section_id in decided.rewritten():
@@ -233,7 +248,7 @@ def apply_plan(path: Path, plan_path: Path) -> dict[str, list[str]]:
             apply_to_file(path, patch, oplog, IdStore(store / "ids.json"))
         except PatchRejected as error:
             raise ApplyError(str(error)) from error
-    return {"applied": applied, "redrafted": redrafted, "moved": moved, "deleted": deletes}
+    return {"applied": applied, "redrafted": redrafted, "moved": moved, "deleted": deletes}, notes
 
 
 def _simulate(order: list[str], ops: list[PatchOp]) -> list[str]:
@@ -246,7 +261,7 @@ def _simulate(order: list[str], ops: list[PatchOp]) -> list[str]:
 
 def run_apply(args: argparse.Namespace) -> int:
     try:
-        touched = apply_plan(args.file, args.plan)
+        touched, notes = apply_plan(args.file, args.plan)
     except ApplyError as error:
         print(error, file=sys.stderr)
         return error.code
@@ -254,5 +269,7 @@ def run_apply(args: argparse.Namespace) -> int:
         print(" ".join(str(error).split()), file=sys.stderr)
         return 2
     print(f"applied the plan to {args.file}")
+    for note in notes:
+        print(note)
     print("touched " + json.dumps(touched))
     return 0
