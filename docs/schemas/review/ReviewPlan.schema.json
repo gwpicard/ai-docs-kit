@@ -355,9 +355,9 @@
       "title": "Sections",
       "type": "object"
     },
-    "sent_version": {
-      "description": "The sent version the copy was compared with.",
-      "title": "Sent Version",
+    "version": {
+      "description": "The version the copy was compared with.",
+      "title": "Version",
       "type": "integer"
     },
     "warnings": {
@@ -369,7 +369,7 @@
     }
   },
   "required": [
-    "sent_version",
+    "version",
     "review_copy",
     "sections"
   ],
