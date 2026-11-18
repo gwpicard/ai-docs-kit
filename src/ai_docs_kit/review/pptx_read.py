@@ -108,7 +108,7 @@ def _legacy(archive: zipfile.ZipFile, label: str, part: str, authors: dict[str, 
     found = []
     for node in root.iter(_q(P, "cm")) if root is not None else []:
         text = node.find(_q(P, "text"))
-        who = authors.get(node.get("authorId") or "", "")
+        who = authors.get(node.get("authorId") or "")
         found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], slide=number))
     return found
 
