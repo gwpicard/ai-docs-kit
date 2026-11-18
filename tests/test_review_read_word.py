@@ -1,7 +1,7 @@
 """`review read` on a Word copy: the plan keyed by section, and the schema that describes it.
 
 Plan shape these tests pin (recorded under Deviations in PLAN.md):
-`sent_version` (int); `sections[<id>]` with `wording` (the applied text, `None` when unchanged),
+`version` (int); `sections[<id>]` with `wording` (the applied text, `None` when unchanged),
 `owner`, `confirm` (comment items: `kind`, `author`, `text`, `anchor`) and `emphasis`
 (`kind` of bold, italic or colour, plus `text`); top-level `confirm` (kinds `delete`, `reorder`,
 `unplaced`) and `warnings` (each with a `code`). The copy sits beside the working file.
@@ -192,7 +192,7 @@ def test_the_plan_schema_is_committed_and_names_the_plan_parts():
     assert SCHEMA.is_file(), f"no schema at {SCHEMA}"
     text = SCHEMA.read_text(encoding="utf-8")
     json.loads(text)
-    for word in ("sent_version", "sections", "wording", "confirm", "emphasis", "warnings"):
+    for word in ("version", "sections", "wording", "confirm", "emphasis", "warnings"):
         assert word in text, word
     for kind in ("comment", "delete", "reorder", "unplaced"):
         assert kind in text, kind
@@ -209,12 +209,12 @@ def test_the_plan_is_written_to_the_version_folder_with_a_one_screen_summary(wor
     assert "alpha01" in out
 
 
-def test_the_plan_compares_with_the_latest_sent_version_not_a_later_build(work, capsys):
+def test_the_plan_compares_with_the_latest_version_not_a_later_build(work, capsys):
     assert main(["build", str(work / "report.md")]) == 0
     assert (work / "report.versions" / "v2").is_dir()
     copy = _copy(work, lambda root: _replace_text(root, "original wording", "revised wording"))
     plan = _plan(work, copy, capsys)
-    assert plan["sent_version"] == 1
+    assert plan["version"] == 1
 
 
 def test_a_plain_text_edit_is_applied_to_its_section_only(work, capsys):
@@ -370,17 +370,6 @@ def test_a_copy_that_is_not_an_archive_exits_two_with_a_line(work, capsys):
     assert _run(["review", "read", str(bad)]) == 2
     err = capsys.readouterr().err.strip()
     assert err and "Traceback" not in err and len(err.splitlines()) == 1
-
-
-def test_a_copy_with_no_sent_version_exits_one_with_a_line(tmp_path, capsys):
-    (tmp_path / "report.md").write_text(SOURCE, encoding="utf-8")
-    assert main(["build", str(tmp_path / "report.md")]) == 0
-    source = tmp_path / "report.versions" / "v1" / "report.docx"
-    copy = tmp_path / "report-reviewed.docx"
-    shutil.copyfile(source, copy)
-    assert _run(["review", "read", str(copy)]) == 1
-    err = capsys.readouterr().err.strip()
-    assert "sent" in err and "Traceback" not in err
 
 
 def _hostile(work: Path, part: str, data) -> Path:

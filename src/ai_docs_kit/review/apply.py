@@ -193,10 +193,10 @@ def apply_plan(path: Path, plan_path: Path) -> dict[str, list[str]]:
     unknown = sorted({s for s in touched if s not in by_id})
     if unknown:
         raise ApplyError(f"the plan names sections the working file does not have: {', '.join(unknown)}")
-    changed = _stale(by_id, _sent_props(path, plan.sent_version), decided)
+    changed = _stale(by_id, _sent_props(path, plan.version), decided)
     if changed:
         raise ApplyError(
-            f"the working file changed since version v{plan.sent_version} was sent in: {', '.join(changed)}; "
+            f"the working file changed since version v{plan.version} was built: {', '.join(changed)}; "
             "read the review copy again or settle those sections first"
         )
     ops: list[PatchOp] = []

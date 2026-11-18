@@ -61,7 +61,7 @@ class Warning(_Model):
 
 
 class ReviewPlan(_Model):
-    sent_version: int = Field(description="The sent version the copy was compared with.")
+    version: int = Field(description="The version the copy was compared with.")
     review_copy: str = Field(description="The file name of the review copy.")
     sections: dict[str, SectionPlan]
     confirm: list[StructureItem] = Field(default_factory=list)
