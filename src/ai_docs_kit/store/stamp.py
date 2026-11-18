@@ -95,4 +95,4 @@ def read_custom_properties(path: Path) -> dict[str, str]:
 def read_version_property(path: Path) -> int | None:
     """The version number a copy records, or None when it has none or the value is not a number."""
     text = read_custom_properties(path).get(PROPERTY, "")
-    return int(text) if text.isdigit() else None
+    return int(text) if text.isascii() and text.isdigit() else None
