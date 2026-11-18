@@ -89,7 +89,7 @@ version's look record. The skill fixes what was found and rebuilds, at most twic
 remains by section.
 
 The skill gives the person the PDF, the editable copy and the summary line of `look`, which names any
-open error and any page not looked at. There is no step that marks a version sent.
+open error and any page not looked at.
 
 ## 5. The editable copies
 
