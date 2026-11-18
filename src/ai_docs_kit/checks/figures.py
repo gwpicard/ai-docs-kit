@@ -1,6 +1,6 @@
 import re
 
-from ai_docs_kit.checks.engine import CheckContext, make_finding, register
+from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register
 from ai_docs_kit.checks.source import PROVENANCE
 from ai_docs_kit.model import Finding, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
@@ -33,8 +33,9 @@ class UncitedFigure:
                 section_id=section.id,
                 measured={"numbers": numbers},
                 severity="error",
+                key=finding_key(section, index),
             )
-            for section in ctx.doc.sections
+            for index, section in enumerate(ctx.doc.sections)
             if (numbers := _numbers(section))
         ]
 

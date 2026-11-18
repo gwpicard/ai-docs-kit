@@ -1,7 +1,7 @@
 import re
 
 from ai_docs_kit.checks.dsl import _texts
-from ai_docs_kit.checks.engine import CheckContext, make_finding, register
+from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register
 from ai_docs_kit.checks.source import PROVENANCE
 from ai_docs_kit.model import Finding, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
@@ -39,7 +39,7 @@ def _field_finding(
         section_id=section.id,
         role=field,
         measured={"field": field, "terms": terms},
-        key=None if section.id is not None else f"section-{index}",
+        key=finding_key(section, index),
     )
 
 
@@ -81,7 +81,7 @@ def _terminology_finding(
         section_id=section.id,
         role=field,
         measured={"field": field, "avoid": avoided, "preferred": preferred},
-        key=None if section.id is not None else f"section-{index}",
+        key=finding_key(section, index),
     )
 
 

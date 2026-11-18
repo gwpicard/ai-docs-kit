@@ -2,7 +2,14 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from ai_docs_kit.checks.engine import CHECKS, CheckContext, UnknownCheckError, make_finding, register
+from ai_docs_kit.checks.engine import (
+    CHECKS,
+    CheckContext,
+    UnknownCheckError,
+    finding_key,
+    make_finding,
+    register,
+)
 from ai_docs_kit.facts.layout import PlacedShape, PlacedWord
 from ai_docs_kit.model import Finding, Rule, Section
 from ai_docs_kit.model.rules import Tier
@@ -46,7 +53,7 @@ class TextPattern:
                         section_id=section.id,
                         role=field,
                         measured={"field": field, "text": breaking},
-                        key=None if section.id is not None else f"section-{index}",
+                        key=finding_key(section, index),
                     )
                 )
         return findings
