@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from decimal import Decimal
 
 from ai_docs_kit.agents.gatherer import Fact
-from ai_docs_kit.checks.engine import CheckContext, make_finding, register
+from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register
 from ai_docs_kit.loop.guards import NUM, NUMBER, fact_number_tokens
 from ai_docs_kit.model import Citation, Finding, Provenance, Remedy, Rule
 from ai_docs_kit.model.rules import Tier
@@ -47,7 +47,7 @@ class NumberInSource:
         if ctx.source_facts is None:
             return []
         findings = []
-        for section in ctx.doc.sections:
+        for index, section in enumerate(ctx.doc.sections):
             for i, item in enumerate(section.items):
                 if not item.citations:
                     continue
@@ -68,7 +68,7 @@ class NumberInSource:
                                 section_id=section.id,
                                 message=f"{number} is not in the cited source {citations}",
                                 measured={"number": number, "item": i, "citations": citations},
-                                key=f"{i}:{number}",
+                                key=finding_key(section, index, f"{i}:{number}"),
                             )
                         )
         return findings
