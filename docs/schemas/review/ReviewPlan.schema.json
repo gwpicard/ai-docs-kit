@@ -42,6 +42,7 @@
         "ask": {
           "anyOf": [
             {
+              "minLength": 1,
               "type": "string"
             },
             {
@@ -86,6 +87,7 @@
         "proposal": {
           "anyOf": [
             {
+              "minLength": 1,
               "type": "string"
             },
             {
