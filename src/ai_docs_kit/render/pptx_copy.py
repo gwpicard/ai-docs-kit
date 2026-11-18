@@ -21,6 +21,10 @@ BLANK_LAYOUT = 6
 LOOSE_FIELD = "text"
 
 
+class PptxError(Exception):
+    """The slides and the rendered pages do not line up."""
+
+
 def _emu(points: float) -> Emu:
     return Emu(round(points * EMU_PER_PT))
 
@@ -105,8 +109,8 @@ def _fill_slide(slide: Any, entry: dict[str, Any], words: list[PlacedWord], note
         homes = [i for i, f in enumerate(fields) if f["section"] == word.section_id and _inside(word, f)]
         if homes:
             owned[min(homes, key=lambda i: fields[i]["w"] * fields[i]["h"])].append(word)
-        elif word.section_id:
-            loose.setdefault(word.section_id, []).append(word)
+        else:
+            loose.setdefault(word.section_id or str(entry["page"]), []).append(word)
     for i, field in enumerate(fields):
         if owned[i]:
             box = (field["x"], field["y"], field["w"], field["h"])
@@ -135,9 +139,12 @@ def write_pptx(
         hidden = Path(scratch) / "hidden.pdf"
         compile_pdf(main, render, hidden, font_paths, hide_text=True)
         pictures = PdfiumRasteriser().render(hidden, Path(scratch) / "pages")
+        indexed = field_index(facts, comp)
+        if len(indexed) != len(pictures):
+            raise PptxError(f"the field index has {len(indexed)} slides but the build rendered {len(pictures)} pages")
         wordy = {w.section_id for w in facts.words}
         one_each = len(comp.sections) == len(pictures)  # a section with no words sits on the slide at its position
-        for number, (entry, picture) in enumerate(zip(field_index(facts, comp), pictures, strict=True)):
+        for number, (entry, picture) in enumerate(zip(indexed, pictures, strict=True)):
             slide = deck.slides.add_slide(deck.slide_layouts[BLANK_LAYOUT])
             slide.shapes.add_picture(str(picture), 0, 0, deck.slide_width, deck.slide_height)
             words = [w for w in facts.words if w.box.page == entry["page"]]

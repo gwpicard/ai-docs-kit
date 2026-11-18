@@ -87,7 +87,9 @@ class _Built(NamedTuple):
 
 
 class _BuildFailed(Exception):
-    pass
+    def __init__(self, message: str, code: int = 2) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def _out_dir(file: Path, out: Path | None) -> Path:
@@ -157,7 +159,7 @@ def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Pat
     """Write the PowerPoint copy beside the PDF; a document has none."""
     if built.comp.format != "slides":
         return None
-    from ai_docs_kit.render.pptx_copy import write_pptx
+    from ai_docs_kit.render.pptx_copy import PptxError, write_pptx
 
     try:
         return write_pptx(
@@ -171,6 +173,8 @@ def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Pat
         )
     except TypstError as error:
         raise _BuildFailed(str(error)) from error
+    except PptxError as error:
+        raise _BuildFailed(str(error), code=1) from error
 
 
 def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
@@ -530,7 +534,7 @@ def _run_file_command(args: argparse.Namespace) -> int:
         return _build(args.file, out, _theme(args.theme), final=args.final)
     except _BuildFailed as error:
         print(error, file=sys.stderr)
-        return 2
+        return error.code
 
 
 def main(argv: list[str] | None = None) -> int:
