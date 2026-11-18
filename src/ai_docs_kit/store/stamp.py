@@ -1,5 +1,6 @@
 """Record a version number in an Office copy's custom document properties."""
 
+import zlib
 from pathlib import Path
 from typing import Any
 
@@ -87,7 +88,16 @@ def read_custom_properties(path: Path) -> dict[str, str]:
         if b"<!DOCTYPE" in data or b"<!ENTITY" in data:
             return {}
         root = etree.fromstring(data, etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False))
-    except (KeyError, OSError, zipfile.BadZipFile, etree.XMLSyntaxError, ValueError, RuntimeError):
+    except (
+        KeyError,
+        OSError,
+        zipfile.BadZipFile,
+        etree.XMLSyntaxError,
+        ValueError,
+        RuntimeError,
+        zlib.error,
+        EOFError,
+    ):
         return {}
     return {n.get("name"): "".join(n.itertext()).strip() for n in root if isinstance(n.tag, str) and n.get("name")}
 
