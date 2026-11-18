@@ -35,6 +35,9 @@ class Emphasis(_Model):
 class SectionPlan(_Model):
     wording: str | None = Field(description="The applied wording of the section, null when it is unchanged.")
     owner: Literal["human"] | None = Field(description="human when a reviewer wrote the wording.")
+    items: list[str] | None = Field(
+        default=None, description="The section's list items from the Word copy, in order; null when unchanged."
+    )
     fields: dict[str, str] = Field(
         default_factory=dict, description="The applied text of each changed field, by field path (decks)."
     )

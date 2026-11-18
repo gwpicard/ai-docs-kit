@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ai_docs_kit.model import Document, Patch, PatchOp, Section
+from ai_docs_kit.model import Document, Item, Patch, PatchOp, Section
 from ai_docs_kit.render.marks import FIELD_PATTERN, FieldError, field_value
 from ai_docs_kit.review.plan import ReviewPlan, StructureItem
 from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev
@@ -119,6 +119,7 @@ class _Decisions:
     def __init__(self, plan: ReviewPlan) -> None:
         self.wording: dict[str, str] = {}
         self.fields: dict[str, dict[str, str]] = {}
+        self.items: dict[str, list[str]] = {}
         self.proposals: dict[str, str] = {}
         self.asks: dict[str, str] = {}
         for section_id, item in plan.sections.items():
@@ -126,6 +127,8 @@ class _Decisions:
                 self.wording[section_id] = item.wording
             if item.fields:
                 self.fields[section_id] = item.fields
+            if item.items is not None:
+                self.items[section_id] = item.items
             for comment in item.confirm:
                 if comment.accepted is not True:
                     continue
@@ -142,6 +145,7 @@ class _Decisions:
             *self.wording,
             *(s for s in self.proposals if s not in self.wording),
             *(s for s in self.fields if s not in self.wording and s not in self.proposals),
+            *(s for s in self.items if s not in self.wording and s not in self.proposals and s not in self.fields),
         ]
 
 
@@ -178,12 +182,20 @@ def _items_text(items: Any) -> str:
     return json.dumps(rows)
 
 
+def _items_for(section: Section, texts: list[str]) -> list[Item]:
+    """The section's items for the reviewed list texts; an item whose body is unchanged keeps its head and citations."""
+    kept: dict[str, list[Item]] = {}
+    for item in section.items:
+        kept.setdefault(_norm(item.body), []).append(item)
+    return [kept[_norm(t)].pop(0) if kept.get(_norm(t)) else Item(body=t) for t in texts]
+
+
 def _changed_parts(
     by_id: dict[str | None, Section], sent: dict[str, dict[str, Any]], decided: _Decisions
 ) -> dict[str, list[str]]:
     """Touched sections whose title, paragraphs, items or deck fields differ from the sent version, with the parts."""
     changed: dict[str, list[str]] = {}
-    touched = {*decided.wording, *decided.proposals, *decided.asks, *decided.fields}
+    touched = {*decided.wording, *decided.proposals, *decided.asks, *decided.fields, *decided.items}
     for section_id in sorted(touched):
         props, section = sent.get(section_id, {}), by_id[section_id]
         parts: list[str] = []
@@ -215,6 +227,7 @@ def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[
     for section_id in missing:
         decided.wording.pop(section_id, None)
         decided.fields.pop(section_id, None)
+        decided.items.pop(section_id, None)
         decided.proposals.pop(section_id, None)
         decided.asks.pop(section_id, None)
     deletes = [s for s in deletes if s in by_id]
@@ -228,6 +241,8 @@ def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[
         words = decided.paragraph_words(section_id)
         if words:
             new = new.model_copy(update={"paragraphs": _paragraphs(words)}, deep=True)
+        if section_id in decided.items:
+            new = new.model_copy(update={"items": _items_for(new, decided.items[section_id])}, deep=True)
         for field, text in decided.fields.get(section_id, {}).items():
             new = _set_field(new, field, text)
         new.owner = "human"

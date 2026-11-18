@@ -176,6 +176,22 @@
           "title": "Fields",
           "type": "object"
         },
+        "items": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The section's list items from the Word copy, in order; null when unchanged.",
+          "title": "Items"
+        },
         "owner": {
           "anyOf": [
             {
