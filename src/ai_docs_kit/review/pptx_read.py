@@ -107,7 +107,7 @@ def _legacy(archive: zipfile.ZipFile, label: str, part: str, authors: dict[str, 
     for node in root.iter(_q(P, "cm")) if root is not None else []:
         text = node.find(_q(P, "text"))
         who = authors.get(node.get("authorId") or "", "")
-        found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], number))
+        found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], slide=number))
     return found
 
 
@@ -122,7 +122,7 @@ def _modern(
         marker = node.find(f".//{_q(AC, 'spMk')}")
         shape = names.get(marker.get("id") or "") if marker is not None else None
         who = authors.get(node.get("authorId") or "", "")
-        found.append(DeckComment(who, text.strip(), [shape] if shape else [], number, shape))
+        found.append(DeckComment(who, text.strip(), [shape] if shape else [], slide=number, shape=shape))
     return found
 
 

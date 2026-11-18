@@ -23,6 +23,7 @@ class Comment:
     author: str
     text: str
     anchor: list[str] = field(default_factory=list)
+    spans: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -131,6 +132,14 @@ class _Walker:
             self.result.order.append(name)
         if name not in self.touched:
             self.touched.append(name)
+        for identifier in self.ranges:
+            if identifier in self.comments:
+                self._span(self.comments[identifier], name)
+
+    @staticmethod
+    def _span(comment: Comment, name: str) -> None:
+        if name not in comment.spans:
+            comment.spans.append(name)
 
     def _run(self, node: etree._Element) -> None:
         text = "".join(t.text or "" for t in node.iter(_q("t")))
@@ -196,6 +205,9 @@ class _Walker:
             elif tag == "commentRangeStart":
                 self.ranges.add(identifier)
                 self._place(identifier)
+                if identifier in self.comments:
+                    for name in self.open.values():
+                        self._span(self.comments[identifier], name)
             elif tag == "commentRangeEnd":
                 self.ranges.discard(identifier)
             elif tag == "commentReference":
