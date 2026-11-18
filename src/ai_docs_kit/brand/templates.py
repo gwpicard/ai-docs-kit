@@ -17,6 +17,7 @@ from pptx.opc.constants import RELATIONSHIP_TYPE as RT
 from pptx.oxml import parse_xml
 from pydantic import BaseModel
 
+from ai_docs_kit.brand.intake import unreadable_office_reason
 from ai_docs_kit.brand.pages import load_manifest
 from ai_docs_kit.model.source import Format
 
@@ -506,7 +507,7 @@ def read_templates(brand: Path) -> TemplateReport:
             except TemplateError as error:
                 unread.append(UnreadTemplate(file=entry.path, reason=str(error)))
             except Exception:
-                reason = f"{Path(entry.path).name} is not a readable Office file"
+                reason = unreadable_office_reason(Path(entry.path).name)
                 unread.append(UnreadTemplate(file=entry.path, reason=reason))
     report = TemplateReport(templates=templates, unread=unread)
     destination = brand / "theme/ingest/templates.json"

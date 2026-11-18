@@ -19,17 +19,16 @@ def _term_pattern(term: str) -> str:
     return start + re.escape(term) + end
 
 
+def _hit(term: str, texts: list[str]) -> bool:
+    """Return whether a non-blank term appears in any of the texts, ignoring case."""
+    return bool(term.strip()) and any(re.search(_term_pattern(term), text, re.IGNORECASE) for text in texts)
+
+
 def _field_finding(
     ctx: CheckContext, rule: Rule, section: Section, field: str, banned: list[str], index: int
 ) -> Finding | None:
-    terms = sorted(
-        {
-            term
-            for term in banned
-            if term.strip()
-            and any(re.search(_term_pattern(term), text, re.IGNORECASE) for text in _texts(section, field))
-        }
-    )
+    texts = _texts(section, field)
+    terms = sorted({term for term in banned if _hit(term, texts)})
     if not terms:
         return None
     names = ", ".join(f'"{term}"' for term in terms)
@@ -63,13 +62,8 @@ class BannedTerms:
 def _terminology_finding(
     ctx: CheckContext, rule: Rule, section: Section, field: str, terminology: list[Term], index: int
 ) -> Finding | None:
-    matches = sorted(
-        (avoid, term.preferred)
-        for term in terminology
-        for avoid in term.avoid
-        if avoid.strip()
-        and any(re.search(_term_pattern(avoid), text, re.IGNORECASE) for text in _texts(section, field))
-    )
+    texts = _texts(section, field)
+    matches = sorted((avoid, term.preferred) for term in terminology for avoid in term.avoid if _hit(avoid, texts))
     if not matches:
         return None
     avoided = sorted({avoid for avoid, _ in matches})

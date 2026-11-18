@@ -1384,7 +1384,7 @@ select: {kind: text, role: [body, bullet], section_intent: any, component: any}
 | `count-per` | `of` (selector), `per` (page/section/column), `min`, `max` | counts within bounds |
 | `ratio` | `a`, `b`, `min`, `max` | width/height/area ratio (logo vs page, image coverage) |
 | `align` | `selector`, `to` (`grid`, `left-margin`, `each-other`), `tolerance_pt` | edges snap |
-| `text-pattern` | `regex`, `must_match` or `must_not_match`, `field` | text rule (banned phrase, title is not a question) |
+| `text-pattern` | `regex`, `must_match` or `must_not_match`, `field` (`spoken` accepted) | text rule (banned phrase, title is not a question) |
 | `fits` | none | every `<docla-fit>` mark has `ok: true` |
 | `image-dpi` | `min` | effective DPI of each image |
 | `page-fill` | `min`, `max` (fraction of live area with ink), `ignore: [cover, divider]` | not too empty / full |
