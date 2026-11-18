@@ -41,6 +41,8 @@ def test_a_comment_on_a_section_of_a_file_with_a_byte_order_mark(tmp_path):
 
 def test_review_apply_reads_a_file_with_a_byte_order_mark(tmp_path, capsys):
     path = _bom_file(tmp_path, FRONT)
+    assert main(["build", str(path)]) == 0
+    capsys.readouterr()
     plan = {
         "version": 1,
         "review_copy": "x.docx",
