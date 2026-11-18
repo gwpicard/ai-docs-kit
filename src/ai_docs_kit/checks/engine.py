@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, get_args
 
 from ai_docs_kit.facts.layout import LayoutFacts
-from ai_docs_kit.model import Box, Document, Finding, Rule
+from ai_docs_kit.model import Box, Document, Finding, Rule, Section
 from ai_docs_kit.model.rules import Severity, Tier
 from ai_docs_kit.render.compose import Composition
 from ai_docs_kit.theme import Theme
@@ -95,6 +95,22 @@ def _page_size(ctx: CheckContext, page: int | None) -> tuple[float, float] | Non
     pages = ctx.facts.pages
     chosen = next((p for p in pages if p.page == page), pages[0])
     return (chosen.width, chosen.height)
+
+
+def section_key(section: Section, index: int) -> str:
+    """The id of a section, or `section-<index>` when it has none."""
+    return section.id if section.id is not None else f"section-{index}"
+
+
+def finding_key(section: Section, index: int, detail: str | None = None) -> str | None:
+    """The `key` for a finding about one section; `detail` tells apart several findings in it.
+
+    A section with an id is already told apart by `section_id`, so it keeps `detail` alone.
+    """
+    if section.id is not None:
+        return detail
+    key = section_key(section, index)
+    return key if detail is None else f"{key}:{detail}"
 
 
 def make_finding(
