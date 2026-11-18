@@ -167,8 +167,15 @@ def _move_ops(order: list[str], wanted: list[str]) -> tuple[list[PatchOp], list[
 
 
 def _items_text(items: Any) -> str:
-    dumped = [i.model_dump(mode="json", exclude_none=True) if hasattr(i, "model_dump") else i for i in items or []]
-    return _norm(json.dumps(dumped, sort_keys=True))
+    """Head, body and citation keys of each item, the same from the sent props and from the working file."""
+    rows = []
+    for item in items or []:
+        if isinstance(item, dict):
+            head, body, cites = item.get("head"), item.get("body"), item.get("cites") or []
+        else:
+            head, body, cites = item.head, item.body, [c.key for c in item.citations]
+        rows.append([_norm(head or ""), _norm(body or ""), [str(c) for c in cites]])
+    return json.dumps(rows)
 
 
 def _changed_parts(
