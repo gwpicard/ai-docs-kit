@@ -276,7 +276,10 @@ def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[
         new = by_id[section_id]
         words = decided.paragraph_words(section_id)
         if words:
-            new = new.model_copy(update={"paragraphs": _paragraphs(words)}, deep=True)
+            paragraphs = _paragraphs(words)
+            if paragraphs and new.title and _norm(paragraphs[0]) == _norm(new.title):
+                paragraphs = paragraphs[1:]  # `review read` stores the heading with the text
+            new = new.model_copy(update={"paragraphs": paragraphs}, deep=True)
         if section_id in decided.items:
             new = new.model_copy(update={"items": _items_for(new, decided.items[section_id])}, deep=True)
         for field, text in decided.fields.get(section_id, {}).items():
