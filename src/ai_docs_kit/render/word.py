@@ -1,6 +1,5 @@
 """The Word copy of a doc build: the text for review, each section inside a bookmark named by its id."""
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,7 @@ from ai_docs_kit.bookmark_names import bookmark_name, is_hashed
 from ai_docs_kit.render.compose import ComposedSection, Composition
 from ai_docs_kit.store.stamp import add_docx_properties
 from ai_docs_kit.theme import Theme
+from ai_docs_kit.xml_text import strip_xml_illegal
 
 LABELS = {
     "chart": "Chart",
@@ -57,11 +57,6 @@ def _lines(section: ComposedSection, numbers: dict[str, int]) -> list[tuple[str,
     return lines
 
 
-def _clean(text: str) -> str:
-    """Drop the characters XML 1.0 cannot carry (control characters, lone surrogates, U+FFFE and U+FFFF)."""
-    return re.sub("[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]", "", text)
-
-
 def _bookmark(tag: str, number: int, name: str | None = None) -> Any:
     element = OxmlElement(f"w:{tag}")
     element.set(qn("w:id"), str(number))
@@ -83,7 +78,9 @@ def write_docx(path: Path, *, comp: Composition, theme: Theme) -> Path:
     numbers: dict[str, int] = {}
     stored: dict[str, str] = {}
     for number, section in enumerate(comp.sections, 1):
-        paragraphs = [document.add_paragraph(_clean(text), style=style) for style, text in _lines(section, numbers)]
+        paragraphs = [
+            document.add_paragraph(strip_xml_illegal(text), style=style) for style, text in _lines(section, numbers)
+        ]
         if not paragraphs:
             paragraphs = [document.add_paragraph("")]
         name = bookmark_name(section.id)
