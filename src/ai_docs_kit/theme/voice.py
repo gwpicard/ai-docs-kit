@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 from ai_docs_kit.model.source import Format
+from ai_docs_kit.model.text import NonBlank
 from ai_docs_kit.theme.loader import _read_model
 from ai_docs_kit.theme.models import Theme
 
@@ -8,13 +9,13 @@ VOICE_FILE = "voice/terminology.yaml"
 
 
 class Term(BaseModel):
-    preferred: str
-    avoid: list[str]
+    preferred: NonBlank
+    avoid: list[NonBlank]
 
 
 class Voice(BaseModel):
-    summary: dict[Format, str] = {}
-    banned: list[str] = []
+    summary: dict[Format, NonBlank] = {}
+    banned: list[NonBlank] = []
     terminology: list[Term] = []
 
 

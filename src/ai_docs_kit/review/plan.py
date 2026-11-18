@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ai_docs_kit.model.text import NonBlank
+
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -22,8 +24,8 @@ class CommentItem(_Model):
         default=None, description="The person's decision; set by the person, not by `review read`."
     )
     action: Literal["apply", "redraft", "skip"] | None = Field(default=None, description="What accepting does.")
-    proposal: str | None = Field(default=None, description="The new wording of the section, for apply.")
-    ask: str | None = Field(default=None, description="The redraft ask to write on the section, for redraft.")
+    proposal: NonBlank | None = Field(default=None, description="The new wording of the section, for apply.")
+    ask: NonBlank | None = Field(default=None, description="The redraft ask to write on the section, for redraft.")
     spans: list[str] = Field(
         default_factory=list,
         description="The ids of every section the comment's range overlaps, in document order; each copy carries all.",

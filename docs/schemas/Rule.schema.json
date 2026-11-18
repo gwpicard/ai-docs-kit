@@ -5,6 +5,7 @@
         "by": {
           "anyOf": [
             {
+              "minLength": 1,
               "type": "string"
             },
             {
@@ -77,6 +78,7 @@
           "type": "string"
         },
         "hint": {
+          "minLength": 1,
           "title": "Hint",
           "type": "string"
         }
@@ -94,6 +96,7 @@
           "anyOf": [
             {
               "items": {
+                "minLength": 1,
                 "type": "string"
               },
               "type": "array"
@@ -125,6 +128,7 @@
           "anyOf": [
             {
               "items": {
+                "minLength": 1,
                 "type": "string"
               },
               "type": "array"
@@ -140,6 +144,7 @@
           "anyOf": [
             {
               "items": {
+                "minLength": 1,
                 "type": "string"
               },
               "type": "array"
@@ -163,6 +168,7 @@
       "type": "object"
     },
     "id": {
+      "minLength": 1,
       "title": "Id",
       "type": "string"
     },
@@ -239,6 +245,7 @@
       "type": "string"
     },
     "title": {
+      "minLength": 1,
       "title": "Title",
       "type": "string"
     }
