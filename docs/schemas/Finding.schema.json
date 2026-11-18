@@ -114,6 +114,18 @@
       "title": "Message",
       "type": "string"
     },
+    "owner": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner"
+    },
     "page": {
       "anyOf": [
         {
