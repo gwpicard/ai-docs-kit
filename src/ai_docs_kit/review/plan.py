@@ -13,7 +13,9 @@ class _Model(BaseModel):
 
 class CommentItem(_Model):
     kind: Literal["comment"] = "comment"
-    author: str
+    author: str | None = Field(description="The commenter; null when the file does not name them.")
+    id: str | None = Field(default=None, description="The comment's id in the file, for a modern deck comment.")
+    reply_to: str | None = Field(default=None, description="The id of the comment this one replies to, if a reply.")
     text: str
     anchor: str = Field(description="The words the comment is attached to.")
     accepted: bool | None = Field(
