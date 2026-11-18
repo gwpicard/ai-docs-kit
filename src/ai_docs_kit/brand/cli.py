@@ -602,16 +602,21 @@ def _set(brand: Path, args: argparse.Namespace) -> int:
         return 2
     if proposal and not args.reason.strip():
         raise BrandError(f"A reason is required for departure: {args.path}")
-    begin_change(brand, "set-" + re.sub(r"[^a-z0-9]+", "-", args.path.lower()).strip("-")[:36])
-    departure = set_token(
-        brand,
-        args.path,
-        value,
-        provenance=ValueProvenance(label="answered", source=ValueSource(question="cli", note=args.reason)),
-        reason=args.reason,
-        person="owner",
-        approved=args.approve,
-    )
+    branch = begin_change(brand, "set-" + re.sub(r"[^a-z0-9]+", "-", args.path.lower()).strip("-")[:36])
+    try:
+        departure = set_token(
+            brand,
+            args.path,
+            value,
+            provenance=ValueProvenance(label="answered", source=ValueSource(question="cli", note=args.reason)),
+            reason=args.reason,
+            person="owner",
+            approved=args.approve,
+        )
+    except (BrandError, ThemeError, KeyError, TypeError):
+        run_git(brand, "checkout", "-q", "main")
+        run_git(brand, "branch", "-q", "-D", branch)
+        raise
     evidence = [Evidence(file="theme/tokens.yaml", note=args.path)]
     if departure:
         source = departure.source.source
