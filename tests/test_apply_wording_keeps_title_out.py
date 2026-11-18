@@ -29,7 +29,6 @@ def test_applied_wording_does_not_copy_the_title_into_paragraphs(tmp_path, capsy
     empty = tmp_path / "none.json"
     empty.write_text("[]")
     assert main(["look", str(v1), "--findings", str(empty)]) == 0
-    assert main(["sent", str(v1), "--to", "Reviewer"]) == 0
     capsys.readouterr()
     copy = tmp_path / "report-reviewed.docx"
     shutil.copyfile(v1 / "report.docx", copy)

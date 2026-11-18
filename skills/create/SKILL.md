@@ -18,7 +18,7 @@ The outline is the one stop. The person is asked once, at the outline, and every
 3. `outline.md`: propose the outline and stop until the person agrees it. This is the one stop.
 4. `draft.md`: write every section through `write-section` agents, in parallel, and build.
 5. `look.md`: have the `look` agent read every page, fix what it found in at most two rounds, then report what remains by section.
-6. `ship.md`: give the person the PDF and the editable copy, and mark the version sent only through `ai-docs-kit sent`.
+6. `ship.md`: give the person the PDF and the editable copy, and name any open error and any page not looked at.
 
 ## Rules
 

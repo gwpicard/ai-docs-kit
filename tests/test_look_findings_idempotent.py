@@ -62,33 +62,12 @@ def _agent_messages(version: Path) -> list[str]:
     return [f["message"] for f in _look(version)["agent"]]
 
 
-def _sent_output(version: Path, capsys) -> tuple[int, str]:
-    capsys.readouterr()
-    code = main(["sent", str(version), "--to", "Reviewer One"])
-    out = capsys.readouterr()
-    return code, out.out + out.err
-
-
 def test_the_same_file_twice_leaves_the_look_record_as_after_the_first_run(version):
     assert _run(version, [_finding(), _finding("Second.", severity="warning", page=2, section="agenda")]) == 0
     first = _look(version)
     assert _run(version, [_finding(), _finding("Second.", severity="warning", page=2, section="agenda")]) == 0
     assert _look(version) == first
     assert len(first["agent"]) == 2
-
-
-def test_sent_reports_the_same_look_errors_after_a_second_run(built, tmp_path, capsys):
-    shutil.copytree(built, tmp_path / "a")
-    shutil.copytree(built, tmp_path / "b")
-    once = tmp_path / "a" / "mini.versions" / "v1"
-    twice = tmp_path / "b" / "mini.versions" / "v1"
-    assert _run(once, [_finding()]) == 0
-    assert _run(twice, [_finding()]) == 0
-    assert _run(twice, [_finding()]) == 0
-    code_once, text_once = _sent_output(once, capsys)
-    code_twice, text_twice = _sent_output(twice, capsys)
-    assert code_once != 0
-    assert (code_twice, text_twice.replace(str(twice), "V")) == (code_once, text_once.replace(str(once), "V"))
 
 
 def test_a_repeated_finding_inside_one_file_is_recorded_once(version):

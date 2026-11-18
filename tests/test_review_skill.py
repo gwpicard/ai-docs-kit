@@ -60,7 +60,7 @@ def test_skill_and_agent_pass_the_lint():
 
 def test_skill_names_the_commands_of_the_round_trip():
     commands = set(COMMAND.findall(skill()))
-    assert {"review", "rule", "build", "look", "sent"} <= commands
+    assert {"review", "rule", "build", "look"} <= commands
     assert [c for c in commands if help_exit_code(c) != 0] == []
     text = skill()
     for phrase in ("ai-docs-kit review read", "ai-docs-kit review apply", "ai-docs-kit rule test"):
@@ -69,7 +69,7 @@ def test_skill_names_the_commands_of_the_round_trip():
 
 def test_skill_steps_come_in_the_design_order():
     text = skill().lower()
-    marks = ["review read", "classify", "review apply", "redraft", "build", "look", "sent"]
+    marks = ["review read", "classify", "review apply", "redraft", "build", "look"]
     positions = [text.find(m) for m in marks]
     assert -1 not in positions, dict(zip(marks, positions, strict=True))
     assert positions == sorted(positions)
@@ -118,7 +118,6 @@ def test_the_chain_the_skill_describes_runs_on_a_fixture(tmp_path):
     clean = tmp_path / "none.json"
     clean.write_text("[]")
     assert run("look", str(version), "--findings", str(clean), cwd=tmp_path).returncode == 0
-    assert run("sent", str(version), "--to", "Reviewer", cwd=tmp_path).returncode == 0
 
     from docx import Document
 

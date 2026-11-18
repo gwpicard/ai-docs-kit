@@ -1,5 +1,4 @@
 import json
-import re
 import shutil
 from pathlib import Path
 
@@ -8,8 +7,6 @@ from tests.support.fixtures import fixture_path
 
 from ai_docs_kit.cli import main
 from ai_docs_kit.model import Finding
-
-DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 @pytest.fixture(scope="module")
@@ -130,62 +127,3 @@ def test_pages_lists_the_engines_findings(work, capsys):
     assert main(["look", str(_version(work)), "--pages"]) == 0
     out = capsys.readouterr().out
     assert "seeded.rule-name" in out
-
-
-def _sent(work: Path, *extra: str) -> int:
-    return main(["sent", str(_version(work)), "--to", "Reviewer One", *extra])
-
-
-def test_sent_is_refused_until_a_look_entry_exists(work, capsys):
-    assert _sent(work) != 0
-    assert _manifest(work)["state"] != "sent"
-    assert _look(work, [], capsys)[0] == 0
-    assert _sent(work) == 0
-    assert _manifest(work)["state"] == "sent"
-
-
-def test_sent_records_the_reviewer_and_the_date(work, capsys):
-    _look(work, [], capsys)
-    before = len(DATE.findall((_version(work) / "manifest.json").read_text()))
-    assert _sent(work) == 0
-    text = (_version(work) / "manifest.json").read_text()
-    assert "Reviewer One" in text
-    assert len(DATE.findall(text)) > before
-
-
-def test_sent_is_refused_while_the_look_record_has_an_error(work, capsys):
-    assert _look(work, [_finding(work, severity="error")], capsys)[0] == 0
-    capsys.readouterr()
-    assert _sent(work) != 0
-    assert _manifest(work)["state"] != "sent"
-
-
-def test_a_warning_does_not_block_sent(work, capsys):
-    _look(work, [_finding(work, severity="warning")], capsys)
-    assert _sent(work) == 0
-
-
-def test_force_with_a_reason_overrides_and_records_it(work, capsys):
-    _look(work, [_finding(work, severity="error")], capsys)
-    assert _sent(work, "--force", "--reason", "Client asked for it as is") == 0
-    manifest = _manifest(work)
-    assert manifest["state"] == "sent"
-    assert manifest["forced_reason"] == "Client asked for it as is"
-
-
-def test_force_without_a_reason_is_refused(work, capsys):
-    _look(work, [_finding(work, severity="error")], capsys)
-    assert _sent(work, "--force") != 0
-    assert _manifest(work)["state"] != "sent"
-
-
-def test_latest_prints_the_latest_sent_version_or_nothing(work, capsys):
-    file = work / "report.md"
-    capsys.readouterr()
-    assert main(["sent", "--latest", str(file)]) == 0
-    assert capsys.readouterr().out.strip() == ""
-    _look(work, [], capsys)
-    assert _sent(work) == 0
-    capsys.readouterr()
-    assert main(["sent", "--latest", str(file)]) == 0
-    assert Path(capsys.readouterr().out.strip().splitlines()[-1]).name == "v1"

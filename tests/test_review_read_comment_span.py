@@ -58,7 +58,6 @@ def sent(tmp_path_factory) -> Path:
     empty = folder / "none.json"
     empty.write_text("[]")
     assert main(["look", str(version), "--findings", str(empty)]) == 0
-    assert main(["sent", str(version), "--to", "Reviewer"]) == 0
     return folder
 
 

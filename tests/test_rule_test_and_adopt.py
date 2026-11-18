@@ -234,7 +234,7 @@ def test_a_probation_rule_finds_the_text_as_a_warning_in_a_build(tmp_path, theme
     assert json.loads((latest / "manifest.json").read_text())["findings"]["error"] == 0
 
 
-def test_a_probation_finding_never_blocks_sent(tmp_path, theme, version, capsys):
+def test_a_probation_finding_never_adds_an_error(tmp_path, theme, version, capsys):
     _adopted_theme(tmp_path, theme, version)
     work = tmp_path / "work"
     assert main(["build", str(work / "note.md"), "--theme", str(theme)]) == 0
@@ -242,5 +242,4 @@ def test_a_probation_finding_never_blocks_sent(tmp_path, theme, version, capsys)
     empty = tmp_path / "look.json"
     empty.write_text("[]")
     assert main(["look", str(latest), "--findings", str(empty)]) == 0
-    assert main(["sent", str(latest), "--to", "dana@example.com"]) == 0
-    assert json.loads((latest / "manifest.json").read_text())["state"] == "sent"
+    assert json.loads((latest / "manifest.json").read_text())["findings"]["error"] == 0

@@ -1,7 +1,5 @@
 """Issue 48: tidy the delivery code found by the 17 November pass."""
 
-import inspect
-import json
 import os
 import re
 import shutil
@@ -13,7 +11,6 @@ from pathlib import Path
 import pytest
 from tests.support.fixtures import fixture_path
 
-from ai_docs_kit import cli
 from ai_docs_kit.cli import main
 from ai_docs_kit.store import VersionImmutable, update_manifest
 
@@ -35,32 +32,6 @@ def test_wrong_typed_look_names_the_field_and_type(version):
     assert "look" in message
     assert "dict" in message
     assert "Only delivery fields may change" not in message
-
-
-@pytest.mark.parametrize("command", [["ready"], ["sent", "--to", "Reviewer"]])
-@pytest.mark.parametrize("extra", [[], ["--reason", "  "]])
-def test_force_without_reason_exits_2_with_one_line(version, capsys, command, extra):
-    assert main([command[0], str(version), *command[1:], "--force", *extra]) == 2
-    err = capsys.readouterr().err
-    assert len(err.strip().splitlines()) == 1
-
-
-def test_ready_and_sent_give_the_same_message(version, capsys):
-    main(["ready", str(version), "--force"])
-    ready_err = capsys.readouterr().err
-    main(["sent", str(version), "--to", "Reviewer", "--force"])
-    assert capsys.readouterr().err == ready_err != ""
-
-
-def test_sent_does_not_repeat_the_check_mark_sent_makes():
-    assert "strip()" not in inspect.getsource(cli._sent)
-
-
-def test_forced_reasons_accumulate_from_ready_to_sent(version):
-    assert main(["ready", str(version), "--force", "--reason", "A"]) == 0
-    assert main(["sent", str(version), "--to", "Reviewer", "--force", "--reason", "B"]) == 0
-    manifest = json.loads((version / "manifest.json").read_text())
-    assert manifest["forced_reason"] == "A; B"
 
 
 def _run_cleanup(tmp_path: Path, body: str) -> subprocess.CompletedProcess[str]:
