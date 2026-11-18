@@ -1,5 +1,6 @@
 """The Word copy of a doc build: the text for review, each section inside a bookmark named by its id."""
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ from docx.oxml.ns import qn
 from docx.shared import RGBColor
 
 from ai_docs_kit.render.compose import ComposedSection, Composition
+from ai_docs_kit.review.word_read import bookmark_name
 from ai_docs_kit.theme import Theme
 
 LABELS = {
@@ -54,6 +56,11 @@ def _lines(section: ComposedSection, numbers: dict[str, int]) -> list[tuple[str,
     return lines
 
 
+def _clean(text: str) -> str:
+    """Drop the characters XML 1.0 cannot carry (control characters, lone surrogates, U+FFFE and U+FFFF)."""
+    return re.sub("[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]", "", text)
+
+
 def _bookmark(tag: str, number: int, name: str | None = None) -> Any:
     element = OxmlElement(f"w:{tag}")
     element.set(qn("w:id"), str(number))
@@ -74,11 +81,11 @@ def write_docx(path: Path, *, comp: Composition, theme: Theme) -> Path:
     _style(document, "Heading 1", families[scale["h1"].family], roles["ink"])
     numbers: dict[str, int] = {}
     for number, section in enumerate(comp.sections, 1):
-        paragraphs = [document.add_paragraph(text, style=style) for style, text in _lines(section, numbers)]
+        paragraphs = [document.add_paragraph(_clean(text), style=style) for style, text in _lines(section, numbers)]
         if not paragraphs:
             paragraphs = [document.add_paragraph("")]
         paragraphs[0]._p.insert(
-            1 if paragraphs[0]._p.pPr is not None else 0, _bookmark("bookmarkStart", number, section.id)
+            1 if paragraphs[0]._p.pPr is not None else 0, _bookmark("bookmarkStart", number, bookmark_name(section.id))
         )
         paragraphs[-1]._p.append(_bookmark("bookmarkEnd", number))
     document.save(str(path))
