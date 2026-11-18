@@ -182,12 +182,48 @@ def _items_text(items: Any) -> str:
     return json.dumps(rows)
 
 
+def _word_text(item: Item) -> str:
+    """The item as the Word copy writes it: head and body joined by a colon, then the sub lines."""
+    text = f"{item.head}: {item.body}" if item.head else item.body
+    return _norm(" ".join([text, *item.sub]))
+
+
+def _edited(item: Item, text: str) -> Item:
+    """The item with its body replaced by the reviewed text; head, sub lines and citations stay."""
+    body = _norm(text)
+    if item.head and body.startswith(f"{item.head}: "):
+        body = body[len(item.head) + 2 :]
+    elif item.head and body == item.head:
+        body = ""
+    tail = _norm(" ".join(item.sub))
+    if tail and body.endswith(tail):
+        body = body[: -len(tail)].strip()
+    return item.model_copy(update={"body": body}, deep=True)
+
+
 def _items_for(section: Section, texts: list[str]) -> list[Item]:
-    """The section's items for the reviewed list texts; an item whose body is unchanged keeps its head and citations."""
-    kept: dict[str, list[Item]] = {}
-    for item in section.items:
-        kept.setdefault(_norm(item.body), []).append(item)
-    return [kept[_norm(t)].pop(0) if kept.get(_norm(t)) else Item(body=t) for t in texts]
+    """The section's items for the reviewed list texts.
+
+    A text equal to an item's Word-copy text keeps that item whole. A text that begins with a remaining
+    item's head keeps its head, sub lines and citations and sets the body. Any other text is a new item.
+    """
+    pool = list(section.items)
+    result: list[Item | None] = [None] * len(texts)
+    for position, text in enumerate(texts):
+        match = next((i for i in pool if _word_text(i) == _norm(text)), None)
+        if match is not None:
+            pool.remove(match)
+            result[position] = match
+    for position, text in enumerate(texts):
+        if result[position] is not None:
+            continue
+        match = next((i for i in pool if i.head and _norm(text).startswith(f"{i.head}: ")), None)
+        if match is not None:
+            pool.remove(match)
+            result[position] = _edited(match, text)
+        else:
+            result[position] = Item(body=text)
+    return [item for item in result if item is not None]
 
 
 def _changed_parts(
