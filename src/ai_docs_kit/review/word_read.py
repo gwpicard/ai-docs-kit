@@ -1,5 +1,6 @@
 """Read a Word file into per-section text, comments and emphasis; the archive is treated as hostile."""
 
+import re
 import zipfile
 import zlib
 from dataclasses import dataclass, field
@@ -13,6 +14,27 @@ MAX_PART = 32 << 20
 MAX_TOTAL = 128 << 20
 SKIPPED = {"del", "moveFrom", "delText", "instrText"}
 PARSER_OPTIONS = {"resolve_entities": False, "no_network": True, "load_dtd": False, "huge_tree": False}
+
+
+ENCODED = "Xenc_"
+PLAIN_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,39}")
+
+
+def bookmark_name(section_id: str) -> str:
+    """A Word-valid bookmark name for a section id: the id itself when Word accepts it, else a reversible encoding."""
+    if PLAIN_NAME.fullmatch(section_id) and not section_id.startswith(ENCODED):
+        return section_id
+    body = "".join(c if c.isascii() and c.isalnum() else "__" if c == "_" else f"_x{ord(c):x}_" for c in section_id)
+    return ENCODED + body
+
+
+def section_of(name: str) -> str:
+    """The section id a bookmark name stands for; a name not made by `bookmark_name` is returned as it is."""
+    if not name.startswith(ENCODED):
+        return name
+    return re.sub(
+        r"__|_x([0-9a-f]+)_", lambda m: "_" if m.group(1) is None else chr(int(m.group(1), 16)), name[len(ENCODED) :]
+    )
 
 
 def _q(tag: str) -> str:
@@ -197,7 +219,7 @@ class _Walker:
                 self.result.tracked = True
                 self._children(child)
             elif tag == "bookmarkStart":
-                name = child.get(_q("name")) or ""
+                name = section_of(child.get(_q("name")) or "")
                 if self.known is None or name in self.known:
                     self.open[identifier] = name
                     self._start(name)
