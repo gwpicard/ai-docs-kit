@@ -10,7 +10,7 @@ from ai_docs_kit.theme.voice import Term, Voice, load_voice
 
 
 def _voice(theme: Theme) -> Voice:
-    """The theme's voice, or an empty one when the file is refused: `load_theme` reports that error before any check runs."""
+    """The theme's voice, or an empty one when the file is refused (`load_theme` reports that first)."""
     try:
         return load_voice(theme)
     except ThemeError:
