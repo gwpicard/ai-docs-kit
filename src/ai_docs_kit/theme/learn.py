@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -58,7 +59,11 @@ def _load_rule(path: Path) -> Rule:
 def _fires(rule: Rule, doc: Document, theme: Theme) -> list[str]:
     """The ids of the sections the rule fires on, whatever its own status."""
     probe = rule.model_copy(update={"status": "probation"})
-    findings = run_checks([probe], CheckContext(doc, theme=theme))
+    try:
+        findings = run_checks([probe], CheckContext(doc, theme=theme))
+    except (re.error, KeyError) as error:
+        detail = error.args[0] if isinstance(error, KeyError) and error.args else error
+        raise RuleError(f"{rule.id}: the check cannot run: {' '.join(str(detail).split())!r}", 2) from error
     return [f.section_id or "-" for f in findings]
 
 
@@ -74,14 +79,21 @@ def _example_doc(folder: Path, section_id: str) -> Document:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         fmt = data["format"]
-        props = next((s["props"] for s in data["sections"] if s.get("id") == section_id), None)
+        entry = next((s for s in data["sections"] if s.get("id") == section_id), None)
+        props = None if entry is None else entry["props"]
+        intent = "body" if entry is None else entry.get("intent") or "body"
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise RuleError(f"{path}: cannot read the version: {' '.join(str(error).split())}", 2) from error
     if props is None:
         raise RuleError(f"{section_id}: no such section in {folder}", 2)
     kept: dict[str, Any] = {k: props[k] for k in SECTION_FIELDS if k in props}
+    if not kept.get("paragraphs"):
+        # A bullets or statement section keeps its words in items; a rule on `paragraphs` still has to see them.
+        kept["paragraphs"] = [
+            text for item in kept.get("items", []) for text in (item.get("head"), item.get("body")) if text
+        ]
     try:
-        section = Section.model_validate({"id": section_id, "intent": "body", **kept})
+        section = Section.model_validate({"id": section_id, "intent": intent, **kept})
     except ValidationError as error:
         raise RuleError(f"{section_id}: cannot read the section: {' '.join(str(error).split())}", 2) from error
     return Document(front={}, format=fmt, sections=[section])
@@ -93,6 +105,14 @@ def _stamp(rule: Rule) -> str:
 
 def _tested_marker(theme: Theme, rule: Rule) -> Path:
     return theme.root / "rules" / ".tested" / _stamp(rule)
+
+
+def _ignore_markers(rules: Path) -> None:
+    """Keep `.tested/` out of git: list it in `rules/.gitignore` once."""
+    ignore = rules / ".gitignore"
+    lines = ignore.read_text(encoding="utf-8").splitlines() if ignore.is_file() else []
+    if ".tested/" not in (line.strip() for line in lines):
+        ignore.write_text("\n".join([*lines, ".tested/"]) + "\n", encoding="utf-8")
 
 
 def run_test(rule_path: Path, example: str, theme_folder: Path | None) -> int:
@@ -115,6 +135,7 @@ def run_test(rule_path: Path, example: str, theme_folder: Path | None) -> int:
         return 1
     if marker is not None:
         marker.parent.mkdir(parents=True, exist_ok=True)
+        _ignore_markers(marker.parent.parent)
         marker.write_text(rule.id, encoding="utf-8")
     print(f"{rule.id} fires on {folder.name}/{section_id} and on no approved exemplar")
     return 0

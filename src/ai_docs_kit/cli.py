@@ -98,7 +98,7 @@ def _out_dir(file: Path, out: Path | None) -> Path:
 
 def _parse(file: Path) -> tuple[Document, list[Finding]]:
     try:
-        text = file.read_text()
+        text = file.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as error:
         raise _BuildFailed(f"{file}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
     doc, findings = parse(text)

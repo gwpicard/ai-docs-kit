@@ -53,8 +53,29 @@
           "title": "Ask"
         },
         "author": {
-          "title": "Author",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The commenter; null when the file does not name them.",
+          "title": "Author"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The comment's id in the file, for a modern deck comment.",
+          "title": "Id"
         },
         "kind": {
           "const": "comment",
@@ -74,6 +95,19 @@
           "default": null,
           "description": "The new wording of the section, for apply.",
           "title": "Proposal"
+        },
+        "reply_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The id of the comment this one replies to, if a reply.",
+          "title": "Reply To"
         },
         "shape": {
           "anyOf": [
@@ -100,6 +134,14 @@
           "default": null,
           "description": "The slide number (1-based, sent order), for a deck comment.",
           "title": "Slide"
+        },
+        "spans": {
+          "description": "The ids of every section the comment's range overlaps, in document order; each copy carries all.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
         },
         "text": {
           "title": "Text",
@@ -175,6 +217,22 @@
           "description": "The applied text of each changed field, by field path (decks).",
           "title": "Fields",
           "type": "object"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The section's list items from the Word copy, in order; null when unchanged.",
+          "title": "Items"
         },
         "owner": {
           "anyOf": [
