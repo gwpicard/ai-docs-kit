@@ -1,6 +1,7 @@
 """Read a Word file into per-section text, comments and emphasis; the archive is treated as hostile."""
 
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -86,7 +87,7 @@ def _open(path: Path) -> tuple[etree._Element, etree._Element | None]:
             check_archive(archive, label)
             body = _part(archive, "word/document.xml", label, required=True)
             notes = _part(archive, "word/comments.xml", label, required=False)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError) as error:
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error) as error:
         raise ValueError(f"{label}: not a readable Word file ({error})") from None
     assert body is not None
     return _parse(body, label, "word/document.xml"), (_parse(notes, label, "word/comments.xml") if notes else None)
