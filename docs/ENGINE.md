@@ -65,7 +65,7 @@ lesson into the brand system.
 
 | # | Decision | Consequence |
 |---|---|---|
-| D1 | Output is **PDF only**, in two page models: *slides* (16:9 pages) and *documents* (A4/Letter pages). | One renderer, one rasteriser, one geometry source. No PPTX, DOCX or Office dependency. |
+| D1 | Output is **PDF**, in two page models: *slides* (16:9 pages) and *documents* (A4/Letter pages). Each build also writes an editable copy for review (DESIGN.md wins). | One renderer, one rasteriser, one geometry source. The editable copy is written from the same composition. |
 | D2 | **Claude is required.** There is no offline or model-free mode. | Generation, critique, diagnosis and rule authoring are all Claude calls. The product is the combination: generative phases plus deterministic gates that force regeneration. |
 | D3 | The AI edits the document; the person gives guidance. The person does not design. | The editor is a *content editor with feedback*, not a design canvas. There is deliberately no way to set a colour, font, size or position on a section. |
 | D4 | Brand knowledge is a **theme pack**: tokens, components, rules, rubric, voice, exemplars. It is data plus small code, versioned in git. | A new brand is onboarded by uploading materials; the AI drafts the pack; a person reviews it. |
