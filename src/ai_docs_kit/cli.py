@@ -292,7 +292,10 @@ def _look_findings(version_dir: Path, file: Path) -> int:
 
     version = load_version(version_dir)
     pages = _read_pages(version_dir)
-    raw = json.loads(file.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{file}: not valid JSON ({error})") from error
     if not isinstance(raw, list):
         print(f"{file}: expected a JSON array of findings", file=sys.stderr)
         return 2
@@ -302,9 +305,8 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         try:
             finding = LookFinding.model_validate(item)
         except ValidationError as error:
-            problems.extend(
-                f"finding {i}: {'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors()
-            )
+            details = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors())
+            problems.append(f"finding {i}: {details}")
             continue
         blank = [name for name in ("rule", "message") if not getattr(finding, name).strip()]
         if blank:
@@ -317,7 +319,7 @@ def _look_findings(version_dir: Path, file: Path) -> int:
             accepted.append(finding)
     if problems:
         for problem in problems:
-            print(problem, file=sys.stderr)
+            print(f"{file}: {problem}", file=sys.stderr)
         return 2
     record = version.manifest.look
     if record is None:
