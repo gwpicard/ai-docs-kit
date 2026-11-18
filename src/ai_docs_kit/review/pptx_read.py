@@ -3,6 +3,7 @@
 import posixpath
 import re
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -171,7 +172,7 @@ def read_deck(path: Path, sections: set[str] | None = None) -> DeckText:
         with zipfile.ZipFile(path) as archive:
             check_archive(archive, label)
             _read(archive, label, sections, result)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError) as error:
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error) as error:
         raise ValueError(f"{label}: not a readable PowerPoint file ({error})") from None
     return result
 
