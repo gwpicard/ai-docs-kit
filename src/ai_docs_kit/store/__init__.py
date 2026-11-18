@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 import ai_docs_kit
 from ai_docs_kit.facts.layout import LayoutFacts
@@ -22,6 +22,8 @@ from ai_docs_kit.render.marks import ElementMark, SectionMark
 from ai_docs_kit.render.typst import TYPST_VERSION
 from ai_docs_kit.store.stamp import stamp
 from ai_docs_kit.theme import Theme
+
+_REMOVED_KEYS = frozenset({"state", "sent_to", "sent_on", "forced_reason"})
 
 
 class _Model(BaseModel):
@@ -99,10 +101,13 @@ class Manifest(_Model):
     residual: list[Residual] = Field(default_factory=list)
     look: LookRecord | None = None
     cost: Cost
-    state: Literal["draft", "ready", "sent"] = "draft"
-    sent_to: list[str] = Field(default_factory=list)
-    sent_on: list[str] = Field(default_factory=list)
-    forced_reason: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_removed_keys(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return {k: v for k, v in data.items() if k not in _REMOVED_KEYS}
+        return data
 
 
 class Version(_Model):
@@ -352,8 +357,8 @@ def write_version(
 def update_manifest(path: Path, **changes: Any) -> Manifest:
     if "look" in changes and not isinstance(changes["look"], LookRecord):
         raise VersionImmutable(f"look must be a LookRecord, got {type(changes['look']).__name__}")
-    if changes.keys() - {"state", "sent_to", "sent_on", "forced_reason", "look"}:
-        raise VersionImmutable("Only delivery fields may change")
+    if changes.keys() - {"look"}:
+        raise VersionImmutable("Only the look record may change")
     manifest = Manifest.model_validate({**load_version(path).manifest.model_dump(), **changes})
     fd, name = tempfile.mkstemp(prefix=".manifest-", dir=path)
     try:

@@ -243,24 +243,6 @@ def _gate_report(reasons: list[str]) -> int:
     return int(bool(reasons))
 
 
-def _ready(args: argparse.Namespace) -> int:
-    from ai_docs_kit.store import load_version
-    from ai_docs_kit.store.gate import mark_ready
-
-    try:
-        version = load_version(args.version_dir)
-        reasons = mark_ready(version, force=args.force, reason=args.reason)
-    except (OSError, ValueError) as error:
-        print(error, file=sys.stderr)
-        return 2
-    if reasons and not args.force:
-        for reason in reasons:
-            print(f"not ready: {reason}")
-        return 1
-    print(f"ready (forced: {args.reason})" if args.force else "ready")
-    return 0
-
-
 def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
     pages_path = version_dir / "pages" / "pages.json"
     try:
@@ -343,6 +325,9 @@ def _look_findings(version_dir: Path, file: Path) -> int:
     if added or record.agent is None:
         update_manifest(version_dir, look=record.model_copy(update={"agent": merged}))
     print(f"recorded {added} findings")
+    errors = version.manifest.findings.error + sum(f.severity == "error" for f in merged)
+    unlooked = "; ".join(record.could_not) or "none"
+    print(f"open errors: {errors}, pages not looked at: {unlooked}")
     return 0
 
 
@@ -357,43 +342,6 @@ def _look(args: argparse.Namespace) -> int:
     except (OSError, ValueError) as error:
         print(error, file=sys.stderr)
         return 2
-
-
-def _sent(args: argparse.Namespace) -> int:
-    from ai_docs_kit.store import load_version
-    from ai_docs_kit.store.gate import mark_sent
-
-    if args.latest is not None:
-        root = args.latest.parent / f"{args.latest.stem}.versions"
-        sent = [
-            (v.number, d) for d in root.glob("v*") if (v := _try_load(d)) is not None and v.manifest.state == "sent"
-        ]
-        if sent:
-            print(max(sent)[1])
-        return 0
-    if args.version_dir is None or args.to is None:
-        print("sent needs a version folder and --to, or --latest", file=sys.stderr)
-        return 2
-    try:
-        reasons = mark_sent(load_version(args.version_dir), args.to, force=args.force, reason=args.reason)
-    except (OSError, ValueError) as error:
-        print(error, file=sys.stderr)
-        return 2
-    if reasons and not args.force:
-        for reason in reasons:
-            print(f"not sent: {reason}")
-        return 1
-    print(f"sent to {args.to} (forced: {args.reason})" if reasons else f"sent to {args.to}")
-    return 0
-
-
-def _try_load(directory: Path) -> Any:
-    from ai_docs_kit.store import load_version
-
-    try:
-        return load_version(directory)
-    except (OSError, ValueError):
-        return None
 
 
 def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline: bool = False) -> int:
@@ -474,20 +422,10 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_file_command(subparsers, "build", "render a working file to PDF")
     _add_file_command(subparsers, "check", "render a working file and report what the M1 rules find")
     _add_file_command(subparsers, "write", "prepare and draft a working file")
-    ready = subparsers.add_parser("ready", help="mark a version ready")
-    ready.add_argument("version_dir", type=Path)
-    ready.add_argument("--force", action="store_true")
-    ready.add_argument("--reason")
     look = subparsers.add_parser("look", help="print the pages for the look agent or record its findings")
     look.add_argument("version_dir", type=Path)
     look.add_argument("--pages", action="store_true")
     look.add_argument("--findings", type=Path)
-    sent = subparsers.add_parser("sent", help="record that a version was sent")
-    sent.add_argument("version_dir", type=Path, nargs="?")
-    sent.add_argument("--to")
-    sent.add_argument("--latest", type=Path)
-    sent.add_argument("--force", action="store_true")
-    sent.add_argument("--reason")
     write = subparsers.choices["write"]
     write.add_argument("--approve", action="store_true")
     write.add_argument("--yes", action="store_true")
@@ -556,12 +494,8 @@ def main(argv: list[str] | None = None) -> int:
         return _doctor()
     if args.command == "init":
         return _init(args.directory)
-    if args.command == "ready":
-        return _ready(args)
     if args.command == "look":
         return _look(args)
-    if args.command == "sent":
-        return _sent(args)
     if args.command in ("write", *FILE_COMMANDS) and not args.file.is_file():
         print(f"{args.file}: no such working file", file=sys.stderr)
         return 2

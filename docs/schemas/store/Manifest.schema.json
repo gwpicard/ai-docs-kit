@@ -283,18 +283,6 @@
     "findings": {
       "$ref": "#/$defs/FindingCounts"
     },
-    "forced_reason": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Forced Reason"
-    },
     "format": {
       "enum": [
         "slides",
@@ -342,30 +330,6 @@
     "sections": {
       "title": "Sections",
       "type": "integer"
-    },
-    "sent_on": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Sent On",
-      "type": "array"
-    },
-    "sent_to": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Sent To",
-      "type": "array"
-    },
-    "state": {
-      "default": "draft",
-      "enum": [
-        "draft",
-        "ready",
-        "sent"
-      ],
-      "title": "State",
-      "type": "string"
     },
     "theme": {
       "anyOf": [

@@ -75,7 +75,6 @@ def _send(folder: Path, stem: str, version: str, capsys) -> Path:
     empty = folder / f"none-{version}.json"
     empty.write_text("[]")
     assert main(["look", str(folder_version), "--findings", str(empty)]) == 0
-    assert main(["sent", str(folder_version), "--to", "Reviewer"]) == 0
     capsys.readouterr()
     return folder_version
 

@@ -19,6 +19,7 @@ from ai_docs_kit.model import Document, Finding, Section
 from ai_docs_kit.model.schema import export_schemas
 from ai_docs_kit.render.compose import assemble, compose, font_paths
 from ai_docs_kit.render.typst import compile_pdf
+from ai_docs_kit.store import LookRecord
 from ai_docs_kit.theme import neutral_theme
 
 try:
@@ -138,7 +139,7 @@ def test_D2_manifest_round_trip_and_gap(deck):
     assert (manifest.theme.name, manifest.theme.version) == ("neutral", deck[7].info.version)
     counts = Counter(f.severity for f in deck[5])
     assert manifest.findings.model_dump() == {key: counts[key] for key in ("error", "warning", "info")}
-    assert (manifest.state, manifest.sent_to, manifest.final, manifest.draft) == ("draft", [], False, True)
+    assert (manifest.final, manifest.draft) == (False, True)
     assert manifest.written == "2025-02-03T04:05:06Z"
     assert [gap.model_dump() for gap in manifest.gaps] == [{"section": "aaaa1", "text": "owner name"}]
 
@@ -166,15 +167,16 @@ def test_D3_page_index_matches_rendered_marks_and_findings(deck):
     assert "page-two" in pages[1]["findings"]
 
 
-def test_D4_only_delivery_fields_change_and_versions_are_immutable(deck):
+def test_D4_only_the_look_field_changes_and_versions_are_immutable(deck):
     api = _store("update_manifest", "load_version", "VersionImmutable")
     first = _write(deck)
     before = _files(first.path)
     _write(deck)
     assert _files(first.path) == before
     original = first.manifest.model_dump()
-    updated = api.update_manifest(first.path, state="sent", sent_to=["board"])
-    expected = {**original, "state": "sent", "sent_to": ["board"]}
+    look = LookRecord(pages=2, clean=True)
+    updated = api.update_manifest(first.path, look=look)
+    expected = {**original, "look": look.model_dump()}
     assert updated.model_dump() == expected
     assert api.load_version(first.path).manifest.model_dump() == expected
     manifest_path = first.path / "manifest.json"
