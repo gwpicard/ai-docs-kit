@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import asyncio
 import json
@@ -155,7 +157,7 @@ def _sheet(built: _Built, result: Any, out: Path) -> Path:
     return contact_sheet(result.pngs, labels, out / "contact.png")
 
 
-def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Path | None:
+def _pptx(file: Path, out: Path, built: _Built, facts: Any) -> Path | None:
     """Write the PowerPoint copy beside the PDF; a document has none."""
     if built.comp.format != "slides":
         return None
@@ -213,7 +215,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         )
     )
     sheet = _sheet(built, result, out)
-    pptx = _pptx(file, out, built, result.facts, theme)
+    pptx = _pptx(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
     version = write_version(
         file,
@@ -243,6 +245,10 @@ def _gate_report(reasons: list[str]) -> int:
     return int(bool(reasons))
 
 
+def _page_line(page: dict[str, Any]) -> str:
+    return f"page {page['page']}: {', '.join(page['sections'])}"
+
+
 def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
     pages_path = version_dir / "pages" / "pages.json"
     try:
@@ -250,7 +256,8 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
         if not isinstance(pages, list):
             raise TypeError("pages is not a list")
         for page in pages:
-            page["page"], ", ".join(page["sections"])
+            if not isinstance(page.get("sections"), list) or "page" not in page:
+                raise KeyError("page and sections")
     except OSError as error:
         raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
     except (KeyError, TypeError, ValueError) as error:
@@ -261,7 +268,7 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
 def _look_pages(version_dir: Path) -> int:
     findings_path = version_dir / "findings.json"
     pages = _read_pages(version_dir)
-    lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
+    lines = [_page_line(page) for page in pages]
     try:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
         notes = [
@@ -274,7 +281,7 @@ def _look_pages(version_dir: Path) -> int:
     return 0
 
 
-def _same_finding(a: "LookFinding", b: "LookFinding") -> bool:
+def _same_finding(a: LookFinding, b: LookFinding) -> bool:
     return (a.page, a.section, a.severity, a.message) == (b.page, b.section, b.severity, b.message)
 
 
@@ -550,7 +557,7 @@ def _live_critic(out: Path, theme: Theme) -> Any:
     )
     rubric = load_rubric(theme)
 
-    async def verdict(case: Any, run: int) -> str:
+    async def verdict(case: Any, run: int) -> str:  # noqa: ARG001 - the caller passes the run number
         with Image.open(case.crop) as image:
             width, height = image.size
         item = rubric.get(case.rubric_id)
@@ -598,7 +605,7 @@ def _heal(args: argparse.Namespace) -> int:
                 super().__init__(claude, [], theme, case.document)
                 self.case = case
 
-            async def draft(self, job: Any) -> Any:
+            async def draft(self, job: Any) -> Any:  # noqa: ARG002 - fixed by the draft protocol
                 return self.case.document.sections[0]
 
         writer_for = LiveWriter

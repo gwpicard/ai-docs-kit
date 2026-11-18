@@ -82,12 +82,17 @@ def _pdf(path: Path) -> tuple[int | None, Format | None, str | None]:
         return None, None, "Could not read this file as a PDF"
 
 
+def unreadable_office_reason(name: str) -> str:
+    """Return the reason given for an Office file that cannot be read."""
+    return f"{name} is not a readable Office file"
+
+
 def _office(path: Path, kind: FileType) -> tuple[int | None, Format | None, str | None]:
     fmt: Format = "slides" if kind in ("pptx", "potx") else "doc"
     try:
         with zipfile.ZipFile(path) as archive:
             if not {"[Content_Types].xml", "docProps/app.xml"} & set(archive.namelist()):
-                return None, fmt, "Could not read this file as an Office archive"
+                return None, fmt, unreadable_office_reason(path.name)
             if fmt == "slides":
                 return sum(bool(re.fullmatch(r"ppt/slides/slide\d+\.xml", n)) for n in archive.namelist()), fmt, None
             try:
@@ -97,7 +102,7 @@ def _office(path: Path, kind: FileType) -> tuple[int | None, Format | None, str 
             except KeyError:
                 return None, fmt, None
     except (OSError, ValueError, RuntimeError, NotImplementedError, zipfile.BadZipFile, ElementTree.ParseError):
-        return None, fmt, "Could not read this file as an Office archive"
+        return None, fmt, unreadable_office_reason(path.name)
 
 
 def _unsupported(path: Path) -> str:
