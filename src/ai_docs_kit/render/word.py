@@ -38,7 +38,7 @@ def _style(document: Any, name: str, family: str, colour: str) -> None:
 
 
 def _item_text(item: dict[str, Any]) -> str:
-    text = f"{item['head']}: {item['body']}" if item.get("head") else item["body"]
+    text = f"{item['head'].rstrip(':')}: {item['body']}" if item.get("head") else item["body"]
     return " ".join([text, *item.get("sub", [])])
 
 
