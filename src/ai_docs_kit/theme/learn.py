@@ -18,7 +18,7 @@ from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme
 from ai_docs_kit.theme.rules import _check_kind, load_theme_rules
 
-SECTION_FIELDS = ("title", "paragraphs", "items")
+SECTION_FIELDS = ("title", "paragraphs", "items", "spoken")
 
 
 class RuleError(Exception):
