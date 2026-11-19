@@ -93,6 +93,7 @@ Added for this project:
 - A text field supported by checks must survive both composition and example reconstruction, including `spoken`; test from a stored version after changing the working file.
 - Validate a brand change's required reason before `begin_change`; rejecting it in `record_change` leaves the branch and edits behind.
 - PowerPoint shape names split at the final slash: section ids can contain slashes, but field paths cannot.
+- Match a Word item's unchanged body suffix before its head prefix: a revised head may extend the old head and either field may contain colons.
 
 ## Standing approvals
 
@@ -109,6 +110,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 192: keep the review plan's string list and match unchanged Word items in both single-colon and older double-colon copies before applying edits. Locate a revised head from the unchanged body and sub-line suffix; preserve metadata for a sole remaining reworded plain bullet. Other unmatched texts remain new items, following the existing added/removed-bullet decision. Item staleness now includes sub lines, with absent stored sub lines treated as empty. Existing tests stay locked; `tests/test_review_item_separator_regressions.py` adds command line round trips for colon-bearing heads and bodies and a sole reworded plain bullet built with the older writer. The PDF page is retained under `.loop/issue-192/review/p01.png`; the Word interface was not exercised. Further edge cases are deferred to a follow-up as the person requested.
 - Issue 194 verification: after keeping both sides of the PLAN.md conflict, all 36 targeted rule learning, testing, adoption, default-theme, item-head and spoken-snapshot cases pass. The acceptance criteria are already implemented, so no further engine or skill changes are needed. The full Test and Check commands remain with the Stop hook.
 - Issue 246: the PowerPoint reader splits `<section-id>/<field-path>` at the final slash, because section ids may contain slashes and field paths do not. This preserves the existing copy format and stable section anchors; the locked CLI regression reproduces the defect.
 - Issue 243: `brand set` rejects a blank or whitespace-only reason for every token before `begin_change`, extending its existing departure check. This keeps the brand on clean `main` and lets a subsequent valid set succeed without adding rollback machinery; the locked CLI regression covers both reasons and the valid retry.
