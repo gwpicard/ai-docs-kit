@@ -135,6 +135,12 @@ from, reads it, and writes a review plan.
 | Bolded, recoloured, moved or resized | run properties, geometry | An emphasis hint, never applied |
 
 Word comments come from `comments.xml` with their ranges; tracked changes from `w:ins` and `w:del`.
+The plan keeps a section's edited heading in `title` and its body in `wording`, each null when
+unchanged. Headings are identified by the Word paragraph's heading style, so a body paragraph that
+repeats the title stays in the body. A section still present with its title cleared is refused with
+exit 2 before a plan is written, including when the section holds only a title. Removing the whole
+section remains a structural confirm item. Plans written before the split lack the `title` key and
+keep the previous wording path when applied.
 Bookmarks move when Word saves, so a change is attributed by range overlap. A Word copy with nothing
 in it raises a warning that tracked changes may have been off. PowerPoint comments come from both the
 legacy (`ppt/comments/`) and the modern (`ppt/comments/modernComment_*`) parts, anchored to a slide

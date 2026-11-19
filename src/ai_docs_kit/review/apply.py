@@ -9,6 +9,7 @@ from typing import Any
 
 from ai_docs_kit.model import Document, Item, Patch, PatchOp, Section
 from ai_docs_kit.render.marks import FIELD_PATTERN, FieldError, field_value
+from ai_docs_kit.review.legacy import split_legacy_wording
 from ai_docs_kit.review.plan import ReviewPlan, StructureItem
 from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev
 from ai_docs_kit.source.ids import IdStore
@@ -118,13 +119,16 @@ class _Decisions:
     """What the person accepted, by section id."""
 
     def __init__(self, plan: ReviewPlan) -> None:
+        self.titles: dict[str, str] = {}
         self.wording: dict[str, str] = {}
         self.fields: dict[str, dict[str, str]] = {}
         self.items: dict[str, list[str]] = {}
         self.proposals: dict[str, str] = {}
         self.asks: dict[str, str] = {}
         for section_id, item in plan.sections.items():
-            if item.wording:
+            if item.title is not None:
+                self.titles[section_id] = item.title
+            if item.wording is not None:
                 self.wording[section_id] = item.wording
             if item.fields:
                 self.fields[section_id] = item.fields
@@ -139,15 +143,10 @@ class _Decisions:
                     self.asks[section_id] = comment.ask or comment.text
 
     def paragraph_words(self, section_id: str) -> str | None:
-        return self.proposals.get(section_id) or self.wording.get(section_id)
+        return self.proposals.get(section_id, self.wording.get(section_id))
 
     def rewritten(self) -> list[str]:
-        return [
-            *self.wording,
-            *(s for s in self.proposals if s not in self.wording),
-            *(s for s in self.fields if s not in self.wording and s not in self.proposals),
-            *(s for s in self.items if s not in self.wording and s not in self.proposals and s not in self.fields),
-        ]
+        return list(dict.fromkeys([*self.wording, *self.proposals, *self.fields, *self.items, *self.titles]))
 
 
 def _accepted_structure(plan: ReviewPlan) -> list[StructureItem]:
@@ -232,7 +231,7 @@ def _changed_parts(
 ) -> dict[str, list[str]]:
     """Touched sections whose title, paragraphs, items or deck fields differ from the sent version, with the parts."""
     changed: dict[str, list[str]] = {}
-    touched = {*decided.wording, *decided.proposals, *decided.asks, *decided.fields, *decided.items}
+    touched = {*decided.rewritten(), *decided.asks}
     for section_id in sorted(touched):
         props, section = sent.get(section_id, {}), by_id[section_id]
         parts: list[str] = []
@@ -255,6 +254,7 @@ def _changed_parts(
 def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[str]]:
     plan = _load_plan(plan_path)
     doc = _load_doc(path)
+    split_legacy_wording(plan, doc.sections)
     by_id = {s.id: s for s in doc.sections}
     decided = _Decisions(plan)
     structure = _accepted_structure(plan)
@@ -262,6 +262,7 @@ def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[
     touched = [*decided.rewritten(), *decided.asks, *deletes]
     missing = sorted({s for s in touched if s not in by_id})
     for section_id in missing:
+        decided.titles.pop(section_id, None)
         decided.wording.pop(section_id, None)
         decided.fields.pop(section_id, None)
         decided.items.pop(section_id, None)
@@ -275,12 +276,11 @@ def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[
     applied: list[str] = []
     for section_id in decided.rewritten():
         new = by_id[section_id]
+        if section_id in decided.titles:
+            new = new.model_copy(update={"title": decided.titles[section_id]}, deep=True)
         words = decided.paragraph_words(section_id)
-        if words:
-            paragraphs = _paragraphs(words)
-            if paragraphs and new.title and _norm(paragraphs[0]) == _norm(new.title):
-                paragraphs = paragraphs[1:]  # `review read` stores the heading with the text
-            new = new.model_copy(update={"paragraphs": paragraphs}, deep=True)
+        if words is not None:
+            new = new.model_copy(update={"paragraphs": _paragraphs(words)}, deep=True)
         if section_id in decided.items:
             new = new.model_copy(update={"items": _items_for(new, decided.items[section_id])}, deep=True)
         for field, text in decided.fields.get(section_id, {}).items():

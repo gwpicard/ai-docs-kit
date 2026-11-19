@@ -93,6 +93,7 @@ Added for this project:
 - A text field supported by checks must survive both composition and example reconstruction, including `spoken`; test from a stored version after changing the working file.
 - Validate a brand change's required reason before `begin_change`; rejecting it in `record_change` leaves the branch and edits behind.
 - PowerPoint shape names split at the final slash: section ids can contain slashes, but field paths cannot.
+- Word headings can be empty while their bookmarks remain; validate a cleared title before treating an empty section as a deletion.
 
 ## Standing approvals
 
@@ -109,6 +110,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 193: Word plans keep edited headings in optional `title` and bodies in `wording`; an explicit `title` key, including null, identifies the split format. Plans without it use the previous heading removal only in `review/legacy.py`, leaving `apply.py` to apply title and body separately. This applies the optional-field compatibility decision. Heading styles identify titles; repeated body text stays. As the person directed, clearing a title in a present section, including a title-only section, exits 2 before writing a plan; removing its bookmark range still offers a structural deletion. `tests/test_review_title_only.py` reproduces the cleared-title finding through build and `review read`, with a valid title edit through `review apply`. All 173 targeted tests, strict mypy and the changed-file checks pass; full Test and Check commands remain with the Stop hook. No existing test file was edited. Rendering is unchanged.
 - Issue 194 verification: after keeping both sides of the PLAN.md conflict, all 36 targeted rule learning, testing, adoption, default-theme, item-head and spoken-snapshot cases pass. The acceptance criteria are already implemented, so no further engine or skill changes are needed. The full Test and Check commands remain with the Stop hook.
 - Issue 246: the PowerPoint reader splits `<section-id>/<field-path>` at the final slash, because section ids may contain slashes and field paths do not. This preserves the existing copy format and stable section anchors; the locked CLI regression reproduces the defect.
 - Issue 243: `brand set` rejects a blank or whitespace-only reason for every token before `begin_change`, extending its existing departure check. This keeps the brand on clean `main` and lets a subsequent valid set succeed without adding rollback machinery; the locked CLI regression covers both reasons and the valid retry.

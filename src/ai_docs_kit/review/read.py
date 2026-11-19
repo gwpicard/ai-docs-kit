@@ -100,13 +100,21 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
     changed = False
     for section in sent.order:
         before, after = _text(sent, section), _text(copy, section)
+        title_before, title_after = sent.titles.get(section, ""), copy.titles.get(section, "")
         listed_before, listed_after = _items(sent, section), _items(copy, section)
-        item = SectionPlan(wording=None, owner=None)
-        if _present(copy, section) and after and _norm(before) != _norm(after):
-            item.wording, item.owner = after, "human"
-        elif (before or listed_before) and not after and not listed_after:
-            structure.append(StructureItem(kind="delete", section=section, text=before or "\n".join(listed_before)))
-        if _present(copy, section) and (after or listed_after) and listed_before != listed_after:
+        item = SectionPlan(title=None, wording=None, owner=None)
+        present = _present(copy, section)
+        if present and title_before and not title_after.strip():
+            raise ReadError(f"{section}: the section title cannot be blank")
+        if (title_before or before or listed_before) and not (title_after or after or listed_after):
+            text = "\n\n".join([p for p in (title_before, before, "\n".join(listed_before)) if p])
+            structure.append(StructureItem(kind="delete", section=section, text=text))
+        elif present:
+            if _norm(title_before) != _norm(title_after):
+                item.title, item.owner = title_after, "human"
+            if _norm(before) != _norm(after):
+                item.wording, item.owner = after, "human"
+        if present and (title_after or after or listed_after) and listed_before != listed_after:
             item.items, item.owner = list(copy.items.get(section, [])), "human"
         seen = Counter((e[0], _norm(e[1]), e[2]) for e in sent.emphasis.get(section, []))
         for kind, text, value in copy.emphasis.get(section, []):
@@ -116,7 +124,9 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
             else:
                 item.emphasis.append(Emphasis(kind=kind, text=_norm(text), value=value))  # type: ignore[arg-type]
         sections[section] = item
-        changed = changed or bool(item.wording or item.emphasis or item.items is not None)
+        changed = changed or bool(
+            item.title is not None or item.wording is not None or item.emphasis or item.items is not None
+        )
     placed = [s for s in sent.order if _present(copy, s)]
     order = [s for s in copy.order if s in placed]
     if order != placed:
@@ -236,7 +246,9 @@ def summary(plan: ReviewPlan, path: Path) -> list[str]:
     lines = [f"review copy {plan.review_copy} against version v{plan.version}"]
     for section, item in plan.sections.items():
         parts = []
-        if item.wording or item.fields:
+        if item.title is not None:
+            parts.append("title changed")
+        if item.wording is not None or item.fields:
             parts.append("wording changed")
         if item.items is not None:
             parts.append("list items changed")
