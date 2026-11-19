@@ -109,6 +109,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 194 verification: after keeping both sides of the PLAN.md conflict, all 36 targeted rule learning, testing, adoption, default-theme, item-head and spoken-snapshot cases pass. The acceptance criteria are already implemented, so no further engine or skill changes are needed. The full Test and Check commands remain with the Stop hook.
 - Issue 246: the PowerPoint reader splits `<section-id>/<field-path>` at the final slash, because section ids may contain slashes and field paths do not. This preserves the existing copy format and stable section anchors; the locked CLI regression reproduces the defect.
 - Issue 243: `brand set` rejects a blank or whitespace-only reason for every token before `begin_change`, extending its existing departure check. This keeps the brand on clean `main` and lets a subsequent valid set succeed without adding rollback machinery; the locked CLI regression covers both reasons and the valid retry.
 - Issue 70: intake treats a zip as an Office archive if it holds `[Content_Types].xml` or `docProps/app.xml`, because the locked `test_b_03_intake.py` builds a `.dotx` with only `docProps/app.xml` and expects it read.
