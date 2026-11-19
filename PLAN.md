@@ -68,7 +68,7 @@ Added for this project:
 ## Lessons
 
 - Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
-- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
+- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`. In a restricted worktree, set `UV_CACHE_DIR` to a writable temporary folder if uv's default cache is read-only.
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused; a command that appends to a record needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback; validate list entries as well as their container before formatting them.
 - Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers. `lxml` needs `# type: ignore[import-untyped]`; a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument.
@@ -81,7 +81,6 @@ Added for this project:
 - An issue already implemented on the loop branch is closed by checking its tests pass, not rebuilt.
 - Fields added to the composition or plan models must be optional with a fallback, because older versions on disk lack them.
 - Measure each column label separately: a chart-wide fit test turns short labels when one category is long.
-- In a restricted worktree, uv's default cache may be read-only; set `UV_CACHE_DIR` to a writable temporary folder.
 - A column of single letters can be upright multiline text: preserve the PDF text transform in facts instead of guessing rotation from word positions; measure wrapped labels at their actual column width.
 - For quarter-turned PDF glyphs, pdfplumber's `size` is their advance, not their font size; use their cross-axis extent and group rotated lines before joining letters.
 - A shared rule-test fixture may cover both bullets and body text; choose its check field per example rather than copying text between fields in the engine. Composition stores an absent bullet head as `""`; restore it to `None` for rule testing, while keeping empty bodies that source checks do see.
@@ -96,6 +95,7 @@ Added for this project:
 - The skill's gather agent returns facts with `source`; the engine's `Fact` model uses `source_key`. CLI acceptance tests must use the agent's shape rather than silently renaming its keys.
 - CONTEXT.md's core table is locked to 23 terms by `test_p0_8_context.py`; add new skill vocabulary under `## Skill words` rather than extending that table.
 - The parser extracts bullet citations but keeps prose citations inline; the guard must exclude their metadata from claim and evidence tokens and check prose keys too, or locators become claims and can support later invented numbers. Seed citation errors in list items: `source.citations-resolve` currently reads item citations, not paragraph text; use a callout for a document fixture. Pair a clean reporting control with a defective build so every added case detects the missing report.
+- Citation acceptance tests need both `[S3 p.6-7]` and `[S1, p. 12]`: whitespace-only matching already handles the former but misses the latter, including old-locator evidence and unknown keys.
 
 ## Standing approvals
 
@@ -112,6 +112,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 278 test oracle: issue 277 already excludes page ranges in whitespace-separated citations. Add a new fixture pair and CLI acceptance tests for sentence openings, names remaining after an opening word, and comma-separated page locators. Exercise prose and bullets, both sentence orders, and leading and trailing citations. Keep refusal controls for the invented name and number, citation numbers reused as evidence, and unknown source keys with a comma locator. No production or existing test files change.
 - Issue 277: store gathered facts per working filename at `.ai_docs_kit/facts/<name>.md.json`, so working files in one project keep separate evidence and the file and its store can travel together. Accept the gather agent's JSON array with `text`, `source` and optional `locator`; ignore its extra topic metadata. Validate the whole batch and its source keys before an atomic save, deduplicate by text, source and locator, and refuse malformed or blank fields with one stderr line and exit 2. Feed stored fact text to the existing `section put` guard alongside sources, front matter and previous text; missing stores mean no extra evidence. Update the create stages, DESIGN.md and vocabulary in the same change, following the person's-layer and source-traceability decisions and the refusal-change lesson. The nine locked CLI cases cover persistence, repeated additions, both source orders, supported and unsupported drafts, and two fresh-section PDF builds; new file-handling tests cover malformed input and stores, whole-batch refusal, separate working files and one-line listing. Existing tests, including `tests/test_round_trip.py`, stay unchanged. No dependency or rendering change.
 - Issue 277 verification: define Gathered facts in CONTEXT.md's skill-word list, distinct from Layout facts, because the locked vocabulary judge requires exactly 23 core table rows. The new vocabulary regression reads the published CONTEXT.md file and checks that placement and definition; the core judge stays unchanged. Record the trap under Lessons and drop the oldest lesson to keep fewer than 30 entries.
 - Issue 277 review: reuse the parser's citation pattern in the fact guard to exclude inline citation metadata from both claims and evidence, and validate keys from prose as well as extracted bullet citations. This fixes supported prose drafts with page or timestamp locators, the reported unknown-key follow-up and the related case where an old prose locator could support a later invented number. This also corrects those existing guard defects without stored facts; the parser, working-file text and renderer stay unchanged. The new CLI regressions cover prose and bullets in both document formats, page and timestamp locators, unknown keys with and without locators, unsupported claim numbers and old-locator evidence. Update the create stage and DESIGN.md under the refusal-change lesson; no existing test or dependency changes.
