@@ -142,7 +142,7 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
         new.redraft = None
     else:
         new.redraft = old.redraft
-    evidence = [f"{s.key} {s.text}" for s in doc.sources]
+    evidence = [part for source in doc.sources for part in (source.key, source.text)]
     evidence.extend(v for v in doc.front.values() if isinstance(v, str))
     evidence.extend(_fields(old))
     evidence.extend(fact.text for fact in read_gathered_facts(gathered_facts_path(path), missing_ok=True))

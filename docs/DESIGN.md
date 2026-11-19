@@ -87,6 +87,8 @@ such as `EU` or `Varnholm`, still needs evidence. A month on its own is calendar
 still checks the year and numeric day.
 Evidence retains isolated capitalised words even at sentence openings, so a gathered fact beginning
 with a name can support that name after an opening word in a draft.
+Source keys and source text are tokenised as separate evidence entries, so a capitalised opening
+such as `The EU` or `The Northern Fisheries Council` keeps the same sentence boundary as the draft.
 
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through

@@ -191,7 +191,7 @@ RULES = [
 
 def check_rewrite(before: Document, after: Document) -> list[Finding]:
     sections = {section.id: section for section in before.sections if section.id is not None}
-    common_evidence = [f"{source.key} {source.text}" for source in before.sources]
+    common_evidence = [part for source in before.sources for part in (source.key, source.text)]
     common_evidence.extend(value for value in before.front.values() if isinstance(value, str))
     findings: list[Finding] = []
     for section in after.sections:
