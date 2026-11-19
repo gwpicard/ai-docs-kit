@@ -64,14 +64,17 @@ def _box(page: int, item: dict[str, Any]) -> FactBox:
 
 def _word(page: int, height: float, raw: dict[str, Any]) -> Word:
     first = raw["chars"][0]
+    rotation = round(degrees(atan2(-float(first["matrix"][1]), float(first["matrix"][0]))) % 360, 6)
+    # pdfplumber's size is the page-axis height, which is a glyph's advance after a quarter turn.
+    size = float(first["width"]) if rotation in (90, 270) else float(raw["size"])
     return Word(
         text=raw["text"],
         font=raw["fontname"],
-        size=float(raw["size"]),
+        size=size,
         colour=to_hex(first.get("non_stroking_color")),
         box=_box(page, raw),
         baseline=height - float(first["matrix"][5]),
-        rotation=round(degrees(atan2(-float(first["matrix"][1]), float(first["matrix"][0]))) % 360, 6),
+        rotation=rotation,
     )
 
 

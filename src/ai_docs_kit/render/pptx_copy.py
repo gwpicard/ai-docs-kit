@@ -63,11 +63,22 @@ def _is_turned(words: list[PlacedWord]) -> bool:
 
 
 def _turned_text(words: list[PlacedWord]) -> str:
-    """Join the stacked letters of a turned label, putting a space where the column breaks."""
+    """Join one turned line's letters, putting a space between words."""
     text = words[0].text
     for before, word in zip(words, words[1:], strict=False):
         text += (" " if word.box.y0 - before.box.y1 > word.size * 0.15 else "") + word.text
     return text
+
+
+def _turned_lines(words: list[PlacedWord]) -> list[str]:
+    """Read clockwise-turned lines from right to left, and their letters from top to bottom."""
+    lines: list[list[PlacedWord]] = []
+    for word in sorted(words, key=lambda w: (-w.box.x0, w.box.y0)):
+        if lines and abs(lines[-1][0].box.x0 - word.box.x0) < word.size / 2:
+            lines[-1].append(word)
+        else:
+            lines.append([word])
+    return [_turned_text(sorted(line, key=lambda w: w.box.y0)) for line in lines]
 
 
 def _add_box(slide: Any, name: str, words: list[PlacedWord], box: tuple[float, float, float, float]) -> None:
@@ -85,7 +96,7 @@ def _add_box(slide: Any, name: str, words: list[PlacedWord], box: tuple[float, f
     frame.vertical_anchor = MSO_ANCHOR.TOP
     frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
     first = words[0]
-    lines = [_turned_text(words)] if turned else [" ".join(word.text for word in line) for line in _lines(words)]
+    lines = _turned_lines(words) if turned else [" ".join(word.text for word in line) for line in _lines(words)]
     for index, line in enumerate(lines):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
         run = paragraph.add_run()
