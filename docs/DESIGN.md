@@ -157,9 +157,11 @@ and carries `because="redrafted for <who> at v<N>: <the ask>"`.
 
 When a comment states a lasting preference, the `review` skill proposes a rule in the engine's rule
 format, with the comment as its provenance. `ai-docs-kit rule test <rule> --example <version>/<section>`
-accepts it only if it fires on the commented section and on none of the brand's approved exemplars. An
-accepted rule enters the brand's rulebook on probation (advisory) and blocks only after the person
-promotes it. This is principle 8 of `docs/ENGINE.md` applied to comments.
+accepts it only if it fires on the commented section and on none of the brand's approved exemplars.
+The version folder is identified by its `composition.json`; the complete section id after it is
+kept literally, including `./` and leading or trailing slashes. An accepted rule enters the brand's
+rulebook on probation (advisory) and blocks only after the person promotes it. This is principle 8 of
+`docs/ENGINE.md` applied to comments.
 
 ## 8. What appears in a project folder
 
