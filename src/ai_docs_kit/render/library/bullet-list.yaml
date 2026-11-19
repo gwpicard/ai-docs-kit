@@ -1,0 +1,10 @@
+name: bullet-list
+format: doc
+label: Document bullet list
+intents: [bullets]
+capacity:
+  title_words: [1, 10]
+  items: [1, 40]
+  item_chars: [1, 240]
+elements: [heading, list-item, list-sub, source]
+fixture: tests/fixtures/components/bullet-list.yaml
