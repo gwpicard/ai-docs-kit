@@ -261,6 +261,8 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
                 raise TypeError("page is not an object")
             if not isinstance(page.get("sections"), list) or "page" not in page:
                 raise KeyError("page and sections")
+            if not all(isinstance(section, str) for section in page["sections"]):
+                raise TypeError("section id is not a string")
     except OSError as error:
         raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
     except (KeyError, TypeError, ValueError) as error:
