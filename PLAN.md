@@ -68,7 +68,6 @@ Added for this project:
 ## Lessons
 
 - Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
-- Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
 - A command that appends to a record needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback; validate list entries as well as their container before formatting them.
@@ -96,6 +95,7 @@ Added for this project:
 - Brand root creation can fail before the brand folder exists; translate its `OSError` to `BrandError` so the CLI returns exit 2 without a traceback.
 - Seed citation errors in list items: `source.citations-resolve` reads item citations, not paragraph text. Pair a clean reporting control with a defective build, and use supported intents elsewhere in a CLI refusal control so another section cannot mask the defect.
 - Put new components in `render/library/`: locked tests pin the four original `render/components/` manifests exactly, while `all_manifests` includes library additions.
+- Register every new component in `brand/specimen.yaml`: specimen builds validate the whole catalogue even for the other format. Build test fixtures in `tmp_path`, never in place under `tests/fixtures` (unless a locked test relies on the conftest clean-up).
 
 ## Standing approvals
 
@@ -112,6 +112,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 280 specimen follow-up: the full suite found the two new document components missing from `brand/specimen.yaml`, which also broke slide specimen and calibration paths because the entire catalogue is validated. Add explicit synthetic specimen entries for both forms. The new `tests/test_doc_component_specimens.py` reproduces the error through `brand specimen` for reports and slides, checks rendered pages and component coverage, and confirms a second call uses the cached PDF. Retain rendered report specimen pages beside the component evidence. No existing test is changed.
 - Issue 280: retain the existing `key-numbers` intent and add the document-only `bullet-list` and `key-figures-strip` components in `render/library/`, following the vocabulary and data-driven chooser decisions. Lists flow with headed or plain items, sub-lines and citations; 2 to 4 figures stay together and use document h1 values and body labels rather than adding type tokens. The existing Word writer already writes both forms as bookmarked lists, so it is unchanged. Fixtures have script-generated goldens; the locked CLI tests cover both item and section orders, 2, 3 and 4 figures, Word lists, page indexing, outline checks and unknown-intent refusals. Keep rendered fixture pages in `docs/evidence/issue-280/` for pull request review; this session cannot open or attach to a remote pull request because the task forbids `gh` and pushes. No existing test, dependency or protected path is changed.
 - Issue 253 review: each reporting case now builds a defective version followed by a clean version through the CLI and checks both outputs against their stored findings and gaps. This retains clean-output coverage while making every added case detect missing reporting. Restored the unrelated callout/body and field-index lesson; combined the clean-control lesson with the citation-fixture lesson to keep fewer than 30 lesson lines. The reviewer-hook follow-up is outside this repository's available hook sources and needs a separate change to the review tooling; no permissions or hook settings were changed.
 - Issue 253: ordinary builds print each recorded error with its rule id, section and message, and each manifest gap with its section and text, before the version path. This applies the 2026-11-17 decision to report open issues without gating ordinary builds and preserves the version path as the final line. The authorised `tests/test_build_reports_findings.py` is absent in this checkout, so it is added with reporting coverage for slides and documents, including errors alone, gaps alone, both and clean builds. Locked `tests/judge/test_m4_11_ship_gate.py` still requires the legacy `--final` gate, so that behaviour remains despite the no-gate decision; changing it needs a separate test-path approval. Rendering is unchanged.

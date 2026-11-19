@@ -10,6 +10,11 @@ review.
 
 ![Four key figures with labels and citations](key-figures-strip.png)
 
+The brand report specimen also includes both components. Its page is rendered
+through `ai-docs-kit brand specimen` using the neutral theme:
+
+![Report specimen](specimen-p01.png)
+
 All wording and figures are synthetic. The fonts are the kit's existing Inter
 and Source Serif 4 fonts, licensed under the SIL Open Font Licence as recorded in
 `src/ai_docs_kit/themes/neutral/fonts/LICENSES.txt`. No new font or outside asset

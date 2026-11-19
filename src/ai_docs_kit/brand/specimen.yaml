@@ -257,3 +257,40 @@ sections:
       - 4
   source_line: 'Source: Internal data'
   component: chart-table
+- id: s-bullet-list
+  intent: bullets
+  title: Review dates
+  items:
+  - head: January
+    body: Survey the site.
+    sub:
+    - Record the access route.
+    - Check the gate.
+    citations: [{key: S1, locator: p.2}]
+  - body: Confirm the delivery date.
+    citations: [{key: S2, locator: '00:41'}]
+  - head: March
+    body: Publish the findings.
+    sub:
+    - Include the site sketch.
+    citations: [{key: S1, locator: p.4}]
+  source_line: 'Source: synthetic site register and planning transcript.'
+  component: bullet-list
+- id: s-key-figures-strip
+  intent: key-numbers
+  title: Key figures
+  items:
+  - head: 42%
+    body: Completion rate
+    citations: [{key: S1, locator: p.5}]
+  - head: '120'
+    body: Sites surveyed
+    citations: [{key: S1, locator: p.5}]
+  - head: 85%
+    body: Return rate
+    citations: [{key: S1, locator: p.5}]
+  - head: '24'
+    body: Reports issued
+    citations: [{key: S1, locator: p.5}]
+  source_line: 'Source: synthetic site register.'
+  component: key-figures-strip
