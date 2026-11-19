@@ -43,4 +43,6 @@ Never edit a plugin file.
 
 When the agent flags a comment that states a lasting preference, draft one rule in the engine's rule format (`origin: feedback`, `status: proposed`, a source-tier `check`, the comment as its provenance). For a correction in a bullet, use `field: items`; for paragraph text, use `field: paragraphs`. `rule test` sees the same text fields as `check`. Run `ai-docs-kit rule test <rule> --example <version>/<section> --theme <brand theme>`. It passes only if the rule fires on the commented section and on none of the brand's approved exemplars. If it fails, report that and drop the rule.
 
+Keep the complete section id after the version folder in `--example`, including any slashes within the id.
+
 Ask the person, with the rule and the test result. Adopt a rule only on the person's yes, with `ai-docs-kit rule adopt <rule> --theme <brand theme>`; never adopt one without it. An adopted rule enters the rulebook on probation, advisory until the person promotes it. Name the rule in the report. If the person says no, offer a dated line in `preferences.md` instead.

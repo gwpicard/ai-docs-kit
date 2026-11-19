@@ -74,6 +74,12 @@ def _example(spec: str) -> tuple[Path, str]:
     folder, _, section_id = spec.rpartition("/")
     if not folder or not section_id:
         raise RuleError(f"{spec}: --example must be <version folder>/<section id>", 2)
+    # Section ids may contain slashes; the stored composition identifies the version folder.
+    candidate = folder
+    while candidate:
+        if (Path(candidate) / "composition.json").is_file():
+            return Path(candidate), spec[len(candidate) + 1 :]
+        candidate, _, _ = candidate.rpartition("/")
     return Path(folder), section_id
 
 
