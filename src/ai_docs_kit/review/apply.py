@@ -172,59 +172,77 @@ def _move_ops(order: list[str], wanted: list[str]) -> tuple[list[PatchOp], list[
 
 
 def _items_text(items: Any) -> str:
-    """Head, body and citation keys of each item, the same from the sent props and from the working file."""
+    """Head, body, sub lines and citation keys, from sent props or the working file."""
     rows = []
     for item in items or []:
         if isinstance(item, dict):
             head, body, cites = item.get("head"), item.get("body"), item.get("cites") or []
+            sub = item.get("sub") or []
         else:
             head, body, cites = item.head, item.body, [c.key for c in item.citations]
-        rows.append([_norm(head or ""), _norm(body or ""), [str(c) for c in cites]])
+            sub = item.sub
+        rows.append([_norm(head or ""), _norm(body or ""), [_norm(s) for s in sub], [str(c) for c in cites]])
     return json.dumps(rows)
 
 
-def _word_text(item: Item) -> str:
+def _word_text(item: Item, *, legacy: bool = False) -> str:
     """The item as the Word copy writes it: head and body joined by a colon, then the sub lines."""
-    text = f"{item.head}: {item.body}" if item.head else item.body
+    head = item.head if legacy else (item.head or "").rstrip(":")
+    text = f"{head}: {item.body}" if head else item.body
     return _norm(" ".join([text, *item.sub]))
 
 
-def _edited(item: Item, text: str) -> Item:
-    """The item with its body replaced by the reviewed text; head, sub lines and citations stay."""
+def _edited(item: Item, text: str) -> Item | None:
+    """Keep metadata when the head or the body is unchanged, accepting older double-colon copies."""
     body = _norm(text)
-    if item.head and body.startswith(f"{item.head}: "):
-        body = body[len(item.head) + 2 :]
-    elif item.head and body == item.head:
-        body = ""
+    head = item.head
+    if head:
+        prefixes = (f"{head}: ", f"{head.rstrip(':')}: ")
+        prefix = next((p for p in prefixes if body.startswith(p)), None)
+        suffix = _norm(" ".join([item.body, *item.sub]))
+        if suffix and body.endswith(f": {suffix}"):
+            # The unchanged body locates the separator even when either field contains a colon.
+            head, body = body[: -len(suffix) - 2], suffix
+            if item.head and item.head.endswith(":"):
+                head = head.rstrip(":") + ":"
+        elif prefix is not None:
+            body = body[len(prefix) :]
+        elif body == head:
+            body = ""
+        else:
+            return None
     tail = _norm(" ".join(item.sub))
     if tail and body.endswith(tail):
         body = body[: -len(tail)].strip()
-    return item.model_copy(update={"body": body}, deep=True)
+    return item.model_copy(update={"head": head, "body": body}, deep=True)
 
 
 def _items_for(section: Section, texts: list[str]) -> list[Item]:
     """The section's items for the reviewed list texts.
 
-    A text equal to an item's Word-copy text keeps that item whole. A text that begins with a remaining
-    item's head keeps its head, sub lines and citations and sets the body. Any other text is a new item.
+    Match unchanged items first, then edits with an unchanged head or body. A sole remaining plain
+    bullet keeps its metadata when reworded. Other unmatched texts are new items.
     """
     pool = list(section.items)
     result: list[Item | None] = [None] * len(texts)
     for position, text in enumerate(texts):
-        match = next((i for i in pool if _word_text(i) == _norm(text)), None)
+        match = next((i for i in pool if _norm(text) in (_word_text(i), _word_text(i, legacy=True))), None)
         if match is not None:
             pool.remove(match)
             result[position] = match
     for position, text in enumerate(texts):
         if result[position] is not None:
             continue
-        match = next((i for i in pool if i.head and _norm(text).startswith(f"{i.head}: ")), None)
-        if match is not None:
-            pool.remove(match)
-            result[position] = _edited(match, text)
-        else:
-            result[position] = Item(body=text)
-    return [item for item in result if item is not None]
+        for item in pool:
+            edited = _edited(item, text) if item.head else None
+            if edited is not None:
+                pool.remove(item)
+                result[position] = edited
+                break
+    remaining = [position for position, item in enumerate(result) if item is None]
+    if len(pool) == len(remaining) == 1 and not pool[0].head:
+        result[remaining[0]] = _edited(pool[0], texts[remaining[0]])
+    return [item if item is not None else Item(body=texts[position]) for position, item in enumerate(result)]
 
 
 def _changed_parts(
