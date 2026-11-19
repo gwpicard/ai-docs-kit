@@ -73,8 +73,13 @@ array: each entry has `text`, `source` and an optional `locator`. The command re
 source key before saving anything and keeps each text, source and locator combination once.
 `ai-docs-kit facts list <name>.md` prints one fact per line with its key and locator. `section put`
 uses every stored fact as evidence alongside the sources, front matter and section's previous text;
-unsupported figures, dates, names and source keys are still refused. Without stored facts, its
-guard behaves as before.
+unsupported figures, dates, names and source keys are still refused. A missing fact store contributes
+no extra evidence.
+
+The guard excludes inline citation metadata such as `[S1 p.87]` or `[S1 00:41]` from claim and
+evidence tokens, and validates the source key in both prose and bullets. A page or timestamp cannot
+support a number in a claim, including when the citation appears in the section's previous text.
+The working file keeps the citation text unchanged.
 
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
