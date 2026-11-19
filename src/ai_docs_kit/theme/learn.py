@@ -72,6 +72,13 @@ def _fires(rule: Rule, doc: Document, theme: Theme) -> list[str]:
 
 def _example(spec: str) -> tuple[Path, str]:
     folder, _, section_id = spec.rpartition("/")
+    # Stop at the version before Path can normalise any part of the section id.
+    for index, character in enumerate(spec):
+        if character == "/" and index:
+            candidate = spec[:index]
+            if (Path(candidate) / "composition.json").is_file():
+                folder, section_id = candidate, spec[index + 1 :]
+                break
     if not folder or not section_id:
         raise RuleError(f"{spec}: --example must be <version folder>/<section id>", 2)
     return Path(folder), section_id

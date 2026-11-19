@@ -75,14 +75,13 @@ Added for this project:
 - Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers.
 - `lxml` has no stubs under mypy strict (import with `# type: ignore[import-untyped]`); a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument.
 - Any text field read from a person's or agent's file (rule, message, recipient, banned term) needs a blank and whitespace check where it is read; an empty string otherwise matches everything or is accepted silently.
-- A reader for an outside Office file must tolerate missing optional parts (theme, notes, relationships) and report a clean exit-2 message, not a traceback; seed a fixture with the part removed.
+- An outside Office reader must tolerate missing optional parts (theme, notes, relationships), catch archive errors including `zlib.error` and `BadZipFile`, and report a clean one-line exit-2 message; seed missing-part and corrupt-archive fixtures.
 - For each command's input file (index, findings, manifest), cover the malformed, empty and missing-key cases in a hostile-file test, as `tests/test_cli_look_hostile_files.py` does.
 - A rule or check keyed by section must use `section_key(section, index)` from `checks/engine.py`, never `section.id`, or sections without an id collapse into one finding or never fire.
 - A change that removes or relaxes a refusal must update the skills, `docs/DESIGN.md` and PLAN.md deviations in the same issue, or they keep promising the old behaviour.
 - When an issue supersedes a PLAN.md deviation, edit or delete the old line in the same issue rather than appending a new one.
 - Text written to Word or PowerPoint XML must have XML-illegal characters stripped, or the copy crashes the build.
 - An issue already implemented on the loop branch is closed by checking its tests pass, not rebuilt.
-- A reader that opens a zip part must catch the whole archive error list (`zlib.error`, `BadZipFile` and the rest) and exit 2 with one line.
 - Fields added to the composition or plan models must be optional with a fallback, because older versions on disk lack them.
 - Measure each column label separately: a chart-wide fit test turns short labels when one category is long.
 - In a restricted worktree, uv's default cache may be read-only; set `UV_CACHE_DIR` to a writable temporary folder.
@@ -95,6 +94,7 @@ Added for this project:
 - PowerPoint shape names split at the final slash: section ids can contain slashes, but field paths cannot.
 - Word headings can be empty while their bookmarks remain; validate a cleared title before treating an empty section as a deletion.
 - Match a Word item's unchanged body suffix before its head prefix: a revised head may extend the old head and either field may contain colons.
+- Find a rule example's version boundary before normalising paths or validating the id: splitting at the final slash loses id parts, `Path` consumes `./` and repeated slashes, and a final slash may belong to the id.
 
 ## Standing approvals
 
@@ -111,6 +111,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 254: `rule test` scans folder prefixes from left to right for `composition.json`, then keeps the remaining section id literally and validates it after version discovery. This preserves stable section anchors, the existing command format and ids with `./` or leading, internal and trailing slashes; missing versions retain the previous read error. The locked CLI tests cover one- and two-slash ids sharing a suffix with a plain id, in both source orders. The new `tests/test_rule_test_literal_section_ids.py` reproduces both review findings through real document and slide builds, in both source orders, with distinct section text and only the selected section containing the seeded defect; an empty id still exits 2. DESIGN.md and the review skill describe the literal id. No existing tests or rendering change.
 - Issue 193: Word plans keep edited headings in optional `title` and bodies in `wording`; an explicit `title` key, including null, identifies the split format. Plans without it use the previous heading removal only in `review/legacy.py`, leaving `apply.py` to apply title and body separately. This applies the optional-field compatibility decision. Heading styles identify titles; repeated body text stays. As the person directed, clearing a title in a present section, including a title-only section, exits 2 before writing a plan; removing its bookmark range still offers a structural deletion. `tests/test_review_title_only.py` reproduces the cleared-title finding through build and `review read`, with a valid title edit through `review apply`. All 173 targeted tests, strict mypy and the changed-file checks pass; full Test and Check commands remain with the Stop hook. No existing test file was edited. Rendering is unchanged.
 - Issue 192: keep the review plan's string list and match unchanged Word items in both single-colon and older double-colon copies before applying edits. Locate a revised head from the unchanged body and sub-line suffix; preserve metadata for a sole remaining reworded plain bullet. Other unmatched texts remain new items, following the existing added/removed-bullet decision. Item staleness now includes sub lines, with absent stored sub lines treated as empty. Existing tests stay locked; `tests/test_review_item_separator_regressions.py` adds command line round trips for colon-bearing heads and bodies and a sole reworded plain bullet built with the older writer. The PDF page is retained under `.loop/issue-192/review/p01.png`; the Word interface was not exercised. Further edge cases are deferred to a follow-up as the person requested.
 - Issue 194 verification: after keeping both sides of the PLAN.md conflict, all 36 targeted rule learning, testing, adoption, default-theme, item-head and spoken-snapshot cases pass. The acceptance criteria are already implemented, so no further engine or skill changes are needed. The full Test and Check commands remain with the Stop hook.
