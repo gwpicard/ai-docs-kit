@@ -67,6 +67,20 @@ when it reaches that stage.
 An agent gets everything it needs in its prompt and never explores the repository. Its output is
 validated by an `ai-docs-kit` command before the skill reads it.
 
+After the outline is agreed and its working file has a source list, the skill saves the gathered
+facts with `ai-docs-kit facts add <name>.md <facts.json>`. The input is the gather agent's `facts`
+array: each entry has `text`, `source` and an optional `locator`. The command refuses an unlisted
+source key before saving anything and keeps each text, source and locator combination once.
+`ai-docs-kit facts list <name>.md` prints one fact per line with its key and locator. `section put`
+uses every stored fact as evidence alongside the sources, front matter and section's previous text;
+unsupported figures, dates, names and source keys are still refused. A missing fact store contributes
+no extra evidence.
+
+The guard excludes inline citation metadata such as `[S1 p.87]` or `[S1 00:41]` from claim and
+evidence tokens, and validates the source key in both prose and bullets. A page or timestamp cannot
+support a number in a claim, including when the citation appears in the section's previous text.
+The working file keeps the citation text unchanged.
+
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
 `${CLAUDE_PLUGIN_ROOT}/bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder.
@@ -168,13 +182,16 @@ rulebook on probation (advisory) and blocks only after the person promotes it. T
 ```
 <folder>/
   <source material the person dropped in>
-  <name>.md                 the working file: the whole state
+  <name>.md                 the working file: front matter, sources and sections
+  .ai_docs_kit/facts/<name>.md.json  gathered facts agreed at the outline
   <name>.pdf                the latest deliverable
   <name>.pptx | <name>.docx the latest editable copy
   <name>.versions/vN/       every build: PDF, editable copy, pages/, manifest with the look record
 ```
 
 Caches and the render kit live under the plugin's data folder, never in the project folder.
+The gathered facts are the person's data, not a cache: keep `.ai_docs_kit/` beside the working file
+when moving it to another folder.
 
 ## 9. Not in scope
 
