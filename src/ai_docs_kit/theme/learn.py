@@ -94,6 +94,10 @@ def _example_doc(folder: Path, section_id: str) -> Document:
         section = Section.model_validate({"id": section_id, "intent": intent, **kept})
     except ValidationError as error:
         raise RuleError(f"{section_id}: cannot read the section: {' '.join(str(error).split())}", 2) from error
+    for item in section.items:
+        # Composition uses an empty string for the absent head that source checks skip.
+        if item.head == "":
+            item.head = None
     return Document(front={}, format=fmt, sections=[section])
 
 
