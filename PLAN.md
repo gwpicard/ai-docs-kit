@@ -72,7 +72,7 @@ Added for this project:
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
 - A command that appends to a record needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback; validate list entries as well as their container before formatting them.
-- Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers. `lxml` needs `# type: ignore[import-untyped]`; a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument.
+- Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers. `lxml` needs `# type: ignore[import-untyped]`; a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument. In a restricted worktree, set `UV_CACHE_DIR` to a writable temporary folder if uv's default cache is read-only.
 - Any text field read from a person's or agent's file (rule, message, recipient, banned term) needs a blank and whitespace check where it is read; an empty string otherwise matches everything or is accepted silently.
 - An outside Office reader must tolerate missing optional parts (theme, notes, relationships), catch archive errors including `zlib.error` and `BadZipFile`, and report a clean one-line exit-2 message; seed missing-part and corrupt-archive fixtures. For command input files (index, findings, manifest), cover malformed, empty and missing-key cases as `tests/test_cli_look_hostile_files.py` does.
 - A rule or check keyed by section must use `section_key(section, index)` from `checks/engine.py`, never `section.id`, or sections without an id collapse into one finding or never fire.
@@ -82,7 +82,6 @@ Added for this project:
 - An issue already implemented on the loop branch is closed by checking its tests pass, not rebuilt.
 - Fields added to the composition or plan models must be optional with a fallback, because older versions on disk lack them.
 - Measure each column label separately: a chart-wide fit test turns short labels when one category is long.
-- In a restricted worktree, uv's default cache may be read-only; set `UV_CACHE_DIR` to a writable temporary folder.
 - A column of single letters can be upright multiline text: preserve the PDF text transform in facts instead of guessing rotation from word positions; measure wrapped labels at their actual column width.
 - For quarter-turned PDF glyphs, pdfplumber's `size` is their advance, not their font size; use their cross-axis extent and group rotated lines before joining letters.
 - A shared rule-test fixture may cover both bullets and body text; choose its check field per example rather than copying text between fields in the engine.
@@ -96,6 +95,7 @@ Added for this project:
 - XML declaration refusals need UTF-16 and UTF-32 fixtures with valid encoded controls: searching for ASCII bytes misses their declarations and readers can silently truncate text at an entity reference.
 - Brand root creation can fail before the brand folder exists; translate its `OSError` to `BrandError` so the CLI returns exit 2 without a traceback.
 - Seed citation errors in list items: `source.citations-resolve` currently reads item citations, not paragraph text; use a callout for a document fixture. Pair a clean reporting control with a defective build so every added case detects the missing report.
+- Isolate a CLI refusal's seeded defect: another unsupported section can fail first and mask the intended error, so use supported intents for the other sections in a negative control.
 
 ## Standing approvals
 
@@ -112,6 +112,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 280 tests: use the existing `key-numbers` intent for document key figures, following CONTEXT.md and ENGINE.md section 8.3. Judge the two forms through CLI builds, Word bookmarks and list styles, document layout facts, and `check --outline`, with different item and section orders and 2, 3 and 4 figures. Discover component fixtures from document manifests and regenerate their goldens with `scripts/golden_facts.py` in a temporary folder; component names stay the builder's choice. Tests require indexed rendered pages; attaching those pages to the pull request remains build evidence for the builder. No production code or existing test is changed.
 - Issue 253 review: each reporting case now builds a defective version followed by a clean version through the CLI and checks both outputs against their stored findings and gaps. This retains clean-output coverage while making every added case detect missing reporting. Restored the unrelated callout/body and field-index lesson; combined the clean-control lesson with the citation-fixture lesson to keep fewer than 30 lesson lines. The reviewer-hook follow-up is outside this repository's available hook sources and needs a separate change to the review tooling; no permissions or hook settings were changed.
 - Issue 253: ordinary builds print each recorded error with its rule id, section and message, and each manifest gap with its section and text, before the version path. This applies the 2026-11-17 decision to report open issues without gating ordinary builds and preserves the version path as the final line. The authorised `tests/test_build_reports_findings.py` is absent in this checkout, so it is added with reporting coverage for slides and documents, including errors alone, gaps alone, both and clean builds. Locked `tests/judge/test_m4_11_ship_gate.py` still requires the legacy `--final` gate, so that behaviour remains despite the no-gate decision; changing it needs a separate test-path approval. Rendering is unchanged.
 - Issue 257: the shared review XML parser checks the parsed document's doctype before returning its root, extending the existing declaration refusal to every encoding the parser supports. Entity resolution, network access and DTD loading remain disabled; the ASCII precheck and archive limits stay in place. This follows the hostile-Office-reader lesson and keeps valid UTF-16 and UTF-32 parts readable without adding a dependency. The supplied regression stays unchanged and covers all four reported cases through `read_word` and `read_deck`, with a valid encoded control for each; no additional test is needed. Rendering is unchanged.
