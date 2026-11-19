@@ -67,7 +67,6 @@ Added for this project:
 
 ## Lessons
 
-- Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
 - Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
 - A command that appends to a record needs a run-twice test.
@@ -96,6 +95,7 @@ Added for this project:
 - XML declaration refusals need UTF-16 and UTF-32 fixtures with valid encoded controls: searching for ASCII bytes misses their declarations and readers can silently truncate text at an entity reference.
 - Brand root creation can fail before the brand folder exists; translate its `OSError` to `BrandError` so the CLI returns exit 2 without a traceback.
 - The skill's gather agent returns facts with `source`; the engine's `Fact` model uses `source_key`. CLI acceptance tests must use the agent's shape rather than silently renaming its keys.
+- CONTEXT.md's core table is locked to 23 terms by `test_p0_8_context.py`; add new skill vocabulary under `## Skill words` rather than extending that table.
 
 ## Standing approvals
 
@@ -113,6 +113,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 ## Deviations
 
 - Issue 277: store gathered facts per working filename at `.ai_docs_kit/facts/<name>.md.json`, so working files in one project keep separate evidence and the file and its store can travel together. Accept the gather agent's JSON array with `text`, `source` and optional `locator`; ignore its extra topic metadata. Validate the whole batch and its source keys before an atomic save, deduplicate by text, source and locator, and refuse malformed or blank fields with one stderr line and exit 2. Feed stored fact text to the existing `section put` guard alongside sources, front matter and previous text; missing stores mean no extra evidence. Update the create stages, DESIGN.md and vocabulary in the same change, following the person's-layer and source-traceability decisions and the refusal-change lesson. The nine locked CLI cases cover persistence, repeated additions, both source orders, supported and unsupported drafts, and two fresh-section PDF builds; new file-handling tests cover malformed input and stores, whole-batch refusal, separate working files and one-line listing. Existing tests, including `tests/test_round_trip.py`, stay unchanged. No dependency or rendering change.
+- Issue 277 verification: define Gathered facts in CONTEXT.md's skill-word list, distinct from Layout facts, because the locked vocabulary judge requires exactly 23 core table rows. The new vocabulary regression reads the published CONTEXT.md file and checks that placement and definition; the core judge stays unchanged. Record the trap under Lessons and drop the oldest lesson to keep fewer than 30 entries.
 - Issue 257: the shared review XML parser checks the parsed document's doctype before returning its root, extending the existing declaration refusal to every encoding the parser supports. Entity resolution, network access and DTD loading remain disabled; the ASCII precheck and archive limits stay in place. This follows the hostile-Office-reader lesson and keeps valid UTF-16 and UTF-32 parts readable without adding a dependency. The supplied regression stays unchanged and covers all four reported cases through `read_word` and `read_deck`, with a valid encoded control for each; no additional test is needed. Rendering is unchanged.
 - Issue 256: translate `OSError` from brand root creation into the existing `BrandError` handling, keeping the change local to `init_brand`. This preserves the project-local default and explicit `--root` decision without broadening error handling for every brand command. The locked CLI regression checks exit 2, a single stderr line naming the root, no traceback and unchanged file contents; the existing workspace tests cover successful creation and duplicate-brand refusal. No existing test or rendering change.
 - Issue 255: validate every page's section id as a string in the shared page-index reader, using its existing malformed-index error handling. A null id now makes `look --pages` exit 2 with one line naming `pages.json`, without a traceback. This follows the malformed-JSON-index lesson and preserves stable section ids without coercion. The supplied regression stays unchanged and exercises a real build and CLI subprocess; existing look tests cover valid output and other malformed inputs. No rendering change.
