@@ -62,11 +62,11 @@
                   }
                 }
               })
-              // Labels stay horizontal while each one fits under its group's slot; otherwise all turn.
+              // Each label stays horizontal while its measured width fits under its group's slot.
               let labels = ()
               for (i, category) in categories.enumerate() {
                 labels.push(context {
-                  let fits = categories.all(c => measure(str(c)).width <= slot - 4pt)
+                  let fits = measure(str(category)).width <= slot
                   let shown = if fits { str(category) } else { rotate(90deg, reflow: true, str(category)) }
                   pad(left: (slot - measure(shown).width) / 2, el("chart-label", sec.id, field: "data.categories[" + str(i) + "]", shown))
                 })
