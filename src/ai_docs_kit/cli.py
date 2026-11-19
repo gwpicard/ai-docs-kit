@@ -218,13 +218,14 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
     sheet = _sheet(built, result, out)
     pptx = _pptx(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
+    findings = built.findings + result.findings
     version = write_version(
         file,
         built.doc,
         built.comp,
         built.pdf,
         result.facts,
-        built.findings + result.findings,
+        findings,
         result.pngs,
         None,
         theme=theme,
@@ -234,6 +235,11 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         pptx=pptx,
         docx=docx,
     )
+    for finding in findings:
+        if finding.severity == "error":
+            print(_line(finding))
+    for gap in version.manifest.gaps:
+        print(f"gap {gap.section or '-'}: {gap.text}")
     print(version.path)
     return _gate_report(ship_gate(version)) if final else 0
 
