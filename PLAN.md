@@ -67,7 +67,6 @@ Added for this project:
 
 ## Lessons
 
-- Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
 - Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
 - A new engine option needs a caller in a real build path in the same issue, or it ships unused.
 - A command that appends to a record needs a run-twice test.
@@ -95,6 +94,7 @@ Added for this project:
 - Find a rule example's version boundary before normalising paths or validating the id: splitting at the final slash loses id parts, `Path` consumes `./` and repeated slashes, and a final slash may belong to the id.
 - XML declaration refusals need UTF-16 and UTF-32 fixtures with valid encoded controls: searching for ASCII bytes misses their declarations and readers can silently truncate text at an entity reference.
 - Brand root creation can fail before the brand folder exists; translate its `OSError` to `BrandError` so the CLI returns exit 2 without a traceback.
+- Seed citation errors in list items: `source.citations-resolve` currently reads item citations, not paragraph text; use a callout for a document fixture.
 
 ## Standing approvals
 
@@ -111,6 +111,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 253: ordinary builds print each recorded error with its rule id, section and message, and each manifest gap with its section and text, before the version path. This applies the 2026-11-17 decision to report open issues without gating ordinary builds and preserves the version path as the final line. The authorised `tests/test_build_reports_findings.py` is absent in this checkout, so it is added with reporting coverage for slides and documents, including errors alone, gaps alone, both and clean builds. Locked `tests/judge/test_m4_11_ship_gate.py` still requires the legacy `--final` gate, so that behaviour remains despite the no-gate decision; changing it needs a separate test-path approval. Rendering is unchanged.
 - Issue 257: the shared review XML parser checks the parsed document's doctype before returning its root, extending the existing declaration refusal to every encoding the parser supports. Entity resolution, network access and DTD loading remain disabled; the ASCII precheck and archive limits stay in place. This follows the hostile-Office-reader lesson and keeps valid UTF-16 and UTF-32 parts readable without adding a dependency. The supplied regression stays unchanged and covers all four reported cases through `read_word` and `read_deck`, with a valid encoded control for each; no additional test is needed. Rendering is unchanged.
 - Issue 256: translate `OSError` from brand root creation into the existing `BrandError` handling, keeping the change local to `init_brand`. This preserves the project-local default and explicit `--root` decision without broadening error handling for every brand command. The locked CLI regression checks exit 2, a single stderr line naming the root, no traceback and unchanged file contents; the existing workspace tests cover successful creation and duplicate-brand refusal. No existing test or rendering change.
 - Issue 255: validate every page's section id as a string in the shared page-index reader, using its existing malformed-index error handling. A null id now makes `look --pages` exit 2 with one line naming `pages.json`, without a traceback. This follows the malformed-JSON-index lesson and preserves stable section ids without coercion. The supplied regression stays unchanged and exercises a real build and CLI subprocess; existing look tests cover valid output and other malformed inputs. No rendering change.
