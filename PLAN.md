@@ -89,6 +89,7 @@ Added for this project:
 - A column of single letters can be upright multiline text: preserve the PDF text transform in facts instead of guessing rotation from word positions; measure wrapped labels at their actual column width.
 - For quarter-turned PDF glyphs, pdfplumber's `size` is their advance, not their font size; use their cross-axis extent and group rotated lines before joining letters.
 - Validate a brand change's required reason before `begin_change`; rejecting it in `record_change` leaves the branch and edits behind.
+- PowerPoint shape names split at the final slash: section ids can contain slashes, but field paths cannot.
 
 ## Standing approvals
 
@@ -105,6 +106,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 246: the PowerPoint reader splits `<section-id>/<field-path>` at the final slash, because section ids may contain slashes and field paths do not. This preserves the existing copy format and stable section anchors; the locked CLI regression reproduces the defect.
 - Issue 243: `brand set` rejects a blank or whitespace-only reason for every token before `begin_change`, extending its existing departure check. This keeps the brand on clean `main` and lets a subsequent valid set succeed without adding rollback machinery; the locked CLI regression covers both reasons and the valid retry.
 - Issue 70: intake treats a zip as an Office archive if it holds `[Content_Types].xml` or `docProps/app.xml`, because the locked `test_b_03_intake.py` builds a `.dotx` with only `docProps/app.xml` and expects it read.
 - Issue 33: `tests/conftest.py` has a session-wide autouse fixture that removes every path under `tests/fixtures` created during the run, instead of editing the locked in-place builders. Folders left by earlier runs stay, since they existed at the start (the ignored `doc.versions` and `.ai_docs_kit` under `pix.blank-page` in this worktree predate it; a fresh clone has none).
