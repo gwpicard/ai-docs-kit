@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation, localcontext
 from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.checks.engine import CheckContext, make_finding
 from ai_docs_kit.model import Document, Finding, Provenance, Remedy, Rule, Section
+from ai_docs_kit.source.parser import CITATION
 
 NUM = re.compile(r"(?<![\w.])[-+]?\d[\d,.]*\d%?|\b\d%?")
 MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
@@ -23,6 +24,7 @@ NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?%?")
 
 
 def support_tokens(text: str) -> set[str]:
+    text = CITATION.sub(" ", text)
     text = WORD.sub(lambda match: WORD_NUMBERS[match.group().lower()], text)
     return (
         {match.group().replace(",", "") for match in NUM.finditer(text)}
@@ -140,12 +142,9 @@ class FactGuard:
         if self.numbers_from_facts:
             unsupported.update(token for token, ids in self.resolved.items() if not ids and token not in self.exempt)
         if self.citation_keys is not None:
-            unsupported.update(
-                f"cite:{citation.key}"
-                for item in section.items
-                for citation in item.citations
-                if citation.key not in self.citation_keys
-            )
+            keys = {citation.key for item in section.items for citation in item.citations}
+            keys.update(match.group(1) for value in _fields(section) for match in CITATION.finditer(value))
+            unsupported.update(f"cite:{key}" for key in keys.difference(self.citation_keys))
         self.unsupported = sorted(unsupported)
         return not self.unsupported
 

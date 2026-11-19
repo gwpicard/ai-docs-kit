@@ -34,7 +34,7 @@ The outline is the one stop. The person is asked once, at the outline, and every
 
 ## Rules
 
-- The working file `<name>.md` is the whole state. Change a section only through `ai-docs-kit section put`. Write the file directly only to lay down structure the person agreed at the outline.
+- The working file `<name>.md` holds the document; its gathered facts live in `.ai_docs_kit/` beside it. Keep both when moving the document. Change a section only through `ai-docs-kit section put`. Write the file directly only to lay down structure the person agreed at the outline.
 - Agents get everything they need in their prompt and never explore the repository. Validate their output with an `ai-docs-kit` command before relying on it.
 - Make no model call of your own beyond your own reading, and set no API key.
 - A number shown to the person traces to a source fact. Never invent a figure or a source key.
