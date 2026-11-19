@@ -33,6 +33,7 @@ class Comment:
 @dataclass
 class WordText:
     order: list[str] = field(default_factory=list)
+    titles: dict[str, str] = field(default_factory=dict)
     paragraphs: dict[str, list[str]] = field(default_factory=dict)
     items: dict[str, list[str]] = field(default_factory=dict)
     emphasis: dict[str, list[tuple[str, str, str | None]]] = field(default_factory=dict)
@@ -48,6 +49,11 @@ def _is_list_item(node: etree._Element) -> bool:
     style = props.find(_q("pStyle"))
     name = (style.get(_q("val")) or "") if style is not None else ""
     return name.startswith("List") or props.find(_q("numPr")) is not None
+
+
+def _is_heading(node: etree._Element) -> bool:
+    style = node.find(f"{_q('pPr')}/{_q('pStyle')}")
+    return style is not None and (style.get(_q("val")) or "").startswith("Heading")
 
 
 def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool, kind: str = "Word") -> bytes | None:
@@ -175,7 +181,9 @@ class _Walker:
         if section is None and listed and text:
             section = self.listing
         self.listing = section if listed and section is not None else None
-        if text and section is not None:
+        if section is not None and _is_heading(node) and section not in self.result.titles:
+            self.result.titles[section] = text
+        elif text and section is not None:
             target = self.result.items if listed else self.result.paragraphs
             target.setdefault(section, []).append(text)
         elif text:

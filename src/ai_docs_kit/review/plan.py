@@ -41,7 +41,8 @@ class Emphasis(_Model):
 
 
 class SectionPlan(_Model):
-    wording: str | None = Field(description="The applied wording of the section, null when it is unchanged.")
+    title: NonBlank | None = Field(default=None, description="The edited section heading; null when unchanged.")
+    wording: str | None = Field(description="The edited body without the heading; null when unchanged.")
     owner: Literal["human"] | None = Field(description="human when a reviewer wrote the wording.")
     items: list[str] | None = Field(
         default=None, description="The section's list items from the Word copy, in order; null when unchanged."

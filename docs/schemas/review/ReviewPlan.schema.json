@@ -249,6 +249,20 @@
           "description": "human when a reviewer wrote the wording.",
           "title": "Owner"
         },
+        "title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The edited section heading; null when unchanged.",
+          "title": "Title"
+        },
         "wording": {
           "anyOf": [
             {
@@ -258,7 +272,7 @@
               "type": "null"
             }
           ],
-          "description": "The applied wording of the section, null when it is unchanged.",
+          "description": "The edited body without the heading; null when unchanged.",
           "title": "Wording"
         }
       },
