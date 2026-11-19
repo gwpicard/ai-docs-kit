@@ -51,20 +51,56 @@ def _family(font: str) -> str:
     return font.split("+")[-1].split("-")[0]
 
 
+def _is_turned(words: list[PlacedWord]) -> bool:
+    """Use the PDF text transform, retaining the fallback for facts saved before rotation was recorded."""
+    if any(word.rotation is not None for word in words):
+        return all(word.rotation == 90 for word in words)
+    return (
+        len(words) > 1
+        and all(len(w.text) == 1 for w in words)
+        and all(abs(w.box.x0 - words[0].box.x0) < 1 and w.box.y0 >= words[0].box.y0 for w in words)
+    )
+
+
+def _turned_text(words: list[PlacedWord]) -> str:
+    """Join one turned line's letters, putting a space between words."""
+    text = words[0].text
+    for before, word in zip(words, words[1:], strict=False):
+        text += (" " if word.box.y0 - before.box.y1 > word.size * 0.15 else "") + word.text
+    return text
+
+
+def _turned_lines(words: list[PlacedWord]) -> list[str]:
+    """Read clockwise-turned lines from right to left, and their letters from top to bottom."""
+    lines: list[list[PlacedWord]] = []
+    for word in sorted(words, key=lambda w: (-w.box.x0, w.box.y0)):
+        if lines and abs(lines[-1][0].box.x0 - word.box.x0) < word.size / 2:
+            lines[-1].append(word)
+        else:
+            lines.append([word])
+    return [_turned_text(sorted(line, key=lambda w: w.box.y0)) for line in lines]
+
+
 def _add_box(slide: Any, name: str, words: list[PlacedWord], box: tuple[float, float, float, float]) -> None:
     x, y, w, h = box
+    turned = _is_turned(words)
+    if turned:  # a rotated label: the unrotated frame swaps width and height around the same centre
+        x, y, w, h = x + (w - h) / 2, y + (h - w) / 2, h, w
     shape = slide.shapes.add_textbox(_emu(x), _emu(y), _emu(w), _emu(h))
     shape.name = name
+    if turned:
+        shape.rotation = 90  # Typst's `rotate(90deg)` text reads downwards
     frame = shape.text_frame
     frame.word_wrap = False
     frame.auto_size = MSO_AUTO_SIZE.NONE
     frame.vertical_anchor = MSO_ANCHOR.TOP
     frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
     first = words[0]
-    for index, line in enumerate(_lines(words)):
+    lines = _turned_lines(words) if turned else [" ".join(word.text for word in line) for line in _lines(words)]
+    for index, line in enumerate(lines):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
         run = paragraph.add_run()
-        run.text = strip_xml_illegal(" ".join(word.text for word in line))
+        run.text = strip_xml_illegal(line)
         run.font.name = _family(first.font)
         run.font.size = Pt(first.size)
         if first.colour:
