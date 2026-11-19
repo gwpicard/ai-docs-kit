@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from math import atan2, degrees
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -70,6 +71,7 @@ def _word(page: int, height: float, raw: dict[str, Any]) -> Word:
         colour=to_hex(first.get("non_stroking_color")),
         box=_box(page, raw),
         baseline=height - float(first["matrix"][5]),
+        rotation=round(degrees(atan2(-float(first["matrix"][1]), float(first["matrix"][0]))) % 360, 6),
     )
 
 

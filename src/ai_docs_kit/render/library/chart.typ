@@ -38,10 +38,18 @@
                     el("chart-mark", sec.id, field: "data.series[" + str(j) + "].values[" + str(i) + "]", rect(width: plot-w * calc.abs(value) / span, height: 12pt, fill: chart-role(s.colour.palette, s.colour.index), stroke: none)),
                   )))
                 }
-                groups.push(grid(columns: (120pt, auto), align: top, gutter: 0pt,
-                  context pad(top: calc.round((rows.len() * rows.first().height - (rows.first().height - 12pt) - measure(str(category)).height) / 1pt / 2) * 1pt, el("chart-label", sec.id, field: "data.categories[" + str(i) + "]", str(category))),
-                  stack(dir: ttb, spacing: 0pt, ..rows),
-                ))
+                groups.push(context {
+                  // Measure in the label column so wrapped lines belong to the same editable box.
+                  let label-w = calc.min(120pt, measure(str(category)).width)
+                  let label-h = measure(block(width: label-w, str(category))).height
+                  let bars-h = rows.len() * rows.first().height - (rows.first().height - 12pt)
+                  let label-top = calc.round(calc.max(0pt, (bars-h - label-h) / 2) / 1pt) * 1pt
+                  let bars-top = calc.round(calc.max(0pt, (label-h - bars-h) / 2) / 1pt) * 1pt
+                  grid(columns: (120pt, auto), align: top, gutter: 0pt,
+                    pad(top: label-top, el("chart-label", sec.id, width: label-w, field: "data.categories[" + str(i) + "]", str(category))),
+                    pad(top: bars-top, stack(dir: ttb, spacing: 0pt, ..rows)),
+                  )
+                })
               }
               stack(dir: ttb, spacing: if categories.len() * series.len() <= 8 { 18pt } else { 10pt }, ..groups)
             } else {

@@ -52,10 +52,9 @@ def _family(font: str) -> str:
 
 
 def _is_turned(words: list[PlacedWord]) -> bool:
-    """A label turned a quarter: the facts give one single-letter word per letter, stacked in one column.
-
-    Ordinary text wrapped to one word per line stacks the same way, so the letters decide.
-    """
+    """Use the PDF text transform, retaining the fallback for facts saved before rotation was recorded."""
+    if any(word.rotation is not None for word in words):
+        return all(word.rotation == 90 for word in words)
     return (
         len(words) > 1
         and all(len(w.text) == 1 for w in words)
