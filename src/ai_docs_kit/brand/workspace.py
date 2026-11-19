@@ -52,7 +52,10 @@ def init_brand(slug: str, root: Path | None = None) -> Path:
     _validate_slug(slug)
     root = root if root is not None else default_root()
     path = root / slug
-    root.mkdir(parents=True, exist_ok=True)
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise BrandError(f"Cannot create brand root {root}: {error}") from error
     try:
         path.mkdir()
     except FileExistsError as error:
