@@ -16,7 +16,7 @@ from ai_docs_kit.model import Document, Rule, Section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme
-from ai_docs_kit.theme.rules import load_theme_rules
+from ai_docs_kit.theme.rules import _check_kind, load_theme_rules
 
 SECTION_FIELDS = ("title", "paragraphs", "items")
 
@@ -52,9 +52,11 @@ def _load_rule(path: Path) -> Rule:
     if not path.is_file():
         raise RuleError(f"{path}: no such rule file", 2)
     try:
-        return Rule.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
-    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValidationError) as error:
+        rule = Rule.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        _check_kind(rule.check)
+    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError) as error:
         raise RuleError(f"{path}: not a valid rule: {' '.join(str(error).split())}", 2) from error
+    return rule
 
 
 def _fires(rule: Rule, doc: Document, theme: Theme) -> list[str]:
@@ -88,11 +90,6 @@ def _example_doc(folder: Path, section_id: str) -> Document:
     if props is None:
         raise RuleError(f"{section_id}: no such section in {folder}", 2)
     kept: dict[str, Any] = {k: props[k] for k in SECTION_FIELDS if k in props}
-    if not kept.get("paragraphs"):
-        # A bullets or statement section keeps its words in items; a rule on `paragraphs` still has to see them.
-        kept["paragraphs"] = [
-            text for item in kept.get("items", []) for text in (item.get("head"), item.get("body")) if text
-        ]
     try:
         section = Section.model_validate({"id": section_id, "intent": intent, **kept})
     except ValidationError as error:
