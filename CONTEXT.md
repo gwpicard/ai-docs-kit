@@ -19,6 +19,7 @@ This file holds the project vocabulary: each thing has one word, used identicall
 | **Finding** | One violation: rule, section, location, evidence, measured value. |
 | **Fix** | A patch to a section that addresses a set of findings. |
 | **Swatch** | A section rendered alone on its component's frame, for fast micro checks. |
+| **Gathered facts** | Statements extracted from source material and agreed at the outline, each with a source key and optional locator, stored beside the working file for drafting. |
 | **Layout facts** | Machine-readable description of a rendered PDF: text runs, colours, boxes, plus semantic marks emitted by components. |
 | **Look** | The pass that rasterises a build, runs all sensors and records the result. |
 | **Critic** | The vision model call that judges screenshots against a closed rubric. |
