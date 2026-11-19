@@ -90,6 +90,8 @@ def _compose_section(section: Section, fmt: Format, chooser: Chooser, index: int
         "paragraphs": list(section.paragraphs),
         "source_line": section.source_line or "",
     }
+    if section.spoken is not None:
+        props["spoken"] = section.spoken
     component = _component(section, fmt, chooser, index, total)
     content = {
         "data": section.data,

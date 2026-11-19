@@ -600,8 +600,8 @@ def _set(brand: Path, args: argparse.Namespace) -> int:
         print(f"Source: {source.file or ', '.join(source.files)} page {source.page}")
         print("not recorded: departs from the brand's sources; add --approve to record it")
         return 2
-    if proposal and not args.reason.strip():
-        raise BrandError(f"A reason is required for departure: {args.path}")
+    if not args.reason.strip():
+        raise BrandError(f"A reason is required to set {args.path}")
     begin_change(brand, "set-" + re.sub(r"[^a-z0-9]+", "-", args.path.lower()).strip("-")[:36])
     departure = set_token(
         brand,

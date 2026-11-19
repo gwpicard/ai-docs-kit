@@ -1,5 +1,6 @@
 """Record a version number in an Office copy's custom document properties."""
 
+import zlib
 from pathlib import Path
 from typing import Any
 
@@ -87,7 +88,16 @@ def read_custom_properties(path: Path) -> dict[str, str]:
         if b"<!DOCTYPE" in data or b"<!ENTITY" in data:
             return {}
         root = etree.fromstring(data, etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False))
-    except (KeyError, OSError, zipfile.BadZipFile, etree.XMLSyntaxError, ValueError, RuntimeError):
+    except (
+        KeyError,
+        OSError,
+        zipfile.BadZipFile,
+        etree.XMLSyntaxError,
+        ValueError,
+        RuntimeError,
+        zlib.error,
+        EOFError,
+    ):
         return {}
     return {n.get("name"): "".join(n.itertext()).strip() for n in root if isinstance(n.tag, str) and n.get("name")}
 
@@ -95,4 +105,4 @@ def read_custom_properties(path: Path) -> dict[str, str]:
 def read_version_property(path: Path) -> int | None:
     """The version number a copy records, or None when it has none or the value is not a number."""
     text = read_custom_properties(path).get(PROPERTY, "")
-    return int(text) if text.isdigit() else None
+    return int(text) if text.isascii() and text.isdigit() else None

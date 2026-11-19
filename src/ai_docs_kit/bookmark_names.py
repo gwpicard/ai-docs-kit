@@ -6,11 +6,14 @@ import re
 ENCODED = "Xenc_"
 HASHED = "Xh_"
 MAX_LENGTH = 40
-PLAIN_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,39}")
+PLAIN_NAME = re.compile(r"[a-z][a-z0-9_]{0,39}")
 
 
 def _encode(section_id: str) -> str:
-    body = "".join(c if c.isascii() and c.isalnum() else "__" if c == "_" else f"_x{ord(c):x}_" for c in section_id)
+    body = "".join(
+        c if c.isascii() and c.isalnum() and not c.isupper() else "__" if c == "_" else f"_x{ord(c):x}_"
+        for c in section_id
+    )
     return ENCODED + body
 
 
@@ -19,11 +22,14 @@ def hashed_name(section_id: str) -> str:
 
 
 def bookmark_name(section_id: str) -> str:
-    """A Word-valid bookmark name: the id itself when Word accepts it, else a reversible encoding, else a short hash.
+    """A Word-valid bookmark name, distinct from every other id's name when compared ignoring case.
+
+    It is the id itself when the id is lowercase and Word accepts it, else a reversible encoding
+    (uppercase letters escaped), else a short hash.
 
     A hashed name (`Xh_` plus a hash) cannot be reversed; the copy stores the map to the id.
     """
-    if PLAIN_NAME.fullmatch(section_id) and not section_id.startswith((ENCODED, HASHED)):
+    if PLAIN_NAME.fullmatch(section_id) and not section_id.startswith((ENCODED.lower(), HASHED.lower())):
         return section_id
     encoded = _encode(section_id)
     return encoded if len(encoded) <= MAX_LENGTH else hashed_name(section_id)

@@ -52,7 +52,11 @@ def _rule(scope: dict | None = None) -> dict:
         "status": "proposed",
         "severity": "error",
         "tier": "source",
-        "check": {"kind": "text-pattern", "field": "paragraphs", "regex": r"\bASAP\b"},
+        "check": {
+            "kind": "text-pattern",
+            "field": "items" if scope and scope.get("intents") == ["bullets"] else "paragraphs",
+            "regex": r"\bASAP\b",
+        },
         "remedy": {"class": "redraft", "hint": "Give a date instead."},
         "provenance": {"label": "answered", "source": {"comment": "Never write ASAP."}, "by": "Dana"},
     }

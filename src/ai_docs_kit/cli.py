@@ -257,6 +257,8 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
         if not isinstance(pages, list):
             raise TypeError("pages is not a list")
         for page in pages:
+            if not isinstance(page, dict):
+                raise TypeError("page is not an object")
             if not isinstance(page.get("sections"), list) or "page" not in page:
                 raise KeyError("page and sections")
     except OSError as error:
