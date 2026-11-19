@@ -69,20 +69,17 @@ Added for this project:
 
 - Callout/body marks: new role names (`callout-title`, `callout-item`, `paragraph`) keep `ai_docs_kit.checks.fit` off them; `field_index` needs the composition to map a no-items statement title.
 - Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`.
-- A new engine option needs a caller in a real build path in the same issue, or it ships unused.
+- A new engine option needs a caller in a real build path in the same issue, or it ships unused. Fields added to composition or plan models must be optional with a fallback, because older versions on disk lack them.
 - A command that appends to a record needs a run-twice test.
 - A command that reads a JSON index turns a malformed file into exit 2 with a one-line message, not a traceback; validate list entries as well as their container before formatting them.
-- Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers.
-- `lxml` has no stubs under mypy strict (import with `# type: ignore[import-untyped]`); a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument.
+- Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers. `lxml` needs `# type: ignore[import-untyped]`; a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument.
 - Any text field read from a person's or agent's file (rule, message, recipient, banned term) needs a blank and whitespace check where it is read; an empty string otherwise matches everything or is accepted silently.
-- An outside Office reader must tolerate missing optional parts (theme, notes, relationships), catch archive errors including `zlib.error` and `BadZipFile`, and report a clean one-line exit-2 message; seed missing-part and corrupt-archive fixtures. Intake runs before template checks, so it needs archive limits before reading even optional metadata.
-- For each command's input file (index, findings, manifest), cover the malformed, empty and missing-key cases in a hostile-file test, as `tests/test_cli_look_hostile_files.py` does.
+- An outside Office reader must tolerate missing optional parts (theme, notes, relationships), catch archive errors including `zlib.error` and `BadZipFile`, and report a clean one-line exit-2 message; seed missing-part and corrupt-archive fixtures. Intake runs before template checks, so it needs archive limits before reading even optional metadata. For command input files (index, findings, manifest), cover malformed, empty and missing-key cases as `tests/test_cli_look_hostile_files.py` does.
 - A rule or check keyed by section must use `section_key(section, index)` from `checks/engine.py`, never `section.id`, or sections without an id collapse into one finding or never fire.
 - A change that removes or relaxes a refusal must update the skills, `docs/DESIGN.md` and PLAN.md deviations in the same issue, or they keep promising the old behaviour.
 - When an issue supersedes a PLAN.md deviation, edit or delete the old line in the same issue rather than appending a new one.
 - Text written to Word or PowerPoint XML must have XML-illegal characters stripped, or the copy crashes the build.
 - An issue already implemented on the loop branch is closed by checking its tests pass, not rebuilt.
-- Fields added to the composition or plan models must be optional with a fallback, because older versions on disk lack them.
 - Measure each column label separately: a chart-wide fit test turns short labels when one category is long.
 - In a restricted worktree, uv's default cache may be read-only; set `UV_CACHE_DIR` to a writable temporary folder.
 - A column of single letters can be upright multiline text: preserve the PDF text transform in facts instead of guessing rotation from word positions; measure wrapped labels at their actual column width.
@@ -95,6 +92,7 @@ Added for this project:
 - Word headings can be empty while their bookmarks remain; validate a cleared title before treating an empty section as a deletion.
 - Match a Word item's unchanged body suffix before its head prefix: a revised head may extend the old head and either field may contain colons.
 - Find a rule example's version boundary before normalising paths or validating the id: splitting at the final slash loses id parts, `Path` consumes `./` and repeated slashes, and a final slash may belong to the id.
+- XML declaration refusals need UTF-16 and UTF-32 fixtures with valid encoded controls: searching for ASCII bytes misses their declarations and readers can silently truncate text at an entity reference.
 - Brand root creation can fail before the brand folder exists; translate its `OSError` to `BrandError` so the CLI returns exit 2 without a traceback.
 
 ## Standing approvals
@@ -112,6 +110,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 257: the shared review XML parser checks the parsed document's doctype before returning its root, extending the existing declaration refusal to every encoding the parser supports. Entity resolution, network access and DTD loading remain disabled; the ASCII precheck and archive limits stay in place. This follows the hostile-Office-reader lesson and keeps valid UTF-16 and UTF-32 parts readable without adding a dependency. The supplied regression stays unchanged and covers all four reported cases through `read_word` and `read_deck`, with a valid encoded control for each; no additional test is needed. Rendering is unchanged.
 - Issue 245: intake reuses the Word reader's limits of 2000 entries, 128 MB total and 32 MB per part, and the template reader's compression limit of 200:1 for parts over 1 MB. Check declared sizes before reading metadata or counting slides, then bound the metadata read to 32 MB plus one byte. This follows ENGINE.md section 7.8.7 without new dependencies or changing optional-part handling. Keep the supplied 200 MB regression unchanged; new `tests/test_intake_archive_limits.py` exercises rejection and readable files through `take_in`, including persisted manifest results for all four Office formats. No existing test or rendering change.
 - Issue 256: translate `OSError` from brand root creation into the existing `BrandError` handling, keeping the change local to `init_brand`. This preserves the project-local default and explicit `--root` decision without broadening error handling for every brand command. The locked CLI regression checks exit 2, a single stderr line naming the root, no traceback and unchanged file contents; the existing workspace tests cover successful creation and duplicate-brand refusal. No existing test or rendering change.
 - Issue 255: validate every page's section id as a string in the shared page-index reader, using its existing malformed-index error handling. A null id now makes `look --pages` exit 2 with one line naming `pages.json`, without a traceback. This follows the malformed-JSON-index lesson and preserves stable section ids without coercion. The supplied regression stays unchanged and exercises a real build and CLI subprocess; existing look tests cover valid output and other malformed inputs. No rendering change.

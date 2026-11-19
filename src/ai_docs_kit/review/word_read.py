@@ -76,9 +76,13 @@ def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool, ki
 
 def _parse(data: bytes, label: str, name: str) -> etree._Element:
     try:
-        return etree.fromstring(data, etree.XMLParser(**PARSER_OPTIONS))
+        root = etree.fromstring(data, etree.XMLParser(**PARSER_OPTIONS))
     except etree.XMLSyntaxError as error:
         raise ValueError(f"{label}: {name} cannot be read safely: {error}") from None
+    # Parser metadata recognises doctypes in every supported XML encoding.
+    if root.getroottree().docinfo.doctype:
+        raise ValueError(f"{label}: {name} declares entities, which are not read")
+    return root
 
 
 ARCHIVE_ERRORS = (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error)
