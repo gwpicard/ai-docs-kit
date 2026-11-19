@@ -15,6 +15,7 @@ from ai_docs_kit.model import Document
 from ai_docs_kit.render.compose import Composition
 from ai_docs_kit.render.typst import compile_pdf
 from ai_docs_kit.store import field_index
+from ai_docs_kit.xml_text import strip_xml_illegal
 
 EMU_PER_PT = 12700
 BLANK_LAYOUT = 6
@@ -89,7 +90,7 @@ def _add_box(slide: Any, name: str, words: list[PlacedWord], box: tuple[float, f
     for index, line in enumerate(lines):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
         run = paragraph.add_run()
-        run.text = line
+        run.text = strip_xml_illegal(line)
         run.font.name = _family(first.font)
         run.font.size = Pt(first.size)
         if first.colour:
@@ -118,7 +119,7 @@ def _fill_slide(slide: Any, entry: dict[str, Any], words: list[PlacedWord], note
     for section, rest in loose.items():
         _add_box(slide, f"{section}/{LOOSE_FIELD}", rest, _bounds(rest))
     if notes:
-        slide.notes_slide.notes_text_frame.text = "\n".join(notes)
+        slide.notes_slide.notes_text_frame.text = strip_xml_illegal("\n".join(notes))
 
 
 def write_pptx(

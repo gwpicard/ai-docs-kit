@@ -3,13 +3,12 @@
 import posixpath
 import re
 import zipfile
-import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from lxml import etree  # type: ignore[import-untyped]
 
-from ai_docs_kit.review.word_read import Comment, _parse, _part, check_archive
+from ai_docs_kit.review.word_read import ARCHIVE_ERRORS, Comment, _parse, _part, check_archive
 
 P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 A = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -109,7 +108,7 @@ def _legacy(archive: zipfile.ZipFile, label: str, part: str, authors: dict[str, 
     found = []
     for node in root.iter(_q(P, "cm")) if root is not None else []:
         text = node.find(_q(P, "text"))
-        who = authors.get(node.get("authorId") or "", "")
+        who = authors.get(node.get("authorId") or "")
         found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], slide=number))
     return found
 
@@ -124,7 +123,7 @@ def _modern(
         text = "\n".join(_paragraphs(body)) if body is not None else ""
         marker = node.find(f".//{_q(AC, 'spMk')}")
         shape = names.get(marker.get("id") or "") if marker is not None else None
-        who = authors.get(node.get("authorId") or "", "")
+        who = authors.get(node.get("authorId") or "")
         identifier = node.get("id")
         anchor = [shape] if shape else []
         found.append(DeckComment(who, text.strip(), anchor, slide=number, shape=shape, id=identifier))
@@ -172,7 +171,7 @@ def read_deck(path: Path, sections: set[str] | None = None) -> DeckText:
         with zipfile.ZipFile(path) as archive:
             check_archive(archive, label)
             _read(archive, label, sections, result)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error) as error:
+    except ARCHIVE_ERRORS as error:
         raise ValueError(f"{label}: not a readable PowerPoint file ({error})") from None
     return result
 

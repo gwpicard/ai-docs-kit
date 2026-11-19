@@ -102,15 +102,26 @@ def section_key(section: Section, index: int) -> str:
     return section.id if section.id is not None else f"section-{index}"
 
 
-def finding_key(section: Section, index: int, detail: str | None = None) -> str | None:
+class FindingKey(str):
+    """A finding `key` that remembers the section key of the section it is about."""
+
+    owner: str | None
+
+    def __new__(cls, text: str, owner: str | None) -> FindingKey:
+        key = super().__new__(cls, text)
+        key.owner = owner
+        return key
+
+
+def finding_key(section: Section, index: int, detail: str | None = None) -> FindingKey | None:
     """The `key` for a finding about one section; `detail` tells apart several findings in it.
 
     A section with an id is already told apart by `section_id`, so it keeps `detail` alone.
     """
+    owner = section_key(section, index)
     if section.id is not None:
-        return detail
-    key = section_key(section, index)
-    return key if detail is None else f"{key}:{detail}"
+        return None if detail is None else FindingKey(detail, owner)
+    return FindingKey(owner if detail is None else f"{owner}:{detail}", owner)
 
 
 def make_finding(
@@ -125,7 +136,10 @@ def make_finding(
     measured: dict[str, Any] | None = None,
     severity: Severity | None = None,
     key: str | None = None,
+    owner: str | None = None,
 ) -> Finding:
+    if owner is None:
+        owner = key.owner if isinstance(key, FindingKey) else section_id
     fp = fingerprint(rule.id, section_id, role, region, _page_size(ctx, page), key=key)
     finding = Finding(
         id=_sha1(f"{rule.id}|{section_id}|{fp}")[:12],
@@ -134,6 +148,7 @@ def make_finding(
         severity=severity if severity is not None else rule.severity,
         format=ctx.doc.format,
         section_id=section_id,
+        owner=owner,
         role=role,
         page=page,
         region=region,
@@ -142,7 +157,6 @@ def make_finding(
         fingerprint=fp,
         remedy=rule.remedy,
     )
-    finding._key = key
     return finding
 
 
@@ -165,22 +179,18 @@ def _tiers_to_run(ctx: CheckContext) -> tuple[Tier, ...]:
     return tuple(tier for tier in TIERS if tier != "pixel" or ctx.pages_png)
 
 
-def _owner(finding: Finding) -> str | None:
-    """The section key a finding is about: its section id, or the `section-<index>` its key starts with."""
-    if finding.section_id is not None or finding._key is None:
-        return finding.section_id
-    return finding._key.split(":", 1)[0]
-
-
 def _in_scope(finding: Finding, rule: Rule, ctx: CheckContext) -> bool:
     scope = rule.scope
     if scope.components is not None and (
         ctx.composition is None
-        or not any(s.id == finding.section_id and s.component in scope.components for s in ctx.composition.sections)
+        or not any(
+            section_key(s, i) == finding.owner and composed.component in scope.components
+            for i, (s, composed) in enumerate(zip(ctx.doc.sections, ctx.composition.sections, strict=False))
+        )
     ):
         return False
     if scope.intents is not None and not any(
-        section_key(s, i) == _owner(finding) and s.intent in scope.intents for i, s in enumerate(ctx.doc.sections)
+        section_key(s, i) == finding.owner and s.intent in scope.intents for i, s in enumerate(ctx.doc.sections)
     ):
         return False
     return True
@@ -195,7 +205,7 @@ def _on_probation(rule: Rule, findings: list[Finding]) -> list[Finding]:
 
 def run_checks(rules: list[Rule], ctx: CheckContext) -> list[Finding]:
     applicable = [(rule, _check_for(rule)) for rule in rules if _applies(rule, ctx)]
-    blocked: set[str | None] = set()
+    blocked: set[str] = set()
     findings: list[Finding] = []
     for tier in _tiers_to_run(ctx):
         produced = [
@@ -206,8 +216,8 @@ def run_checks(rules: list[Rule], ctx: CheckContext) -> list[Finding]:
             if _in_scope(f, rule, ctx)
         ]
         # Block by owning section, so id-less sections do not share the key None; document-level findings block nothing.
-        kept = [f for f in produced if _owner(f) is None or _owner(f) not in blocked]
-        blocked |= {_owner(f) for f in kept if f.severity == "error"}
+        kept = [f for f in produced if f.owner is None or f.owner not in blocked]
+        blocked |= {f.owner for f in kept if f.severity == "error" and f.owner is not None}
         findings.extend(kept)
     return _unique(findings)
 

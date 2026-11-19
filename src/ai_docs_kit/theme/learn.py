@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from ai_docs_kit.checks.engine import CheckContext, run_checks
 from ai_docs_kit.model import Document, Rule, Section
 from ai_docs_kit.source.parser import parse
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme
 from ai_docs_kit.theme.rules import load_theme_rules
 
@@ -127,7 +128,7 @@ def run_test(rule_path: Path, example: str, theme_folder: Path | None) -> int:
     if section_id not in _fires(rule, _example_doc(folder, section_id), theme):
         problems.append(f"misses the example {folder.name}/{section_id}")
     for path in sorted((theme.root / "exemplars" / "gold").glob("*.md")):
-        doc, _ = parse(path.read_text(encoding="utf-8", errors="replace"))
+        doc, _ = parse(read_source(path, errors="replace"))
         problems += [f"hits the approved exemplar {path.name} {hit}" for hit in _fires(rule, doc, theme)]
     for problem in problems:
         print(f"{rule.id} {problem}")

@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 import ai_docs_kit
 from ai_docs_kit.facts.layout import LayoutFacts
 from ai_docs_kit.model import Document, Finding, Format
+from ai_docs_kit.model.text import NonBlank
 from ai_docs_kit.render.compose import Composition, component_for
 from ai_docs_kit.render.marks import ElementMark, SectionMark
 from ai_docs_kit.render.typst import TYPST_VERSION
@@ -66,10 +67,10 @@ class Cost(_Model):
 
 class LookFinding(_Model):
     severity: Literal["error", "warning", "info"]
-    rule: str
+    rule: NonBlank
     page: int
-    section: str
-    message: str
+    section: NonBlank
+    message: NonBlank
 
 
 class LookRecord(_Model):

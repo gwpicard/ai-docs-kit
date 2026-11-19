@@ -9,6 +9,20 @@ Build the brand that `create` and `review` use, from the person's guidelines, te
 
 Run every command as `${CLAUDE_PLUGIN_ROOT}/bin/ai-docs-kit`. Commands take the brand's slug and, optionally, `--root <dir>`; without it, brands live in `.brand/<slug>/` under the current folder. Check the installation first with `ai-docs-kit doctor`.
 
+## Preferences
+
+Before the first step, read `preferences.md` (in `.brand/<slug>/`, or under `--root`): its `## All skills` section and its `## brand` section. Follow both, together with the brand's rulebook.
+
+Say once, early, that this skill records preferences rather than being edited: the person's corrections go into their brand folder, which an update leaves alone.
+
+When the person corrects the same behaviour twice, offer one of three records:
+
+- A rule, through the rule flow (`ai-docs-kit rule test`, then `ai-docs-kit rule adopt` on their yes).
+- A line `- YYYY-MM-DD: <the person's words>` under `## All skills` or under `## brand` in `preferences.md`, written by you directly.
+- An upstream issue, for a change that would help everyone. Show the person the title and body first. Run `gh issue create --repo gwpicard/ai-docs-kit` only on their yes. If `gh` is missing or not signed in, show the text and the new-issue link (`https://github.com/gwpicard/ai-docs-kit/issues/new`) instead. Describe the behaviour in general terms: the body holds no brand material, document text, names or file contents from the person's project.
+
+Never edit a plugin file.
+
 ## Rules
 
 - Never invent a value the material does not hold. A token, a term or a rule comes from a page, a template or a measurement, and keeps its source. If the material is silent, leave the value unset and let the engine list it as a gap.

@@ -29,7 +29,16 @@ class CitationsResolve:
 
 
 def _is_empty(section: Section) -> bool:
-    return not (section.title or section.items or section.paragraphs or section.data or section.image)
+    has_text = any(
+        (text or "").strip()
+        for text in [
+            section.title,
+            section.image,
+            *section.paragraphs,
+            *(part for item in section.items for part in (item.head, item.body, *item.sub)),
+        ]
+    )
+    return not (has_text or section.data)
 
 
 @register("empty-section")

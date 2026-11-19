@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import asyncio
 import json
@@ -26,6 +28,7 @@ from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError,
 from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_section_commands, run_section
 from ai_docs_kit.source.parser import parse
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
@@ -98,7 +101,7 @@ def _out_dir(file: Path, out: Path | None) -> Path:
 
 def _parse(file: Path) -> tuple[Document, list[Finding]]:
     try:
-        text = file.read_text(encoding="utf-8-sig")
+        text = read_source(file)
     except UnicodeDecodeError as error:
         raise _BuildFailed(f"{file}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
     doc, findings = parse(text)
@@ -155,7 +158,7 @@ def _sheet(built: _Built, result: Any, out: Path) -> Path:
     return contact_sheet(result.pngs, labels, out / "contact.png")
 
 
-def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Path | None:
+def _pptx(file: Path, out: Path, built: _Built, facts: Any) -> Path | None:
     """Write the PowerPoint copy beside the PDF; a document has none."""
     if built.comp.format != "slides":
         return None
@@ -213,7 +216,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         )
     )
     sheet = _sheet(built, result, out)
-    pptx = _pptx(file, out, built, result.facts, theme)
+    pptx = _pptx(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
     version = write_version(
         file,
@@ -243,6 +246,10 @@ def _gate_report(reasons: list[str]) -> int:
     return int(bool(reasons))
 
 
+def _page_line(page: dict[str, Any]) -> str:
+    return f"page {page['page']}: {', '.join(page['sections'])}"
+
+
 def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
     pages_path = version_dir / "pages" / "pages.json"
     try:
@@ -250,7 +257,10 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
         if not isinstance(pages, list):
             raise TypeError("pages is not a list")
         for page in pages:
-            page["page"], ", ".join(page["sections"])
+            if not isinstance(page, dict):
+                raise TypeError("page is not an object")
+            if not isinstance(page.get("sections"), list) or "page" not in page:
+                raise KeyError("page and sections")
     except OSError as error:
         raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
     except (KeyError, TypeError, ValueError) as error:
@@ -261,7 +271,7 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
 def _look_pages(version_dir: Path) -> int:
     findings_path = version_dir / "findings.json"
     pages = _read_pages(version_dir)
-    lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
+    lines = [_page_line(page) for page in pages]
     try:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
         notes = [
@@ -274,7 +284,7 @@ def _look_pages(version_dir: Path) -> int:
     return 0
 
 
-def _same_finding(a: "LookFinding", b: "LookFinding") -> bool:
+def _same_finding(a: LookFinding, b: LookFinding) -> bool:
     return (a.page, a.section, a.severity, a.message) == (b.page, b.section, b.severity, b.message)
 
 
@@ -285,7 +295,10 @@ def _look_findings(version_dir: Path, file: Path) -> int:
 
     version = load_version(version_dir)
     pages = _read_pages(version_dir)
-    raw = json.loads(file.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{file}: not valid JSON ({error})") from error
     if not isinstance(raw, list):
         print(f"{file}: expected a JSON array of findings", file=sys.stderr)
         return 2
@@ -295,9 +308,8 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         try:
             finding = LookFinding.model_validate(item)
         except ValidationError as error:
-            problems.extend(
-                f"finding {i}: {'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors()
-            )
+            details = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors())
+            problems.append(f"finding {i}: {details}")
             continue
         blank = [name for name in ("rule", "message") if not getattr(finding, name).strip()]
         if blank:
@@ -310,7 +322,7 @@ def _look_findings(version_dir: Path, file: Path) -> int:
             accepted.append(finding)
     if problems:
         for problem in problems:
-            print(problem, file=sys.stderr)
+            print(f"{file}: {problem}", file=sys.stderr)
         return 2
     record = version.manifest.look
     if record is None:
@@ -548,7 +560,7 @@ def _live_critic(out: Path, theme: Theme) -> Any:
     )
     rubric = load_rubric(theme)
 
-    async def verdict(case: Any, run: int) -> str:
+    async def verdict(case: Any, run: int) -> str:  # noqa: ARG001 - the caller passes the run number
         with Image.open(case.crop) as image:
             width, height = image.size
         item = rubric.get(case.rubric_id)
@@ -596,7 +608,7 @@ def _heal(args: argparse.Namespace) -> int:
                 super().__init__(claude, [], theme, case.document)
                 self.case = case
 
-            async def draft(self, job: Any) -> Any:
+            async def draft(self, job: Any) -> Any:  # noqa: ARG002 - fixed by the draft protocol
                 return self.case.document.sections[0]
 
         writer_for = LiveWriter

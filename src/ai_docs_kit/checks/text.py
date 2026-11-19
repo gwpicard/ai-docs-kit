@@ -5,7 +5,17 @@ from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, r
 from ai_docs_kit.checks.source import PROVENANCE
 from ai_docs_kit.model import Finding, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
-from ai_docs_kit.theme.voice import Term, load_voice
+from ai_docs_kit.theme import Theme, ThemeError
+from ai_docs_kit.theme.voice import Term, Voice, load_voice
+
+
+def _voice(theme: Theme) -> Voice:
+    """The theme's voice, or an empty one when the file is refused (`load_theme` reports that first)."""
+    try:
+        return load_voice(theme)
+    except ThemeError:
+        return Voice()
+
 
 # Text the audience reads or hears; `note` and `source_line` are exempt.
 VOICE_FIELDS = ("title", "items", "paragraphs", "spoken")
@@ -19,17 +29,16 @@ def _term_pattern(term: str) -> str:
     return start + re.escape(term) + end
 
 
+def _hit(term: str, texts: list[str]) -> bool:
+    """Return whether a non-blank term appears in any of the texts, ignoring case."""
+    return bool(term.strip()) and any(re.search(_term_pattern(term), text, re.IGNORECASE) for text in texts)
+
+
 def _field_finding(
     ctx: CheckContext, rule: Rule, section: Section, field: str, banned: list[str], index: int
 ) -> Finding | None:
-    terms = sorted(
-        {
-            term
-            for term in banned
-            if term.strip()
-            and any(re.search(_term_pattern(term), text, re.IGNORECASE) for text in _texts(section, field))
-        }
-    )
+    texts = _texts(section, field)
+    terms = sorted({term for term in banned if _hit(term, texts)})
     if not terms:
         return None
     names = ", ".join(f'"{term}"' for term in terms)
@@ -51,7 +60,7 @@ class BannedTerms:
     def run(self, ctx: CheckContext, rule: Rule) -> list[Finding]:
         if ctx.theme is None:
             return []
-        banned = load_voice(ctx.theme).banned
+        banned = _voice(ctx.theme).banned
         return [
             finding
             for index, section in enumerate(ctx.doc.sections)
@@ -63,13 +72,8 @@ class BannedTerms:
 def _terminology_finding(
     ctx: CheckContext, rule: Rule, section: Section, field: str, terminology: list[Term], index: int
 ) -> Finding | None:
-    matches = sorted(
-        (avoid, term.preferred)
-        for term in terminology
-        for avoid in term.avoid
-        if avoid.strip()
-        and any(re.search(_term_pattern(avoid), text, re.IGNORECASE) for text in _texts(section, field))
-    )
+    texts = _texts(section, field)
+    matches = sorted((avoid, term.preferred) for term in terminology for avoid in term.avoid if _hit(avoid, texts))
     if not matches:
         return None
     avoided = sorted({avoid for avoid, _ in matches})
@@ -93,7 +97,7 @@ class TerminologyDrift:
     def run(self, ctx: CheckContext, rule: Rule) -> list[Finding]:
         if ctx.theme is None:
             return []
-        terminology = load_voice(ctx.theme).terminology
+        terminology = _voice(ctx.theme).terminology
         return [
             finding
             for index, section in enumerate(ctx.doc.sections)
