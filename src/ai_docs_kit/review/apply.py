@@ -61,7 +61,10 @@ def _sent_props(path: Path, number: int) -> dict[str, dict[str, Any]]:
     composition = path.parent / f"{path.stem}.versions" / f"v{number}" / "composition.json"
     try:
         data = json.loads(composition.read_text(encoding="utf-8"))
-        return {s["id"]: dict(s["props"]) for s in data["sections"] if isinstance(s.get("id"), str)}
+        sections = data["sections"]
+        if not isinstance(sections, list) or any(not isinstance(s, dict) for s in sections):
+            raise ValueError("sections must be a list of objects")
+        return {s["id"]: dict(s["props"]) for s in sections if isinstance(s.get("id"), str)}
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise ApplyError(f"{composition}: cannot read the sent version: {' '.join(str(error).split())}", 2) from error
 
