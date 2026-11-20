@@ -1,13 +1,14 @@
 """Look over a rendered document with deterministic checks and a page critic."""
 
 import hashlib
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydantic import BaseModel
 
 from ai_docs_kit.agents.critic import Region, regions_from_facts
+from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.checks.catalogue import all_rules
 from ai_docs_kit.checks.engine import CheckContext, run_checks
 from ai_docs_kit.facts.layout import LayoutFacts, layout_facts
@@ -48,6 +49,7 @@ class LookContext:
     final: bool = False
     assets: list[Path] | None = None
     clean_pages: frozenset[str] = frozenset()
+    source_facts: Sequence[Fact] | None = None
 
 
 class Look(BaseModel):
@@ -118,6 +120,7 @@ async def look(pdf: Path, comp: Composition, ctx: LookContext) -> Look:
         final=ctx.final,
         assets=ctx.assets,
         pages_png=pngs,
+        source_facts=ctx.source_facts,
     )
     rules = ctx.rules if ctx.rules is not None else all_rules() + load_theme_rules(ctx.theme)
     tiers = {tier: "ok" for tier in ("source", "geometry", "pixel")}

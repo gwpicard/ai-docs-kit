@@ -212,6 +212,7 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
                 critic=None,
                 final=final,
                 assets=[file.parent / "assets", theme.root / "assets"],
+                source_facts=_source_facts(file),
             ),
         )
     )
@@ -369,6 +370,16 @@ def _look(args: argparse.Namespace) -> int:
         return 2
 
 
+def _source_facts(file: Path) -> list[Fact] | None:
+    facts_path = file.parent / ".ai_docs_kit" / "write" / file.stem / "facts.json"
+    if not facts_path.exists():
+        return None
+    try:
+        return TypeAdapter(list[Fact]).validate_json(facts_path.read_bytes())
+    except ValidationError as error:
+        raise _BuildFailed(f"{facts_path}: not valid facts ({error.error_count()} errors)") from error
+
+
 def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline: bool = False) -> int:
     doc, parsed = _parse(file)
     try:
@@ -378,13 +389,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
     except ThemeError as error:
         raise _BuildFailed(str(error)) from error
     assets = [file.parent / "assets", theme.root / "assets"]
-    facts_path = file.parent / ".ai_docs_kit" / "write" / file.stem / "facts.json"
-    source_facts = None
-    if facts_path.exists():
-        try:
-            source_facts = TypeAdapter(list[Fact]).validate_json(facts_path.read_bytes())
-        except ValidationError as error:
-            raise _BuildFailed(f"{facts_path}: not valid facts ({error.error_count()} errors)") from error
+    source_facts = _source_facts(file)
     try:
         comp = compose(doc, assets=assets)
     except ComposeError:
