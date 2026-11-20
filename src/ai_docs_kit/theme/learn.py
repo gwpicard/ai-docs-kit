@@ -92,7 +92,10 @@ def _example_doc(folder: Path, section_id: str) -> tuple[Document, Composition]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         fmt = data["format"]
-        entry = next((s for s in data["sections"] if s.get("id") == section_id), None)
+        sections = data["sections"]
+        if not isinstance(sections, list) or any(not isinstance(s, dict) for s in sections):
+            raise ValueError("sections must be a list of objects")
+        entry = next((s for s in sections if s.get("id") == section_id), None)
         props = None if entry is None else entry["props"]
         intent = "body" if entry is None else entry.get("intent") or "body"
     except (OSError, ValueError, KeyError, TypeError) as error:
