@@ -282,6 +282,8 @@ def _look_pages(version_dir: Path) -> int:
     lines = [_page_line(page) for page in pages]
     try:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
+        if not isinstance(findings, list):
+            raise TypeError("expected a JSON array of findings")
         notes = [
             f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}"
             for f in findings
