@@ -67,6 +67,7 @@ Added for this project:
 
 ## Lessons
 
+- PowerPoint native table text lives in DrawingML cell text bodies under a graphic frame, not in ordinary slide text boxes; review tests need populated later cells and an added text box as a reporting control.
 - Tests build fixtures in `tmp_path` (or rely on the `tests/conftest.py` clean-up), never in place under `tests/fixtures`. A new engine option needs a caller in a real build path in the same issue, or it ships unused; a command that appends to a record needs a run-twice test.
 - Run `uv run mypy` after a change under `src`: the strict-mode test in `tests/judge/test_p0_1_tooling.py` fails on untyped helpers. `lxml` needs `# type: ignore[import-untyped]`; a pydantic field named `copy` shadows `BaseModel.copy`. BSD `sed -i` needs an empty suffix argument.
 - Any text field read from a person's or agent's file (rule, message, recipient, banned term) needs a blank and whitespace check where it is read; an empty string otherwise matches everything or is accepted silently.
@@ -110,6 +111,8 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 299 integration: retain the native-table reading decision alongside the incoming version-write validation decisions and combined folder-creation lesson when resolving PLAN.md. No production code or test edits are needed for the resolution.
+- Issue 299: keep the three existing CLI regressions unchanged. Read native DrawingML table paragraphs in cell order with the existing paragraph reader, joining them with newlines into one unplaced item per non-empty table. The existing plan comparison suppresses unchanged table text from the original copy; added words remain reported for the person to place, as the Issue 15 decision requires. All three regressions fail before the fix after their text-box controls pass, covering wide and tall tables, blank cells, multiple paragraphs and opposite shape orders while the original section stays unchanged. No dependency or rendering changes.
 - Issue 298 integration: retain both branches' version-write and intake-manifest validation decisions and lessons when resolving PLAN.md. Keep XML and folder-creation lessons once each, preserving both intents within the lesson limit. No production code or test edits are needed for the resolution.
 - Issue 298: translate `OSError` from `write_version` into the CLI's existing `_BuildFailed` diagnostic with exit 2, preserving the filesystem error's path. The supplied locked subprocess regression covers a file occupying `note.versions`, one stderr line without a traceback, and unchanged working-file and blocker bytes. Keep version storage and rendering unchanged; use existing successful-build and immutable-version tests as controls. This follows the clean input-error and person's-layer preservation decisions; no dependency or existing test changes.
 - Issue 297 integration: retain both branches' manifest, regex and composition-entry validation decisions and lessons when resolving PLAN.md. Combine the composition lessons to keep fewer than 30 lesson lines. No production code or test edits are needed for the resolution.
