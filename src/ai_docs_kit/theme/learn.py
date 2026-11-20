@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from ai_docs_kit.checks.engine import CheckContext, run_checks
 from ai_docs_kit.model import Document, Rule, Section
+from ai_docs_kit.render.compose import ComposeError, Composition, compose
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme
@@ -59,12 +60,14 @@ def _load_rule(path: Path) -> Rule:
     return rule
 
 
-def _fires(rule: Rule, doc: Document, theme: Theme) -> list[str]:
+def _fires(rule: Rule, doc: Document, theme: Theme, composition: Composition | None = None) -> list[str]:
     """The ids of the sections the rule fires on, whatever its own status."""
     probe = rule.model_copy(update={"status": "probation"})
     try:
-        findings = run_checks([probe], CheckContext(doc, theme=theme))
-    except (re.error, KeyError) as error:
+        if composition is None and rule.scope.components is not None:
+            composition = compose(doc)
+        findings = run_checks([probe], CheckContext(doc, theme=theme, composition=composition))
+    except (ComposeError, re.error, KeyError) as error:
         detail = error.args[0] if isinstance(error, KeyError) and error.args else error
         raise RuleError(f"{rule.id}: the check cannot run: {' '.join(str(detail).split())!r}", 2) from error
     return [f.section_id or "-" for f in findings]
@@ -84,7 +87,7 @@ def _example(spec: str) -> tuple[Path, str]:
     return Path(folder), section_id
 
 
-def _example_doc(folder: Path, section_id: str) -> Document:
+def _example_doc(folder: Path, section_id: str) -> tuple[Document, Composition]:
     path = folder / "composition.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -99,13 +102,15 @@ def _example_doc(folder: Path, section_id: str) -> Document:
     kept: dict[str, Any] = {k: props[k] for k in SECTION_FIELDS if k in props}
     try:
         section = Section.model_validate({"id": section_id, "intent": intent, **kept})
+        # Keep the stored component, aligned with the selected section rather than the whole version.
+        composition = Composition.model_validate({"format": fmt, "sections": [entry]})
     except ValidationError as error:
         raise RuleError(f"{section_id}: cannot read the section: {' '.join(str(error).split())}", 2) from error
     for item in section.items:
         # Composition uses an empty string for the absent head that source checks skip.
         if item.head == "":
             item.head = None
-    return Document(front={}, format=fmt, sections=[section])
+    return Document(front={}, format=fmt, sections=[section]), composition
 
 
 def _stamp(rule: Rule) -> str:
@@ -133,7 +138,8 @@ def run_test(rule_path: Path, example: str, theme_folder: Path | None) -> int:
     if marker is not None:
         marker.unlink(missing_ok=True)
     problems: list[str] = []
-    if section_id not in _fires(rule, _example_doc(folder, section_id), theme):
+    doc, composition = _example_doc(folder, section_id)
+    if section_id not in _fires(rule, doc, theme, composition):
         problems.append(f"misses the example {folder.name}/{section_id}")
     for path in sorted((theme.root / "exemplars" / "gold").glob("*.md")):
         doc, _ = parse(read_source(path, errors="replace"))
