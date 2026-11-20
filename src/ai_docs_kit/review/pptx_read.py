@@ -8,7 +8,7 @@ from pathlib import Path
 
 from lxml import etree  # type: ignore[import-untyped]
 
-from ai_docs_kit.review.word_read import Comment, _parse, _part, check_archive
+from ai_docs_kit.review.word_read import ARCHIVE_ERRORS, Comment, _parse, _part, check_archive
 
 P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 A = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -16,7 +16,8 @@ R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG = "http://schemas.openxmlformats.org/package/2006/relationships"
 P188 = "http://schemas.microsoft.com/office/powerpoint/2018/8/main"
 AC = "http://schemas.microsoft.com/office/drawing/2013/main/command"
-NAME = re.compile(r"([^/\s]+)/(\S.*)")
+# Field paths contain no slash, so the final slash separates them from section ids.
+NAME = re.compile(r"(\S+)/(\S.*)")
 
 Hint = tuple[str, str, str | None]
 
@@ -25,6 +26,8 @@ Hint = tuple[str, str, str | None]
 class DeckComment(Comment):
     slide: int = 0
     shape: str | None = None
+    id: str | None = None
+    reply_to: str | None = None
 
 
 @dataclass
@@ -106,8 +109,8 @@ def _legacy(archive: zipfile.ZipFile, label: str, part: str, authors: dict[str, 
     found = []
     for node in root.iter(_q(P, "cm")) if root is not None else []:
         text = node.find(_q(P, "text"))
-        who = authors.get(node.get("authorId") or "", "")
-        found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], number))
+        who = authors.get(node.get("authorId") or "")
+        found.append(DeckComment(who, ("".join(text.itertext()) if text is not None else "").strip(), [], slide=number))
     return found
 
 
@@ -121,8 +124,25 @@ def _modern(
         text = "\n".join(_paragraphs(body)) if body is not None else ""
         marker = node.find(f".//{_q(AC, 'spMk')}")
         shape = names.get(marker.get("id") or "") if marker is not None else None
-        who = authors.get(node.get("authorId") or "", "")
-        found.append(DeckComment(who, text.strip(), [shape] if shape else [], number, shape))
+        who = authors.get(node.get("authorId") or "")
+        identifier = node.get("id")
+        anchor = [shape] if shape else []
+        found.append(DeckComment(who, text.strip(), anchor, slide=number, shape=shape, id=identifier))
+        for reply in node.iterfind(f"{_q(P188, 'replyLst')}/{_q(P188, 'reply')}"):
+            reply_body = reply.find(_q(P188, "txBody"))
+            reply_text = "\n".join(_paragraphs(reply_body)) if reply_body is not None else ""
+            reply_who = authors.get(reply.get("authorId") or "")
+            found.append(
+                DeckComment(
+                    reply_who,
+                    reply_text.strip(),
+                    anchor,
+                    slide=number,
+                    shape=shape,
+                    id=reply.get("id"),
+                    reply_to=identifier,
+                )
+            )
     return found
 
 
@@ -152,7 +172,7 @@ def read_deck(path: Path, sections: set[str] | None = None) -> DeckText:
         with zipfile.ZipFile(path) as archive:
             check_archive(archive, label)
             _read(archive, label, sections, result)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError) as error:
+    except ARCHIVE_ERRORS as error:
         raise ValueError(f"{label}: not a readable PowerPoint file ({error})") from None
     return result
 
@@ -186,9 +206,21 @@ def _read(archive: zipfile.ZipFile, label: str, sections: set[str] | None, resul
             match = NAME.fullmatch(name)
             text = "\n".join(lines).strip()
             if match and owner is not None and match.group(1) == owner:
-                result.fields.setdefault(owner, {})[match.group(2)] = text
-                result.formats[(owner, match.group(2))] = hints
+                path = match.group(2)
+                fields = result.fields.setdefault(owner, {})
+                if path in fields:
+                    # Duplicated boxes keep their name but cannot replace the first box's wording.
+                    if text:
+                        result.unplaced.append((owner, text))
+                else:
+                    fields[path] = text
+                    result.formats[(owner, path)] = hints
             elif text:
+                result.unplaced.append((last, text))
+        # Native tables hold DrawingML paragraphs outside the ordinary text shapes.
+        for table in slide.iter(_q(A, "tbl")):
+            text = "\n".join(_paragraphs(table)).strip()
+            if text:
                 result.unplaced.append((last, text))
         if owner is not None:
             last = owner

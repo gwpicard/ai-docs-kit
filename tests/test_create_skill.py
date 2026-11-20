@@ -94,9 +94,7 @@ def test_look_stage_bounds_the_fix_rounds_and_reports_by_section():
     assert "--pages" in text
 
 
-def test_ship_marks_sent_only_through_the_command():
-    text = read(stage("ship"))
-    assert "ai-docs-kit sent" in text
+def test_no_stage_edits_the_manifest_by_hand():
     for name in STAGES:
         body = read(stage(name))
         assert not re.search(r"(edit|write|change)[^.\n]*manifest\.json", body, re.IGNORECASE)
@@ -138,7 +136,3 @@ def test_the_chain_the_stages_describe_runs_on_a_fixture(tmp_path):
     clean = tmp_path / "clean.json"
     clean.write_text("[]")
     assert run("look", str(latest), "--findings", str(clean), cwd=tmp_path).returncode == 0
-    sent = run("sent", str(latest), "--to", "a person", cwd=tmp_path)
-    assert sent.returncode == 0, sent.stderr + sent.stdout
-    manifest = json.loads((latest / "manifest.json").read_text())
-    assert "a person" in json.dumps(manifest)

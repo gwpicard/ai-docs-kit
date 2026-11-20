@@ -22,6 +22,9 @@ def load_theme(root: Path) -> Theme:
     _check_formats(info, tokens)
     theme = Theme(root=root, info=info, tokens=tokens)
     _check_fonts(theme)
+    from ai_docs_kit.theme.voice import load_voice
+
+    load_voice(theme)
     if info.labelled:
         from ai_docs_kit.theme.labels import check_token_labels
 
@@ -39,7 +42,9 @@ def _read_model[M: BaseModel](path: Path, model: type[M]) -> M:
     try:
         return model.model_validate(data)
     except ValidationError as error:
-        raise ThemeError(f"{path.name}: not valid: {error}") from error
+        first = error.errors()[0]
+        where = ".".join(str(part) for part in first["loc"])
+        raise ThemeError(f"{path.name}: not valid: {where}: {first['msg']}") from error
 
 
 def _check_usage(tokens: Tokens) -> None:

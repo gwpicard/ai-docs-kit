@@ -62,7 +62,6 @@ def sent(tmp_path_factory) -> Path:
     empty = folder / "none.json"
     empty.write_text("[]")
     assert main(["look", str(version), "--findings", str(empty)]) == 0
-    assert main(["sent", str(version), "--to", "Reviewer"]) == 0
     return folder
 
 
@@ -269,17 +268,14 @@ def test_a_reorder_applies_only_when_accepted(work, tmp_path, capsys, accepted):
         assert moved == []
 
 
-def test_a_change_since_the_sent_version_in_a_touched_section_is_refused(work, tmp_path, capsys):
+def test_a_change_since_the_sent_version_in_a_touched_section_is_applied_and_named(work, tmp_path, capsys):
     plan = _wording_plan(work, capsys)
     path = work / "report.md"
     path.write_text(path.read_text().replace("original wording", "edited since sending"), encoding="utf-8")
-    before = path.read_bytes()
     code, out, err = _apply(work, _decide(tmp_path, plan), capsys)
-    assert code == 1
-    assert "alpha01" in err
-    assert "beta01" not in err and "gamma01" not in err
-    assert path.read_bytes() == before
-    assert "touched" not in out
+    assert code == 0, err
+    assert "changed since v1: alpha01 (paragraphs)" in out.splitlines()
+    assert "beta01" not in out.split("touched")[0] and "gamma01" not in out.split("touched")[0]
 
 
 def test_every_changed_touched_section_is_named(work, tmp_path, capsys):
@@ -293,9 +289,10 @@ def test_every_changed_touched_section_is_named(work, tmp_path, capsys):
     path = work / "report.md"
     text = path.read_text().replace("original wording", "edited one").replace("a last paragraph", "an edited end")
     path.write_text(text, encoding="utf-8")
-    code, _, err = _apply(work, _decide(tmp_path, plan), capsys)
-    assert code == 1
-    assert "alpha01" in err and "gamma01" in err
+    code, out, err = _apply(work, _decide(tmp_path, plan), capsys)
+    assert code == 0, err
+    named = [line for line in out.splitlines() if line.startswith("changed since")]
+    assert sorted(line.split()[3] for line in named) == ["alpha01", "gamma01"]
 
 
 def test_a_change_in_a_section_the_plan_does_not_touch_does_not_block(work, tmp_path, capsys):

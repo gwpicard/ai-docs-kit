@@ -22,6 +22,8 @@ class Word(BaseModel):
     colour: str | None
     box: FactBox
     baseline: float
+    # Clockwise degrees from the PDF text transform; older facts did not record it.
+    rotation: float | None = None
 
 
 class Shape(BaseModel):

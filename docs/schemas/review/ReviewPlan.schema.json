@@ -42,6 +42,7 @@
         "ask": {
           "anyOf": [
             {
+              "minLength": 1,
               "type": "string"
             },
             {
@@ -53,8 +54,29 @@
           "title": "Ask"
         },
         "author": {
-          "title": "Author",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The commenter; null when the file does not name them.",
+          "title": "Author"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The comment's id in the file, for a modern deck comment.",
+          "title": "Id"
         },
         "kind": {
           "const": "comment",
@@ -65,6 +87,7 @@
         "proposal": {
           "anyOf": [
             {
+              "minLength": 1,
               "type": "string"
             },
             {
@@ -74,6 +97,19 @@
           "default": null,
           "description": "The new wording of the section, for apply.",
           "title": "Proposal"
+        },
+        "reply_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The id of the comment this one replies to, if a reply.",
+          "title": "Reply To"
         },
         "shape": {
           "anyOf": [
@@ -100,6 +136,14 @@
           "default": null,
           "description": "The slide number (1-based, sent order), for a deck comment.",
           "title": "Slide"
+        },
+        "spans": {
+          "description": "The ids of every section the comment's range overlaps, in document order; each copy carries all.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
         },
         "text": {
           "title": "Text",
@@ -176,6 +220,22 @@
           "title": "Fields",
           "type": "object"
         },
+        "items": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The section's list items from the Word copy, in order; null when unchanged.",
+          "title": "Items"
+        },
         "owner": {
           "anyOf": [
             {
@@ -189,6 +249,20 @@
           "description": "human when a reviewer wrote the wording.",
           "title": "Owner"
         },
+        "title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The edited section heading; null when unchanged.",
+          "title": "Title"
+        },
         "wording": {
           "anyOf": [
             {
@@ -198,7 +272,7 @@
               "type": "null"
             }
           ],
-          "description": "The applied wording of the section, null when it is unchanged.",
+          "description": "The edited body without the heading; null when unchanged.",
           "title": "Wording"
         }
       },
@@ -355,9 +429,9 @@
       "title": "Sections",
       "type": "object"
     },
-    "sent_version": {
-      "description": "The sent version the copy was compared with.",
-      "title": "Sent Version",
+    "version": {
+      "description": "The version the copy was compared with.",
+      "title": "Version",
       "type": "integer"
     },
     "warnings": {
@@ -369,7 +443,7 @@
     }
   },
   "required": [
-    "sent_version",
+    "version",
     "review_copy",
     "sections"
   ],

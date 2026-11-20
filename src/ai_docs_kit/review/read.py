@@ -1,4 +1,4 @@
-"""`review read`: compare a Word review copy with the latest sent version and write the plan."""
+"""`review read`: compare a Word review copy with the version it was built from and write the plan."""
 
 import argparse
 import json
@@ -58,24 +58,36 @@ def _prefix(stem: str, folder: Path) -> bool:
     return stem.startswith(base) and not stem[len(base) : len(base) + 1].isalnum()
 
 
-def _latest_sent(folder: Path) -> tuple[int, Path]:
+def _version_for(folder: Path, copy: Path) -> tuple[int, Path, Warning | None]:
+    """The version a copy was built from, named by its property; else the latest version, with a warning."""
     from ai_docs_kit.store import load_version
+    from ai_docs_kit.store.stamp import read_version_property
 
-    sent: list[tuple[int, Path]] = []
+    found: dict[int, Path] = {}
     for directory in folder.glob("v*"):
         try:
-            version = load_version(directory)
+            found[load_version(directory).number] = directory
         except (OSError, ValueError):
             continue
-        if version.manifest.state == "sent":
-            sent.append((version.number, directory))
-    if not sent:
-        raise ReadError(f"{folder.name[: -len('.versions')]}: no version has been sent yet", 1)
-    return max(sent)
+    named = read_version_property(copy)
+    if named is not None and named in found:
+        return named, found[named], None
+    if not found:
+        raise ReadError(f"{folder.name[: -len('.versions')]}: no version to compare with")
+    number = max(found)
+    why = "has no version property" if named is None else f"names version v{named}, which no longer exists"
+    warning = Warning(
+        code="version_assumed", message=f"The copy {why}; it was compared with the latest version, v{number}."
+    )
+    return number, found[number], warning
 
 
 def _text(parts: WordText, section: str) -> str:
     return "\n\n".join(parts.paragraphs.get(section, []))
+
+
+def _items(parts: WordText, section: str) -> list[str]:
+    return [_norm(i) for i in parts.items.get(section, [])]
 
 
 def _present(parts: WordText, section: str) -> bool:
@@ -88,11 +100,22 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
     changed = False
     for section in sent.order:
         before, after = _text(sent, section), _text(copy, section)
-        item = SectionPlan(wording=None, owner=None)
-        if _present(copy, section) and after and _norm(before) != _norm(after):
-            item.wording, item.owner = after, "human"
-        elif before and not after:
-            structure.append(StructureItem(kind="delete", section=section, text=before))
+        title_before, title_after = sent.titles.get(section, ""), copy.titles.get(section, "")
+        listed_before, listed_after = _items(sent, section), _items(copy, section)
+        item = SectionPlan(title=None, wording=None, owner=None)
+        present = _present(copy, section)
+        if present and title_before and not title_after.strip():
+            raise ReadError(f"{section}: the section title cannot be blank")
+        if (title_before or before or listed_before) and not (title_after or after or listed_after):
+            text = "\n\n".join([p for p in (title_before, before, "\n".join(listed_before)) if p])
+            structure.append(StructureItem(kind="delete", section=section, text=text))
+        elif present:
+            if _norm(title_before) != _norm(title_after):
+                item.title, item.owner = title_after, "human"
+            if _norm(before) != _norm(after):
+                item.wording, item.owner = after, "human"
+        if present and (title_after or after or listed_after) and listed_before != listed_after:
+            item.items, item.owner = list(copy.items.get(section, [])), "human"
         seen = Counter((e[0], _norm(e[1]), e[2]) for e in sent.emphasis.get(section, []))
         for kind, text, value in copy.emphasis.get(section, []):
             key = (kind, _norm(text), value)
@@ -101,7 +124,9 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
             else:
                 item.emphasis.append(Emphasis(kind=kind, text=_norm(text), value=value))  # type: ignore[arg-type]
         sections[section] = item
-        changed = changed or bool(item.wording or item.emphasis)
+        changed = changed or bool(
+            item.title is not None or item.wording is not None or item.emphasis or item.items is not None
+        )
     placed = [s for s in sent.order if _present(copy, s)]
     order = [s for s in copy.order if s in placed]
     if order != placed:
@@ -116,8 +141,12 @@ def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> Review
             structure.append(StructureItem(kind="unplaced", text=text, after=follows))
     for owner, comment in copy.comments:
         anchor = _norm("".join(comment.anchor))
+        spans = [name for name in comment.spans if name in sections]
         if owner in sections:
-            sections[owner].confirm.append(CommentItem(author=comment.author, text=comment.text, anchor=anchor))
+            spans = spans or [owner]
+            for name in spans:
+                note = CommentItem(author=comment.author, text=comment.text, anchor=anchor, spans=spans)
+                sections[name].confirm.append(note)
         else:
             structure.append(
                 StructureItem(
@@ -138,11 +167,11 @@ def _plan(
         warnings.append(
             Warning(
                 code="tracking_warning",
-                message="The copy matches the sent version: no edits, comments or formatting changes were found."
+                message="The copy matches its version: no edits, comments or formatting changes were found."
                 " Track changes may have been off.",
             )
         )
-    return ReviewPlan(sent_version=number, review_copy=name, sections=sections, confirm=structure, warnings=warnings)
+    return ReviewPlan(version=number, review_copy=name, sections=sections, confirm=structure, warnings=warnings)
 
 
 def build_deck_plan(sent: DeckText, copy: DeckText, number: int, name: str) -> ReviewPlan:
@@ -192,7 +221,13 @@ def build_deck_plan(sent: DeckText, copy: DeckText, number: int, name: str) -> R
             number_in_sent = sent.slide_of[owner]
             sections[owner].confirm.append(
                 CommentItem(
-                    author=comment.author, text=comment.text, anchor=anchor, slide=number_in_sent, shape=comment.shape
+                    author=comment.author,
+                    text=comment.text,
+                    anchor=anchor,
+                    slide=number_in_sent,
+                    shape=comment.shape,
+                    id=comment.id,
+                    reply_to=comment.reply_to,
                 )
             )
         else:
@@ -208,11 +243,15 @@ def build_deck_plan(sent: DeckText, copy: DeckText, number: int, name: str) -> R
 
 
 def summary(plan: ReviewPlan, path: Path) -> list[str]:
-    lines = [f"review copy {plan.review_copy} against sent version v{plan.sent_version}"]
+    lines = [f"review copy {plan.review_copy} against version v{plan.version}"]
     for section, item in plan.sections.items():
         parts = []
-        if item.wording or item.fields:
+        if item.title is not None:
+            parts.append("title changed")
+        if item.wording is not None or item.fields:
             parts.append("wording changed")
+        if item.items is not None:
+            parts.append("list items changed")
         if item.confirm:
             parts.append(f"{len(item.confirm)} comment(s)")
         if item.emphasis:
@@ -236,17 +275,19 @@ def run_review(args: argparse.Namespace) -> int:
         if not copy.is_file():
             raise ReadError(f"{copy}: no such review copy")
         folder = _versions_folder(copy)
-        number, directory = _latest_sent(folder)
+        number, directory, assumed = _version_for(folder, copy)
         deck = copy.suffix.lower() == ".pptx"
         sent_file = directory / f"{folder.name[: -len('.versions')]}{'.pptx' if deck else '.docx'}"
         if not sent_file.is_file():
-            raise ReadError(f"{sent_file}: the sent version has no {'PowerPoint' if deck else 'Word'} copy")
+            raise ReadError(f"{sent_file}: the version has no {'PowerPoint' if deck else 'Word'} copy")
         if deck:
             sent_deck = read_deck(sent_file)
             plan = build_deck_plan(sent_deck, read_deck(copy, set(sent_deck.order)), number, copy.name)
         else:
             sent = read_word(sent_file)
             plan = build_plan(sent, read_word(copy, set(sent.order)), number, copy.name)
+        if assumed:
+            plan.warnings.append(assumed)
         path = directory / PLAN_NAME
         path.write_text(json.dumps(plan.model_dump(mode="json"), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     except ReadError as error:

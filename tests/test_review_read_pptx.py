@@ -53,7 +53,6 @@ def sent(tmp_path_factory) -> Path:
     empty = folder / "none.json"
     empty.write_text("[]")
     assert main(["look", str(version), "--findings", str(empty)]) == 0
-    assert main(["sent", str(version), "--to", "Reviewer"]) == 0
     assert (version / "deck.pptx").is_file()
     return folder
 
@@ -250,7 +249,7 @@ def _modern_parts(
 
 def test_the_plan_schema_still_names_the_plan_parts():
     text = SCHEMA.read_text(encoding="utf-8")
-    for word in ("sent_version", "sections", "wording", "confirm", "emphasis", "warnings"):
+    for word in ("version", "sections", "wording", "confirm", "emphasis", "warnings"):
         assert word in text, word
 
 
@@ -259,7 +258,7 @@ def test_the_pptx_plan_has_the_word_plan_shape_and_is_written_to_the_version_fol
     code, out, err, plan = _read(copy, capsys)
     assert code == 0, err
     assert plan is not None
-    assert plan["sent_version"] == 1
+    assert plan["version"] == 1
     assert plan["review_copy"] == copy.name
     assert set(plan["sections"]) >= {"cover", "agenda", "statement", "closing"}
     paths = [line.split()[-1] for line in out.splitlines() if line.strip().endswith(".json")]

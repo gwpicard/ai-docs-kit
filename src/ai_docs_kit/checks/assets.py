@@ -1,4 +1,4 @@
-from ai_docs_kit.checks.engine import CheckContext, make_finding, register
+from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register
 from ai_docs_kit.model import Finding, Provenance, Remedy, Rule
 from ai_docs_kit.model.rules import Tier
 
@@ -19,8 +19,9 @@ class ImageResolves:
                 section_id=section.id,
                 measured={"image": section.image},
                 severity="error" if ctx.final else "warning",
+                key=finding_key(section, index),
             )
-            for section in ctx.doc.sections
+            for index, section in enumerate(ctx.doc.sections)
             if section.image and not any((folder / section.image).is_file() for folder in ctx.assets)
         ]
 

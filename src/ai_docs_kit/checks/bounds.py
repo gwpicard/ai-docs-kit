@@ -14,6 +14,9 @@ Placed = PlacedWord | PlacedShape
 # Cap height as a fraction of the font size, an approximation for the kit's text faces.
 CAP_HEIGHT = 0.7
 
+# Float noise in a measured font size, in points.
+_SIZE_NOISE_PT = 1e-6
+
 
 def _sectioned(facts: LayoutFacts) -> list[Placed]:
     items: list[Placed] = [*facts.words, *facts.shapes]
@@ -124,7 +127,11 @@ class MinFont:
         for word in facts.words:
             if word.section_id is not None:
                 smallest[word.section_id] = min(smallest.get(word.section_id, word), word, key=lambda w: w.size)
-        return [_font_finding(rule, ctx, word, minimum) for word in smallest.values() if word.size < minimum - 1e-6]
+        return [
+            _font_finding(rule, ctx, word, minimum)
+            for word in smallest.values()
+            if word.size < minimum - _SIZE_NOISE_PT
+        ]
 
 
 RULES: list[Rule] = [

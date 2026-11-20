@@ -4,6 +4,7 @@ from typing import Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ai_docs_kit.model.source import Format
+from ai_docs_kit.model.text import NonBlank
 
 Tier = Literal["source", "geometry", "pixel", "semantic"]
 ValueLabel = Literal["measured", "derived", "inferred", "answered"]
@@ -23,26 +24,26 @@ class Remedy(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     class_: Literal["redraft", "restructure", "tune", "engine", "report", "ask"] = Field(alias="class")
-    hint: str
+    hint: NonBlank
 
 
 class Provenance(BaseModel):
     label: ValueLabel | None = None
     source: dict[str, Any] | None = None
     created: date | None = None
-    by: str | None = None
+    by: NonBlank | None = None
 
 
 class Scope(BaseModel):
     format: Format | None = None
-    roles: list[str] | None = None
-    components: list[str] | None = None
-    intents: list[str] | None = None
+    roles: list[NonBlank] | None = None
+    components: list[NonBlank] | None = None
+    intents: list[NonBlank] | None = None
 
 
 class Rule(BaseModel):
-    id: str
-    title: str
+    id: NonBlank
+    title: NonBlank
     origin: Literal["ingested", "manual", "feedback", "measured"]
     strength: Literal["hard", "soft"]
     status: Literal["proposed", "probation", "active", "retired"] = "proposed"
@@ -69,6 +70,7 @@ class Finding(BaseModel):
     severity: Severity
     format: Format
     section_id: str | None = None
+    owner: str | None = None
     role: str | None = None
     page: int | None = None
     region: Box | None = None

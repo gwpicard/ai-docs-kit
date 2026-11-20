@@ -199,6 +199,9 @@ def inverse_ops(
                     fields={key: old.model_dump()[key] for key in (op.fields or {})},
                 )
             ]
+        elif op.op == "replace_section":
+            old = sections[_index(sections, op.section_id)]
+            undo = [PatchOp(op="replace_section", section_id=op.section_id, value=old)]
         elif op.op == "insert_after" and op.value is not None and op.value.id is not None:
             undo = [PatchOp(op="delete_section", section_id=op.value.id)]
         elif op.op == "delete_section":

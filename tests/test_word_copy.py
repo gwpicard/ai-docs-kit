@@ -69,7 +69,6 @@ series:
 
 IDS = ["intro", "cha01", "list01", "cha02"]
 TOKENS = Path(__file__).resolve().parents[1] / "src" / "ai_docs_kit" / "themes" / "neutral" / "tokens.yaml"
-THEME = TOKENS.with_name("theme.yaml")
 
 
 def _run_build(file: Path, capsys) -> tuple[int, Path | None]:
@@ -199,14 +198,14 @@ def _paragraph(path: Path, text: str):
 
 
 def test_heading_and_body_fonts_come_from_the_theme_families(mixed):
-    families = yaml.safe_load(THEME.read_text())["type"]["families"]
+    families = yaml.safe_load(TOKENS.read_text())["type"]["families"]
     path = _docx(mixed)
     assert _font_of(_paragraph(path, "Opening"), "name") == families["display"]["name"]
     assert _font_of(_paragraph(path, "First paragraph of the opening."), "name") == families["text"]["name"]
 
 
 def test_text_colours_come_from_the_theme_roles(mixed):
-    roles = yaml.safe_load(THEME.read_text())["colour"]["roles"]
+    roles = yaml.safe_load(TOKENS.read_text())["colour"]["roles"]
     allowed = {value.lstrip("#").upper() for value in roles.values()}
     path = _docx(mixed)
     colours = {

@@ -1,4 +1,4 @@
-from ai_docs_kit.checks.engine import CheckContext, make_finding, register
+from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register
 from ai_docs_kit.model import Finding, Provenance, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
 from ai_docs_kit.render.compose import component_for
@@ -19,9 +19,9 @@ class CitationsResolve:
                 message=f"citation key {citation.key} is not listed in ## Sources",
                 section_id=section.id,
                 measured={"key": citation.key},
-                key=citation.key,
+                key=finding_key(section, index, citation.key),
             )
-            for section in ctx.doc.sections
+            for index, section in enumerate(ctx.doc.sections)
             for item in section.items
             for citation in item.citations
             if citation.key not in listed
@@ -29,7 +29,16 @@ class CitationsResolve:
 
 
 def _is_empty(section: Section) -> bool:
-    return not (section.title or section.items or section.paragraphs or section.data or section.image)
+    has_text = any(
+        (text or "").strip()
+        for text in [
+            section.title,
+            section.image,
+            *section.paragraphs,
+            *(part for item in section.items for part in (item.head, item.body, *item.sub)),
+        ]
+    )
+    return not (has_text or section.data)
 
 
 @register("empty-section")
@@ -38,8 +47,14 @@ class EmptySection:
 
     def run(self, ctx: CheckContext, rule: Rule) -> list[Finding]:
         return [
-            make_finding(rule, ctx, message="section has no title and no content", section_id=section.id)
-            for section in ctx.doc.sections
+            make_finding(
+                rule,
+                ctx,
+                message="section has no title and no content",
+                section_id=section.id,
+                key=finding_key(section, index),
+            )
+            for index, section in enumerate(ctx.doc.sections)
             if _is_empty(section)
         ]
 
@@ -58,6 +73,7 @@ class IntentKnown:
                 message=f"intent {section.intent} has no component for format {fmt}",
                 section_id=section.id,
                 measured={"intent": section.intent, "format": fmt},
+                key=finding_key(section, index),
             )
             for index, section in enumerate(ctx.doc.sections)
             if component_for(section, fmt, index, total) is None

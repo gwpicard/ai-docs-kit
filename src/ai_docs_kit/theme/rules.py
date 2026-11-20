@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,14 @@ def _check_kind(check: dict[str, Any]) -> None:
     kind = check.get("kind")
     if not isinstance(kind, str) or kind not in CHECKS:
         raise ValueError(f"unknown check kind {kind!r}")
+    regex = check.get("regex")
+    if "regex" in check:
+        if not isinstance(regex, str):
+            raise ValueError("regex must be a string")
+        try:
+            re.compile(regex)
+        except re.error as error:
+            raise ValueError(f"invalid regex {regex!r}: {error}") from error
     if kind in ("all-of", "any-of", "not"):
         checks = check.get("checks")
         if not isinstance(checks, list):

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import asyncio
 import json
@@ -24,8 +26,9 @@ from ai_docs_kit.render.compose import ComposeError, Composition, assemble, comp
 from ai_docs_kit.render.kit import read_tokens
 from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError, compile_pdf, typst_version
 from ai_docs_kit.review.read import add_review_commands, run_review
-from ai_docs_kit.section_command import add_section_commands, run_section
+from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
 from ai_docs_kit.source.parser import parse
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
@@ -87,7 +90,9 @@ class _Built(NamedTuple):
 
 
 class _BuildFailed(Exception):
-    pass
+    def __init__(self, message: str, code: int = 2) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def _out_dir(file: Path, out: Path | None) -> Path:
@@ -96,7 +101,7 @@ def _out_dir(file: Path, out: Path | None) -> Path:
 
 def _parse(file: Path) -> tuple[Document, list[Finding]]:
     try:
-        text = file.read_text()
+        text = read_source(file)
     except UnicodeDecodeError as error:
         raise _BuildFailed(f"{file}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
     doc, findings = parse(text)
@@ -153,11 +158,11 @@ def _sheet(built: _Built, result: Any, out: Path) -> Path:
     return contact_sheet(result.pngs, labels, out / "contact.png")
 
 
-def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Path | None:
+def _pptx(file: Path, out: Path, built: _Built, facts: Any) -> Path | None:
     """Write the PowerPoint copy beside the PDF; a document has none."""
     if built.comp.format != "slides":
         return None
-    from ai_docs_kit.render.pptx_copy import write_pptx
+    from ai_docs_kit.render.pptx_copy import PptxError, write_pptx
 
     try:
         return write_pptx(
@@ -171,6 +176,8 @@ def _pptx(file: Path, out: Path, built: _Built, facts: Any, theme: Theme) -> Pat
         )
     except TypstError as error:
         raise _BuildFailed(str(error)) from error
+    except PptxError as error:
+        raise _BuildFailed(str(error), code=1) from error
 
 
 def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
@@ -209,24 +216,33 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
         )
     )
     sheet = _sheet(built, result, out)
-    pptx = _pptx(file, out, built, result.facts, theme)
+    pptx = _pptx(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
-    version = write_version(
-        file,
-        built.doc,
-        built.comp,
-        built.pdf,
-        result.facts,
-        built.findings + result.findings,
-        result.pngs,
-        None,
-        theme=theme,
-        final=final,
-        look=result.record(),
-        sheet=sheet,
-        pptx=pptx,
-        docx=docx,
-    )
+    findings = built.findings + result.findings
+    try:
+        version = write_version(
+            file,
+            built.doc,
+            built.comp,
+            built.pdf,
+            result.facts,
+            findings,
+            result.pngs,
+            None,
+            theme=theme,
+            final=final,
+            look=result.record(),
+            sheet=sheet,
+            pptx=pptx,
+            docx=docx,
+        )
+    except OSError as error:
+        raise _BuildFailed(f"Cannot write version: {error}") from error
+    for finding in findings:
+        if finding.severity == "error":
+            print(_line(finding))
+    for gap in version.manifest.gaps:
+        print(f"gap {gap.section or '-'}: {gap.text}")
     print(version.path)
     return _gate_report(ship_gate(version)) if final else 0
 
@@ -239,22 +255,8 @@ def _gate_report(reasons: list[str]) -> int:
     return int(bool(reasons))
 
 
-def _ready(args: argparse.Namespace) -> int:
-    from ai_docs_kit.store import load_version
-    from ai_docs_kit.store.gate import mark_ready
-
-    try:
-        version = load_version(args.version_dir)
-        reasons = mark_ready(version, force=args.force, reason=args.reason)
-    except (OSError, ValueError) as error:
-        print(error, file=sys.stderr)
-        return 2
-    if reasons and not args.force:
-        for reason in reasons:
-            print(f"not ready: {reason}")
-        return 1
-    print(f"ready (forced: {args.reason})" if args.force else "ready")
-    return 0
+def _page_line(page: dict[str, Any]) -> str:
+    return f"page {page['page']}: {', '.join(page['sections'])}"
 
 
 def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
@@ -264,7 +266,12 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
         if not isinstance(pages, list):
             raise TypeError("pages is not a list")
         for page in pages:
-            page["page"], ", ".join(page["sections"])
+            if not isinstance(page, dict):
+                raise TypeError("page is not an object")
+            if not isinstance(page.get("sections"), list) or "page" not in page:
+                raise KeyError("page and sections")
+            if not all(isinstance(section, str) for section in page["sections"]):
+                raise TypeError("section id is not a string")
     except OSError as error:
         raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
     except (KeyError, TypeError, ValueError) as error:
@@ -275,9 +282,11 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
 def _look_pages(version_dir: Path) -> int:
     findings_path = version_dir / "findings.json"
     pages = _read_pages(version_dir)
-    lines = [f"page {page['page']}: {', '.join(page['sections'])}" for page in pages]
+    lines = [_page_line(page) for page in pages]
     try:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
+        if not isinstance(findings, list):
+            raise TypeError("expected a JSON array of findings")
         notes = [
             f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}"
             for f in findings
@@ -288,7 +297,7 @@ def _look_pages(version_dir: Path) -> int:
     return 0
 
 
-def _same_finding(a: "LookFinding", b: "LookFinding") -> bool:
+def _same_finding(a: LookFinding, b: LookFinding) -> bool:
     return (a.page, a.section, a.severity, a.message) == (b.page, b.section, b.severity, b.message)
 
 
@@ -299,7 +308,10 @@ def _look_findings(version_dir: Path, file: Path) -> int:
 
     version = load_version(version_dir)
     pages = _read_pages(version_dir)
-    raw = json.loads(file.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{file}: not valid JSON ({error})") from error
     if not isinstance(raw, list):
         print(f"{file}: expected a JSON array of findings", file=sys.stderr)
         return 2
@@ -309,9 +321,8 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         try:
             finding = LookFinding.model_validate(item)
         except ValidationError as error:
-            problems.extend(
-                f"finding {i}: {'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors()
-            )
+            details = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['msg']} ({e['input']!r})" for e in error.errors())
+            problems.append(f"finding {i}: {details}")
             continue
         blank = [name for name in ("rule", "message") if not getattr(finding, name).strip()]
         if blank:
@@ -324,7 +335,7 @@ def _look_findings(version_dir: Path, file: Path) -> int:
             accepted.append(finding)
     if problems:
         for problem in problems:
-            print(problem, file=sys.stderr)
+            print(f"{file}: {problem}", file=sys.stderr)
         return 2
     record = version.manifest.look
     if record is None:
@@ -339,6 +350,9 @@ def _look_findings(version_dir: Path, file: Path) -> int:
     if added or record.agent is None:
         update_manifest(version_dir, look=record.model_copy(update={"agent": merged}))
     print(f"recorded {added} findings")
+    errors = version.manifest.findings.error + sum(f.severity == "error" for f in merged)
+    unlooked = "; ".join(record.could_not) or "none"
+    print(f"open errors: {errors}, pages not looked at: {unlooked}")
     return 0
 
 
@@ -353,43 +367,6 @@ def _look(args: argparse.Namespace) -> int:
     except (OSError, ValueError) as error:
         print(error, file=sys.stderr)
         return 2
-
-
-def _sent(args: argparse.Namespace) -> int:
-    from ai_docs_kit.store import load_version
-    from ai_docs_kit.store.gate import mark_sent
-
-    if args.latest is not None:
-        root = args.latest.parent / f"{args.latest.stem}.versions"
-        sent = [
-            (v.number, d) for d in root.glob("v*") if (v := _try_load(d)) is not None and v.manifest.state == "sent"
-        ]
-        if sent:
-            print(max(sent)[1])
-        return 0
-    if args.version_dir is None or args.to is None:
-        print("sent needs a version folder and --to, or --latest", file=sys.stderr)
-        return 2
-    try:
-        reasons = mark_sent(load_version(args.version_dir), args.to, force=args.force, reason=args.reason)
-    except (OSError, ValueError) as error:
-        print(error, file=sys.stderr)
-        return 2
-    if reasons and not args.force:
-        for reason in reasons:
-            print(f"not sent: {reason}")
-        return 1
-    print(f"sent to {args.to} (forced: {args.reason})" if reasons else f"sent to {args.to}")
-    return 0
-
-
-def _try_load(directory: Path) -> Any:
-    from ai_docs_kit.store import load_version
-
-    try:
-        return load_version(directory)
-    except (OSError, ValueError):
-        return None
 
 
 def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline: bool = False) -> int:
@@ -462,6 +439,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_brand_commands(subparsers)
     add_section_commands(subparsers)
+    add_facts_commands(subparsers)
     add_review_commands(subparsers)
     add_rule_commands(subparsers)
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
@@ -470,20 +448,10 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_file_command(subparsers, "build", "render a working file to PDF")
     _add_file_command(subparsers, "check", "render a working file and report what the M1 rules find")
     _add_file_command(subparsers, "write", "prepare and draft a working file")
-    ready = subparsers.add_parser("ready", help="mark a version ready")
-    ready.add_argument("version_dir", type=Path)
-    ready.add_argument("--force", action="store_true")
-    ready.add_argument("--reason")
     look = subparsers.add_parser("look", help="print the pages for the look agent or record its findings")
     look.add_argument("version_dir", type=Path)
     look.add_argument("--pages", action="store_true")
     look.add_argument("--findings", type=Path)
-    sent = subparsers.add_parser("sent", help="record that a version was sent")
-    sent.add_argument("version_dir", type=Path, nargs="?")
-    sent.add_argument("--to")
-    sent.add_argument("--latest", type=Path)
-    sent.add_argument("--force", action="store_true")
-    sent.add_argument("--reason")
     write = subparsers.choices["write"]
     write.add_argument("--approve", action="store_true")
     write.add_argument("--yes", action="store_true")
@@ -530,7 +498,7 @@ def _run_file_command(args: argparse.Namespace) -> int:
         return _build(args.file, out, _theme(args.theme), final=args.final)
     except _BuildFailed as error:
         print(error, file=sys.stderr)
-        return 2
+        return error.code
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -544,6 +512,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_brand(args)
     if args.command == "section":
         return run_section(args)
+    if args.command == "facts":
+        return run_facts(args)
     if args.command == "review":
         return run_review(args)
     if args.command == "rule":
@@ -552,12 +522,8 @@ def main(argv: list[str] | None = None) -> int:
         return _doctor()
     if args.command == "init":
         return _init(args.directory)
-    if args.command == "ready":
-        return _ready(args)
     if args.command == "look":
         return _look(args)
-    if args.command == "sent":
-        return _sent(args)
     if args.command in ("write", *FILE_COMMANDS) and not args.file.is_file():
         print(f"{args.file}: no such working file", file=sys.stderr)
         return 2
@@ -610,7 +576,7 @@ def _live_critic(out: Path, theme: Theme) -> Any:
     )
     rubric = load_rubric(theme)
 
-    async def verdict(case: Any, run: int) -> str:
+    async def verdict(case: Any, run: int) -> str:  # noqa: ARG001 - the caller passes the run number
         with Image.open(case.crop) as image:
             width, height = image.size
         item = rubric.get(case.rubric_id)
@@ -658,7 +624,7 @@ def _heal(args: argparse.Namespace) -> int:
                 super().__init__(claude, [], theme, case.document)
                 self.case = case
 
-            async def draft(self, job: Any) -> Any:
+            async def draft(self, job: Any) -> Any:  # noqa: ARG002 - fixed by the draft protocol
                 return self.case.document.sections[0]
 
         writer_for = LiveWriter
