@@ -113,9 +113,11 @@ def build_plan(
         listed_before, listed_after = _items(sent, section), _items(copy, section)
         item = SectionPlan(title=None, wording=None, owner=None)
         present = _present(copy, section)
+        # A retained source still counts as section content when all body wording was cleared.
+        has_content = bool(title_after or copy.paragraphs.get(section) or listed_after)
         if present and title_before and not title_after.strip():
             raise ReadError(f"{section}: the section title cannot be blank")
-        if (title_before or before or listed_before) and not (title_after or after or listed_after):
+        if (title_before or before or listed_before) and not has_content:
             text = "\n\n".join([p for p in (title_before, before, "\n".join(listed_before)) if p])
             structure.append(StructureItem(kind="delete", section=section, text=text))
         elif present:
@@ -123,7 +125,7 @@ def build_plan(
                 item.title, item.owner = title_after, "human"
             if _norm(before) != _norm(after):
                 item.wording, item.owner = after, "human"
-        if present and (title_after or after or listed_after) and listed_before != listed_after:
+        if present and has_content and listed_before != listed_after:
             item.items, item.owner = list(copy.items.get(section, [])), "human"
         seen = Counter((e[0], _norm(e[1]), e[2]) for e in sent.emphasis.get(section, []))
         for kind, text, value in copy.emphasis.get(section, []):

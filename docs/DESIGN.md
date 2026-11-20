@@ -153,6 +153,8 @@ The plan keeps a section's edited heading in `title` and its body in `wording`, 
 unchanged. Headings are identified by the Word paragraph's heading style, so a body paragraph that
 repeats the title stays in the body. An unchanged trailing source line is excluded from body wording
 using the composition stored with the copy's version; identical body paragraphs are kept.
+The source still counts as section content: clearing a heading-free section's body while retaining
+its source applies empty body wording rather than proposing to delete the section.
 A section still present with its title cleared is refused with
 exit 2 before a plan is written, including when the section holds only a title. Removing the whole
 section remains a structural confirm item. Plans written before the split lack the `title` key and
