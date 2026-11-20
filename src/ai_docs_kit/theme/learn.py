@@ -168,12 +168,16 @@ def run_adopt(rule_path: Path, theme_folder: Path) -> int:
     adopted = rule.model_copy(update={"origin": "feedback", "status": "probation"})
     target = theme.root / "rules" / "learned" / f"{adopted.id}.yaml"
     target.parent.mkdir(parents=True, exist_ok=True)
+    original = target.read_bytes() if target.exists() else None
     data = json.loads(adopted.model_dump_json(by_alias=True, exclude_none=True))
     target.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     try:
         load_theme_rules(load_theme(theme.root))
     except ThemeError as error:
-        target.unlink()
+        if original is None:
+            target.unlink()
+        else:
+            target.write_bytes(original)
         print(f"{rule.id}: not adopted: {error}", file=sys.stderr)
         return 1
     print(f"{adopted.id}: adopted on probation: {target}")
