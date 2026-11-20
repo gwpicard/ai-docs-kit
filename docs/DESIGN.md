@@ -151,7 +151,9 @@ from, reads it, and writes a review plan.
 Word comments come from `comments.xml` with their ranges; tracked changes from `w:ins` and `w:del`.
 The plan keeps a section's edited heading in `title` and its body in `wording`, each null when
 unchanged. Headings are identified by the Word paragraph's heading style, so a body paragraph that
-repeats the title stays in the body. A section still present with its title cleared is refused with
+repeats the title stays in the body. An unchanged trailing source line is excluded from body wording
+using the composition stored with the copy's version; identical body paragraphs are kept.
+A section still present with its title cleared is refused with
 exit 2 before a plan is written, including when the section holds only a title. Removing the whole
 section remains a structural confirm item. Plans written before the split lack the `title` key and
 keep the previous wording path when applied.

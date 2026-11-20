@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from ai_docs_kit.render.compose import Composition
 from ai_docs_kit.review.apply import add_apply_command, run_apply
 from ai_docs_kit.review.plan import (
     CommentItem,
@@ -18,6 +19,7 @@ from ai_docs_kit.review.plan import (
 )
 from ai_docs_kit.review.pptx_read import DeckText, read_deck
 from ai_docs_kit.review.word_read import WordText, read_word
+from ai_docs_kit.xml_text import strip_xml_illegal
 
 PLAN_NAME = "review-plan.json"
 SUMMARY_ITEMS = 6
@@ -82,8 +84,13 @@ def _version_for(folder: Path, copy: Path) -> tuple[int, Path, Warning | None]:
     return number, found[number], warning
 
 
-def _text(parts: WordText, section: str) -> str:
-    return "\n\n".join(parts.paragraphs.get(section, []))
+def _body_text(sent: WordText, copy: WordText, section: str, source_line: str) -> tuple[str, str]:
+    before, after = sent.paragraphs.get(section, []), copy.paragraphs.get(section, [])
+    source = _norm(strip_xml_illegal(source_line))
+    if source and before and after and _norm(before[-1]) == _norm(after[-1]) == source:
+        # The Word writer appends the source after the body. Keep any identical body paragraphs.
+        before, after = before[:-1], after[:-1]
+    return "\n\n".join(before), "\n\n".join(after)
 
 
 def _items(parts: WordText, section: str) -> list[str]:
@@ -94,12 +101,14 @@ def _present(parts: WordText, section: str) -> bool:
     return section in parts.order
 
 
-def build_plan(sent: WordText, copy: WordText, number: int, name: str) -> ReviewPlan:
+def build_plan(
+    sent: WordText, copy: WordText, number: int, name: str, source_lines: dict[str, str] | None = None
+) -> ReviewPlan:
     sections: dict[str, SectionPlan] = {}
     structure: list[StructureItem] = []
     changed = False
     for section in sent.order:
-        before, after = _text(sent, section), _text(copy, section)
+        before, after = _body_text(sent, copy, section, (source_lines or {}).get(section, ""))
         title_before, title_after = sent.titles.get(section, ""), copy.titles.get(section, "")
         listed_before, listed_after = _items(sent, section), _items(copy, section)
         item = SectionPlan(title=None, wording=None, owner=None)
@@ -285,7 +294,13 @@ def run_review(args: argparse.Namespace) -> int:
             plan = build_deck_plan(sent_deck, read_deck(copy, set(sent_deck.order)), number, copy.name)
         else:
             sent = read_word(sent_file)
-            plan = build_plan(sent, read_word(copy, set(sent.order)), number, copy.name)
+            composition = Composition.model_validate_json((directory / "composition.json").read_bytes())
+            source_lines = {
+                section.id: source
+                for section in composition.sections
+                if isinstance(source := section.props.get("source_line"), str)
+            }
+            plan = build_plan(sent, read_word(copy, set(sent.order)), number, copy.name, source_lines)
         if assumed:
             plan.warnings.append(assumed)
         path = directory / PLAN_NAME
