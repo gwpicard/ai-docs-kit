@@ -219,22 +219,25 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
     pptx = _pptx(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
     findings = built.findings + result.findings
-    version = write_version(
-        file,
-        built.doc,
-        built.comp,
-        built.pdf,
-        result.facts,
-        findings,
-        result.pngs,
-        None,
-        theme=theme,
-        final=final,
-        look=result.record(),
-        sheet=sheet,
-        pptx=pptx,
-        docx=docx,
-    )
+    try:
+        version = write_version(
+            file,
+            built.doc,
+            built.comp,
+            built.pdf,
+            result.facts,
+            findings,
+            result.pngs,
+            None,
+            theme=theme,
+            final=final,
+            look=result.record(),
+            sheet=sheet,
+            pptx=pptx,
+            docx=docx,
+        )
+    except OSError as error:
+        raise _BuildFailed(f"Cannot write version: {error}") from error
     for finding in findings:
         if finding.severity == "error":
             print(_line(finding))
