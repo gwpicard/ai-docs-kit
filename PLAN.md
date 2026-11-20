@@ -94,6 +94,7 @@ Added for this project:
 - Pass JSON bytes directly to Pydantic validation: `read_text()` can raise `UnicodeDecodeError` before validation when a file ends inside a UTF-8 character. Seed a truncated multibyte character alongside an intact Unicode control through the CLI.
 - Regex validation must reject non-string YAML values before execution; compiling only strings lets numbers, booleans and null reach `re.search` and produce a traceback. Check key presence so explicit null is not mistaken for an absent regex. Exercise the installed CLI to check the real exit code and stderr.
 - Folder creation can fail before a brand or version exists: translate brand-root `OSError` to `BrandError` and version-write `OSError` to `_BuildFailed`, so a file occupying the folder path gives one stderr line and exit 2 without a traceback.
+- PowerPoint duplicates retain the original shape name: a dictionary assignment by field path loses earlier wording before comparison. Seed several boxes with the same name, including repeated text, alongside an edit to the original.
 
 ## Standing approvals
 
@@ -110,6 +111,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 300 tests: keep the supplied regression unchanged in its own file and commit it before adding further cases. Use `build` and `review read` as the entry points, following DESIGN.md sections 5.1 and 6 and the existing PowerPoint plan oracle. Add two input orders covering paragraph and title names, a section id containing a slash, and repeated added wording; each added box must remain an unplaced item while an edit to the original still maps to its field. Both valid-edit controls pass before adding duplicates; all three regression cases fail by assertion on lost or overwritten wording. Repository-wide lint and formatting checks pass. Amend the initial signed-off commit to keep all tests in one commit. No production code, existing tests, dependencies or rendering changes.
 - Issue 298 integration: retain both branches' version-write and intake-manifest validation decisions and lessons when resolving PLAN.md. Keep XML and folder-creation lessons once each, preserving both intents within the lesson limit. No production code or test edits are needed for the resolution.
 - Issue 298: translate `OSError` from `write_version` into the CLI's existing `_BuildFailed` diagnostic with exit 2, preserving the filesystem error's path. The supplied locked subprocess regression covers a file occupying `note.versions`, one stderr line without a traceback, and unchanged working-file and blocker bytes. Keep version storage and rendering unchanged; use existing successful-build and immutable-version tests as controls. This follows the clean input-error and person's-layer preservation decisions; no dependency or existing test changes.
 - Issue 297 integration: retain both branches' manifest, regex and composition-entry validation decisions and lessons when resolving PLAN.md. Combine the composition lessons to keep fewer than 30 lesson lines. No production code or test edits are needed for the resolution.
