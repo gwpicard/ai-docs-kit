@@ -221,6 +221,8 @@ class _Walker:
                 raw = child.get(_q("name")) or ""
                 name = section_of(raw, self.stored)
                 if is_hashed(raw) and raw not in self.stored:
+                    # An unresolved section cannot continue the preceding section's list.
+                    self.listing = None
                     continue
                 if self.known is None or name in self.known:
                     self.open[identifier] = name
