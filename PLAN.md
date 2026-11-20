@@ -73,8 +73,7 @@ Added for this project:
 - Any text field read from a person's or agent's file (rule, message, recipient, banned term) needs a blank and whitespace check where it is read; an empty string otherwise matches everything or is accepted silently.
 - An outside Office reader must tolerate missing optional parts (theme, notes, relationships), catch archive errors including `zlib.error` and `BadZipFile`, and report a clean one-line exit-2 message; seed missing-part and corrupt-archive fixtures. XML declaration refusals need UTF-16 and UTF-32 fixtures with valid encoded controls: searching for ASCII bytes misses their declarations and readers can silently truncate text at an entity reference. For command input files (index, findings, manifest), cover malformed, empty and missing-key cases as `tests/test_cli_look_hostile_files.py` does.
 - A rule or check keyed by section must use `section_key(section, index)` from `checks/engine.py`, never `section.id`, or sections without an id collapse into one finding or never fire.
-- A change that removes or relaxes a refusal must update the skills, `docs/DESIGN.md` and PLAN.md deviations in the same issue, or they keep promising the old behaviour.
-- When an issue supersedes a PLAN.md deviation, edit or delete the old line in the same issue rather than appending a new one.
+- A change that removes or relaxes a refusal must update the skills, `docs/DESIGN.md` and PLAN.md deviations in the same issue, or they keep promising the old behaviour. When an issue supersedes a deviation, edit or delete the old line rather than appending a new one.
 - Text written to Word or PowerPoint XML must have XML-illegal characters stripped, or the copy crashes the build.
 - An issue already implemented on the loop branch is closed by checking its tests pass, not rebuilt.
 - Fields added to the composition or plan models must be optional with a fallback, because older versions on disk lack them.
@@ -83,8 +82,7 @@ Added for this project:
 - A column of single letters can be upright multiline text: preserve the PDF text transform in facts instead of guessing rotation from word positions; measure wrapped labels at their actual column width. For quarter-turned PDF glyphs, pdfplumber's `size` is their advance, not their font size; use their cross-axis extent and group rotated lines before joining letters.
 - Rule-test examples preserve the fields checks see, including `spoken`; test after changing the working file. Choose the check field per example rather than copying bullet text into paragraphs. Restore composition's absent bullet head (`""`) to `None`, but keep empty bodies that source checks see.
 - Validate a brand change's required reason before `begin_change`; rejecting it in `record_change` leaves the branch and edits behind.
-- PowerPoint shape names split at the final slash: section ids can contain slashes, but field paths cannot. Word headings can be empty while their bookmarks remain; validate a cleared title before treating an empty section as a deletion.
-- Match a Word item's unchanged body suffix before its head prefix: a revised head may extend the old head and either field may contain colons.
+- PowerPoint shape names split at the final slash: section ids can contain slashes, but field paths cannot. Word headings can be empty while their bookmarks remain; validate a cleared title before treating an empty section as a deletion. Match a Word item's unchanged body suffix before its head prefix: a revised head may extend the old head and either field may contain colons.
 - Find a rule example's version boundary before normalising paths or validating the id: splitting at the final slash loses id parts, `Path` consumes `./` and repeated slashes, and a final slash may belong to the id.
 - The skill's gather agent returns facts with `source`; the engine's `Fact` model uses `source_key`. CLI acceptance tests must use the agent's shape rather than silently renaming its keys.
 - CONTEXT.md's core table is locked to 23 terms by `test_p0_8_context.py`; add new skill vocabulary under `## Skill words` rather than extending that table.
@@ -95,6 +93,7 @@ Added for this project:
 - Pass JSON bytes directly to Pydantic validation: `read_text()` can raise `UnicodeDecodeError` before validation when a file ends inside a UTF-8 character. Seed a truncated multibyte character alongside an intact Unicode control through the CLI.
 - Regex validation must reject non-string YAML values before execution; compiling only strings lets numbers, booleans and null reach `re.search` and produce a traceback. Check key presence so explicit null is not mistaken for an absent regex. Exercise the installed CLI to check the real exit code and stderr.
 - Folder creation can fail before a brand or version exists: translate brand-root `OSError` to `BrandError` and version-write `OSError` to `_BuildFailed`, so a file occupying the folder path gives one stderr line and exit 2 without a traceback.
+- A Word body edit can copy an unchanged source line into `paragraphs` while retaining `source_line`; check both fields after the build, review read and review apply round trip.
 
 ## Standing approvals
 
@@ -111,6 +110,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 301 judging: keep the supplied regression unchanged in its own test file, exercising `build`, `review read` and `review apply` through the CLI entry point. It fails at the final paragraph assertion because the unchanged source line is duplicated into the body, while the source-line assertion passes. The full lint and formatting checks pass. No production code or existing tests change.
 - Issue 299 integration: retain the native-table reading decision alongside the incoming version-write validation decisions and combined folder-creation lesson when resolving PLAN.md. No production code or test edits are needed for the resolution.
 - Issue 299: keep the three existing CLI regressions unchanged. Read native DrawingML table paragraphs in cell order with the existing paragraph reader, joining them with newlines into one unplaced item per non-empty table. The existing plan comparison suppresses unchanged table text from the original copy; added words remain reported for the person to place, as the Issue 15 decision requires. All three regressions fail before the fix after their text-box controls pass, covering wide and tall tables, blank cells, multiple paragraphs and opposite shape orders while the original section stays unchanged. No dependency or rendering changes.
 - Issue 298 integration: retain both branches' version-write and intake-manifest validation decisions and lessons when resolving PLAN.md. Keep XML and folder-creation lessons once each, preserving both intents within the lesson limit. No production code or test edits are needed for the resolution.
