@@ -81,8 +81,7 @@ Added for this project:
 - Fields added to the composition or plan models must be optional with a fallback, because older versions on disk lack them.
 - Measure each column label separately: a chart-wide fit test turns short labels when one category is long.
 - In a restricted worktree, uv's default cache may be read-only; set `UV_CACHE_DIR` to a writable temporary folder.
-- A column of single letters can be upright multiline text: preserve the PDF text transform in facts instead of guessing rotation from word positions; measure wrapped labels at their actual column width.
-- For quarter-turned PDF glyphs, pdfplumber's `size` is their advance, not their font size; use their cross-axis extent and group rotated lines before joining letters.
+- A column of single letters can be upright multiline text: preserve the PDF text transform in facts instead of guessing rotation from word positions; measure wrapped labels at their actual column width. For quarter-turned PDF glyphs, pdfplumber's `size` is their advance, not their font size; use their cross-axis extent and group rotated lines before joining letters.
 - Rule-test examples preserve the fields checks see, including `spoken`; test after changing the working file. Choose the check field per example rather than copying bullet text into paragraphs. Restore composition's absent bullet head (`""`) to `None`, but keep empty bodies that source checks see.
 - Validate a brand change's required reason before `begin_change`; rejecting it in `record_change` leaves the branch and edits behind.
 - PowerPoint shape names split at the final slash: section ids can contain slashes, but field paths cannot. Word headings can be empty while their bookmarks remain; validate a cleared title before treating an empty section as a deletion.
@@ -96,6 +95,7 @@ Added for this project:
 - ENGINE.md's working-file example uses the obsolete `parallel-set` intent; derive allowed intents per format from `render/chooser.yaml`, rather than copying that example into an authoring reference.
 - A command that reads a JSON index turns malformed input into exit 2 with a one-line message; validate the container and its entries before formatting. Empty objects and strings iterate without an error, so seed both alongside a known finding when testing an array reader.
 - Component scopes need `CheckContext.composition`: keep only the selected stored section alongside a reconstructed example, and compose approved working files with the normal chooser. Rechoosing a stored example can lose overrides or content-dependent choices.
+- Regex validation must reject non-string YAML values before execution; compiling only strings lets numbers, booleans and null reach `re.search` and produce a traceback. Exercise the installed CLI to check the real exit code and stderr.
 
 ## Standing approvals
 
@@ -112,6 +112,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 296 test scope: keep the supplied regression unchanged in its own new file. Its three cases cover numeric, boolean and null regex values through the installed `rule test` command after a real build, requiring exit 2 and one stderr line naming the rule file without a traceback. All three currently fail by assertion because the command exits 1 with `TypeError`; no additional test or production change is needed for this test-writing issue.
 - Issue 294 integration: retain both branches' JSON-array validation and component-scope lessons, and the decisions for issues 294 and 293, when resolving the PLAN.md merge conflicts. No production code or test edits are needed for the resolution.
 - Issue 294: require a JSON array before `look --pages` formats engine findings, using its existing malformed-findings error path. Keep the supplied regression unchanged: both an empty object and an empty string must produce exit 2 and one stderr line naming `findings.json`, with the manifest unchanged, after intact findings report the seeded citation error. This follows the existing malformed-input and plain-reporting decisions; no rendering, dependency or existing test changes.
 - Issue 293: pass the selected stored composition alongside the reconstructed example into rule testing, preserving the build's component without rerunning the chooser. Compose approved working files with the normal chooser only for component-scoped rules; a composition error exits 2 rather than treating the exemplar as silent. This applies the rule-test parity and immutable-version decisions to component scope. Keep the supplied document and slides regression unchanged; new CLI controls cover stored overrides, a selected second section, changed working files, other components and approved exemplars inside and outside scope, including refusal to adopt a rule that hits approved work. All 61 focused rule tests pass. No rendering, dependency or existing test changes; the full Test and Check commands remain with the Stop hook.
