@@ -210,6 +210,11 @@ def _read(archive: zipfile.ZipFile, label: str, sections: set[str] | None, resul
                 result.formats[(owner, match.group(2))] = hints
             elif text:
                 result.unplaced.append((last, text))
+        # Native tables hold DrawingML paragraphs outside the ordinary text shapes.
+        for table in slide.iter(_q(A, "tbl")):
+            text = "\n".join(_paragraphs(table)).strip()
+            if text:
+                result.unplaced.append((last, text))
         if owner is not None:
             last = owner
         for _, kind, target in _relationships(archive, part, label):
