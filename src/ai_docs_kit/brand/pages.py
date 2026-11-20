@@ -69,7 +69,7 @@ def load_manifest(brand: Path) -> Manifest:
     if not path.exists():
         raise BrandError("Run ai_docs_kit brand intake first")
     try:
-        return Manifest.model_validate_json(path.read_text(encoding="utf-8"))
+        return Manifest.model_validate_json(path.read_bytes())
     except ValidationError as error:
         raise BrandError(f"{path}: not a valid intake manifest ({error.error_count()} errors)") from error
 
