@@ -106,6 +106,11 @@ marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills ca
 5. write the editable copy;
 6. write a new version under `<name>.versions/vN/` with the engine's findings.
 
+Document builds support `body`, `callout`, `chart`, `bullets` and `key-numbers`.
+The document list draws headed or plain items, nested sub-lines and citations;
+key figures draw 2 to 4 values with labels in the document's type scale. Both
+write their items as lists inside the section's bookmark in the Word copy.
+
 The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit look <version>
 --findings <file>` validates them (sections and pages exist, severities known) and adds them to the
 version's look record. The skill fixes what was found and rebuilds, at most twice, then reports what

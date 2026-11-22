@@ -16,6 +16,8 @@ intents:
     describes: A list of points.
     slides:
       - {component: bullets}
+    doc:
+      - {component: bullet-list}
   body:
     describes: Running prose in paragraphs.
     doc:
@@ -38,6 +40,8 @@ intents:
     slides:
       - {component: key-figures, when: {count: [3, 4]}}
       - {component: bullets}
+    doc:
+      - {component: key-figures-strip}
   table:
     describes: Tabular data with headings and rows.
     slides:

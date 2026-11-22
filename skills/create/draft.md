@@ -16,3 +16,7 @@ now using the agreed gather array and the working file's source list.
 4. Build: `ai-docs-kit build <name>.md`, adding `--theme <brand theme>` when the brand has one. The build writes the PDF, the editable copy and a new version, and runs the checks. Read the engine's findings. An error that is not a look matter (a missing source, an invalid section) goes back to the section's agent through `section put`.
 
 Hand the version folder to the look stage.
+
+For documents, use `bullets` for headed or plain list items, including sub-lines
+and citations, and `key-numbers` for 2 to 4 values with labels. These render in
+the document style and stay editable as lists in the Word copy.

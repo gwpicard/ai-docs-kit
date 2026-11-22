@@ -1014,7 +1014,7 @@ variants: [grey, colour]
 key-figures, quote, image-with-text, full-image, chart (bar, column, line, donut, stacked), table, timeline,
 process (steps), matrix (2x2), team/people, contact, closing.
 
-*Documents:* cover, contents, chapter-opener, body (prose, 1 or 2 columns), callout, key-figures strip,
+*Documents:* cover, contents, chapter-opener, body (prose, 1 or 2 columns), bullet list, callout, key-figures strip,
 figure (chart/image with caption and source), table, sidebar, pull-quote, timeline, references, back-cover.
 
 Ship each with a fixture, a swatch frame, a capacity, and a golden layout-facts file.
