@@ -19,6 +19,7 @@ ATTR_ORDER = [
     "lock",
     "redraft",
 ]
+ATTR_ESCAPES = str.maketrans({"\\": "\\\\", '"': '\\"', "\n": "\\n", "\r": "\\r", "\t": "\\t"})
 
 
 def _dump(value: Any) -> str:
@@ -62,8 +63,10 @@ def _attributes(section: Section) -> str:
         if name == "icons":
             value = ",".join(section.icons) or None
         if value is not None:
-            parts.append(f'{name}="{value}"')
-    parts.extend(f'{name}="{section.extra_attrs[name]}"' for name in sorted(section.extra_attrs))
+            parts.append(f'{name}="{value.translate(ATTR_ESCAPES)}"')
+    parts.extend(
+        f'{name}="{section.extra_attrs[name].translate(ATTR_ESCAPES)}"' for name in sorted(section.extra_attrs)
+    )
     return " ".join(parts)
 
 
