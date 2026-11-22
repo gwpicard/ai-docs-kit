@@ -137,7 +137,7 @@ class _CurrentWriter:
         self.section = section
         self.writer = writer
 
-    async def draft(self, job: JobLike) -> Section:
+    async def draft(self, job: JobLike) -> Section:  # noqa: ARG002 - fixed by the draft protocol
         return self.section
 
     async def repair(

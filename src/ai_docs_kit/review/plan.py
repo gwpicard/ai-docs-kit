@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ai_docs_kit.model.text import NonBlank
+
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -13,15 +15,21 @@ class _Model(BaseModel):
 
 class CommentItem(_Model):
     kind: Literal["comment"] = "comment"
-    author: str
+    author: str | None = Field(description="The commenter; null when the file does not name them.")
+    id: str | None = Field(default=None, description="The comment's id in the file, for a modern deck comment.")
+    reply_to: str | None = Field(default=None, description="The id of the comment this one replies to, if a reply.")
     text: str
     anchor: str = Field(description="The words the comment is attached to.")
     accepted: bool | None = Field(
         default=None, description="The person's decision; set by the person, not by `review read`."
     )
     action: Literal["apply", "redraft", "skip"] | None = Field(default=None, description="What accepting does.")
-    proposal: str | None = Field(default=None, description="The new wording of the section, for apply.")
-    ask: str | None = Field(default=None, description="The redraft ask to write on the section, for redraft.")
+    proposal: NonBlank | None = Field(default=None, description="The new wording of the section, for apply.")
+    ask: NonBlank | None = Field(default=None, description="The redraft ask to write on the section, for redraft.")
+    spans: list[str] = Field(
+        default_factory=list,
+        description="The ids of every section the comment's range overlaps, in document order; each copy carries all.",
+    )
     slide: int | None = Field(default=None, description="The slide number (1-based, sent order), for a deck comment.")
     shape: str | None = Field(default=None, description="The shape name the comment is attached to, if any.")
 
@@ -33,8 +41,12 @@ class Emphasis(_Model):
 
 
 class SectionPlan(_Model):
-    wording: str | None = Field(description="The applied wording of the section, null when it is unchanged.")
+    title: NonBlank | None = Field(default=None, description="The edited section heading; null when unchanged.")
+    wording: str | None = Field(description="The edited body without the heading; null when unchanged.")
     owner: Literal["human"] | None = Field(description="human when a reviewer wrote the wording.")
+    items: list[str] | None = Field(
+        default=None, description="The section's list items from the Word copy, in order; null when unchanged."
+    )
     fields: dict[str, str] = Field(
         default_factory=dict, description="The applied text of each changed field, by field path (decks)."
     )
@@ -61,7 +73,7 @@ class Warning(_Model):
 
 
 class ReviewPlan(_Model):
-    sent_version: int = Field(description="The sent version the copy was compared with.")
+    version: int = Field(description="The version the copy was compared with.")
     review_copy: str = Field(description="The file name of the review copy.")
     sections: dict[str, SectionPlan]
     confirm: list[StructureItem] = Field(default_factory=list)

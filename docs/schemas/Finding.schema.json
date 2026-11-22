@@ -44,6 +44,7 @@
           "type": "string"
         },
         "hint": {
+          "minLength": 1,
           "title": "Hint",
           "type": "string"
         }
@@ -112,6 +113,18 @@
     "message": {
       "title": "Message",
       "type": "string"
+    },
+    "owner": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner"
     },
     "page": {
       "anyOf": [

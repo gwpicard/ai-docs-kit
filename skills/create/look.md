@@ -9,4 +9,4 @@ Do not stop and do not ask the person anything in this stage. A person who has a
 
 Run at most two fix rounds. After the second rebuild and look, stop fixing. Report what remains by section: the section id, its title, the page, the severity and the message, with the errors first. Do not hide a remaining error or reword it.
 
-Only a version with no open error and every page looked at can be sent, so a remaining error ends the skill here with the report, not at ship.
+A remaining error ends the skill here with the report, not at ship.

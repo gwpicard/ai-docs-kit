@@ -7,11 +7,14 @@ from decimal import Decimal, InvalidOperation, localcontext
 from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.checks.engine import CheckContext, make_finding
 from ai_docs_kit.model import Document, Finding, Provenance, Remedy, Rule, Section
+from ai_docs_kit.source.parser import CITATION
 
 NUM = re.compile(r"(?<![\w.])[-+]?\d[\d,.]*\d%?|\b\d%?")
 MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
 DATE = re.compile(rf"\b(?:19|20)\d{{2}}\b|\b\d{{1,2}}\s+(?:{MONTHS})\b", re.IGNORECASE)
-ENT = re.compile(r"\b[A-Z][a-zA-Z&-]+(?:[ ]+[A-Z][a-zA-Z&-]+)+\b")
+ENT = re.compile(r"\b[A-Z][a-zA-Z&-]+(?:[ ]+[A-Z][a-zA-Z&-]+)*\b")
+SENTENCE_START = re.compile(r"""(?:^|[.!?]["'”’)]*\s+)[\s"'“‘(]*$""")
+OPENERS = {"A", "An", "The", "In", "On", "At", "By", "For", "From", "To", "With", "As", "After", "Before", "During"}
 WORDS = (
     "zero one two three four five six seven eight nine ten eleven twelve thirteen "
     "fourteen fifteen sixteen seventeen eighteen nineteen twenty"
@@ -22,12 +25,26 @@ CALC = re.compile(r"^\s*calc:\s*(sum|difference|ratio|percentage)\(([^()]*)\)\s*
 NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?%?")
 
 
-def support_tokens(text: str) -> set[str]:
+def support_tokens(text: str, *, evidence: bool = False) -> set[str]:
+    """Collect claim tokens, keeping isolated opening names when reading evidence."""
+    text = CITATION.sub(" ", text)
     text = WORD.sub(lambda match: WORD_NUMBERS[match.group().lower()], text)
+    entities = set()
+    for match in ENT.finditer(text):
+        words = match.group().split()
+        if SENTENCE_START.search(text[: match.start()]):
+            if len(words) == 1 and not evidence:
+                continue
+            if len(words) > 1 and words[0] in OPENERS:
+                words = words[1:]
+        # A month alone is calendar wording; its year or day is checked separately.
+        if len(words) == 1 and words[0] in MONTHS.split("|"):
+            continue
+        entities.add(" ".join(words).lower())
     return (
         {match.group().replace(",", "") for match in NUM.finditer(text)}
         | {match.group().lower() for match in DATE.finditer(text)}
-        | {match.group().lower() for match in ENT.finditer(text)}
+        | entities
     )
 
 
@@ -109,9 +126,9 @@ class FactGuard:
         numbers_from_facts: bool = False,
         exempt: Collection[str] = (),
     ):
-        self.allowed = set().union(*(support_tokens(text) for text in evidence))
+        self.allowed = set().union(*(support_tokens(text, evidence=True) for text in evidence))
         for fact in facts:
-            self.allowed.update(support_tokens(fact.text), fact_number_tokens(fact))
+            self.allowed.update(support_tokens(fact.text, evidence=True), fact_number_tokens(fact))
         self.facts = facts
         self.numbers_from_facts = numbers_from_facts
         self.exempt = exempt
@@ -119,7 +136,7 @@ class FactGuard:
         self.unsupported: list[str] = []
         self.resolved: dict[str, list[str]] = {}
 
-    def __call__(self, doc: Document, section: Section) -> bool:
+    def __call__(self, doc: Document, section: Section) -> bool:  # noqa: ARG002 - fixed by the guard protocol
         calculations = [
             calculation
             for line in (section.note or "").splitlines()
@@ -140,12 +157,9 @@ class FactGuard:
         if self.numbers_from_facts:
             unsupported.update(token for token, ids in self.resolved.items() if not ids and token not in self.exempt)
         if self.citation_keys is not None:
-            unsupported.update(
-                f"cite:{citation.key}"
-                for item in section.items
-                for citation in item.citations
-                if citation.key not in self.citation_keys
-            )
+            keys = {citation.key for item in section.items for citation in item.citations}
+            keys.update(match.group(1) for value in _fields(section) for match in CITATION.finditer(value))
+            unsupported.update(f"cite:{key}" for key in keys.difference(self.citation_keys))
         self.unsupported = sorted(unsupported)
         return not self.unsupported
 
@@ -177,7 +191,7 @@ RULES = [
 
 def check_rewrite(before: Document, after: Document) -> list[Finding]:
     sections = {section.id: section for section in before.sections if section.id is not None}
-    common_evidence = [f"{source.key} {source.text}" for source in before.sources]
+    common_evidence = [part for source in before.sources for part in (source.key, source.text)]
     common_evidence.extend(value for value in before.front.values() if isinstance(value, str))
     findings: list[Finding] = []
     for section in after.sections:

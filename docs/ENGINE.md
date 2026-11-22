@@ -65,7 +65,7 @@ lesson into the brand system.
 
 | # | Decision | Consequence |
 |---|---|---|
-| D1 | Output is **PDF only**, in two page models: *slides* (16:9 pages) and *documents* (A4/Letter pages). | One renderer, one rasteriser, one geometry source. No PPTX, DOCX or Office dependency. |
+| D1 | Output is **PDF**, in two page models: *slides* (16:9 pages) and *documents* (A4/Letter pages). Each build also writes an editable copy for review (DESIGN.md wins). | One renderer, one rasteriser, one geometry source. The editable copy is written from the same composition. |
 | D2 | **Claude is required.** There is no offline or model-free mode. | Generation, critique, diagnosis and rule authoring are all Claude calls. The product is the combination: generative phases plus deterministic gates that force regeneration. |
 | D3 | The AI edits the document; the person gives guidance. The person does not design. | The editor is a *content editor with feedback*, not a design canvas. There is deliberately no way to set a colour, font, size or position on a section. |
 | D4 | Brand knowledge is a **theme pack**: tokens, components, rules, rubric, voice, exemplars. It is data plus small code, versioned in git. | A new brand is onboarded by uploading materials; the AI drafts the pack; a person reviews it. |
@@ -394,6 +394,7 @@ class Document(BaseModel):
 
 * `parse(text) -> (Document, list[Finding])` never raises; a malformed file produces findings (`parse-error`, `missing-id`, `unknown-intent`...).
 * `serialise(doc) -> str` is canonical: attribute order fixed, one blank line between sections, trailing newline. Property: `parse(serialise(d)) == d` (hypothesis test).
+* Quoted attribute values escape backslashes, double quotes, newlines, carriage returns and tabs as `\\`, `\"`, `\n`, `\r` and `\t`; the parser decodes these escapes. Other backslash sequences and bare values stay literal.
 * Parsing uses `markdown-it-py` with the `front_matter` and `container` plugins; only section boundaries and the `> key:` convention are custom.
 * Id stamping is the only write the engine makes to the file apart from applying patches and rewriting deprecated spellings. Ids are never reused after deletion (keep a tombstone list in `.docla/ids.json`) so old review comments and versions cannot attach to a new section.
 * **Deprecated spellings.** The day you rename an attribute or intent, add an alias table and keep reading the old spelling forever (reporting `old-spelling` once and rewriting on next build). Sent documents come back months later.
@@ -1014,7 +1015,7 @@ variants: [grey, colour]
 key-figures, quote, image-with-text, full-image, chart (bar, column, line, donut, stacked), table, timeline,
 process (steps), matrix (2x2), team/people, contact, closing.
 
-*Documents:* cover, contents, chapter-opener, body (prose, 1 or 2 columns), callout, key-figures strip,
+*Documents:* cover, contents, chapter-opener, body (prose, 1 or 2 columns), bullet list, callout, key-figures strip,
 figure (chart/image with caption and source), table, sidebar, pull-quote, timeline, references, back-cover.
 
 Ship each with a fixture, a swatch frame, a capacity, and a golden layout-facts file.
@@ -1384,7 +1385,7 @@ select: {kind: text, role: [body, bullet], section_intent: any, component: any}
 | `count-per` | `of` (selector), `per` (page/section/column), `min`, `max` | counts within bounds |
 | `ratio` | `a`, `b`, `min`, `max` | width/height/area ratio (logo vs page, image coverage) |
 | `align` | `selector`, `to` (`grid`, `left-margin`, `each-other`), `tolerance_pt` | edges snap |
-| `text-pattern` | `regex`, `must_match` or `must_not_match`, `field` | text rule (banned phrase, title is not a question) |
+| `text-pattern` | `regex`, `must_match` or `must_not_match`, `field` (`spoken` accepted) | text rule (banned phrase, title is not a question) |
 | `fits` | none | every `<docla-fit>` mark has `ok: true` |
 | `image-dpi` | `min` | effective DPI of each image |
 | `page-fill` | `min`, `max` (fraction of live area with ink), `ignore: [cover, divider]` | not too empty / full |

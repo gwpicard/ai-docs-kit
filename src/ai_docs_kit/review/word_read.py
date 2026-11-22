@@ -1,10 +1,14 @@
 """Read a Word file into per-section text, comments and emphasis; the archive is treated as hostile."""
 
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from lxml import etree  # type: ignore[import-untyped]
+
+from ai_docs_kit.bookmark_names import is_hashed, section_of
+from ai_docs_kit.store.stamp import read_custom_properties
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 MAX_ENTRIES = 2000
@@ -20,19 +24,36 @@ def _q(tag: str) -> str:
 
 @dataclass
 class Comment:
-    author: str
+    author: str | None
     text: str
     anchor: list[str] = field(default_factory=list)
+    spans: list[str] = field(default_factory=list)
 
 
 @dataclass
 class WordText:
     order: list[str] = field(default_factory=list)
+    titles: dict[str, str] = field(default_factory=dict)
     paragraphs: dict[str, list[str]] = field(default_factory=dict)
+    items: dict[str, list[str]] = field(default_factory=dict)
     emphasis: dict[str, list[tuple[str, str, str | None]]] = field(default_factory=dict)
     comments: list[tuple[str | None, Comment]] = field(default_factory=list)
     unplaced: list[tuple[str | None, str]] = field(default_factory=list)
     tracked: bool = False
+
+
+def _is_list_item(node: etree._Element) -> bool:
+    props = node.find(_q("pPr"))
+    if props is None:
+        return False
+    style = props.find(_q("pStyle"))
+    name = (style.get(_q("val")) or "") if style is not None else ""
+    return name.startswith("List") or props.find(_q("numPr")) is not None
+
+
+def _is_heading(node: etree._Element) -> bool:
+    style = node.find(f"{_q('pPr')}/{_q('pStyle')}")
+    return style is not None and (style.get(_q("val")) or "").startswith("Heading")
 
 
 def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool, kind: str = "Word") -> bytes | None:
@@ -55,9 +76,16 @@ def _part(archive: zipfile.ZipFile, name: str, label: str, *, required: bool, ki
 
 def _parse(data: bytes, label: str, name: str) -> etree._Element:
     try:
-        return etree.fromstring(data, etree.XMLParser(**PARSER_OPTIONS))
+        root = etree.fromstring(data, etree.XMLParser(**PARSER_OPTIONS))
     except etree.XMLSyntaxError as error:
         raise ValueError(f"{label}: {name} cannot be read safely: {error}") from None
+    # Parser metadata recognises doctypes in every supported XML encoding.
+    if root.getroottree().docinfo.doctype:
+        raise ValueError(f"{label}: {name} declares entities, which are not read")
+    return root
+
+
+ARCHIVE_ERRORS = (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error)
 
 
 def check_archive(archive: zipfile.ZipFile, label: str) -> None:
@@ -75,7 +103,7 @@ def _open(path: Path) -> tuple[etree._Element, etree._Element | None]:
             check_archive(archive, label)
             body = _part(archive, "word/document.xml", label, required=True)
             notes = _part(archive, "word/comments.xml", label, required=False)
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError) as error:
+    except ARCHIVE_ERRORS as error:
         raise ValueError(f"{label}: not a readable Word file ({error})") from None
     assert body is not None
     return _parse(body, label, "word/document.xml"), (_parse(notes, label, "word/comments.xml") if notes else None)
@@ -92,8 +120,11 @@ def _read_comments(root: etree._Element | None) -> dict[str, Comment]:
 
 
 class _Walker:
-    def __init__(self, sections: set[str] | None, comments: dict[str, Comment]) -> None:
+    def __init__(
+        self, sections: set[str] | None, comments: dict[str, Comment], stored: dict[str, str] | None = None
+    ) -> None:
         self.known = sections
+        self.stored = stored or {}
         self.result = WordText()
         self.comments = comments
         self.open: dict[str, str] = {}
@@ -103,6 +134,7 @@ class _Walker:
         self.buffer: list[str] = []
         self.hints: list[tuple[str, str, str | None]] = []
         self.last: str | None = None
+        self.listing: str | None = None
 
     def current(self) -> str | None:
         return next(iter(self.open.values()), None)
@@ -120,6 +152,14 @@ class _Walker:
             self.result.order.append(name)
         if name not in self.touched:
             self.touched.append(name)
+        for identifier in self.ranges:
+            if identifier in self.comments:
+                self._span(self.comments[identifier], name)
+
+    @staticmethod
+    def _span(comment: Comment, name: str) -> None:
+        if name not in comment.spans:
+            comment.spans.append(name)
 
     def _run(self, node: etree._Element) -> None:
         text = "".join(t.text or "" for t in node.iter(_q("t")))
@@ -141,8 +181,15 @@ class _Walker:
         self._children(node)
         text = "".join(self.buffer).strip()
         section = self.touched[0] if self.touched else None
-        if text and section is not None:
-            self.result.paragraphs.setdefault(section, []).append(text)
+        listed = _is_list_item(node)
+        if section is None and listed and text:
+            section = self.listing
+        self.listing = section if listed and section is not None else None
+        if section is not None and _is_heading(node) and section not in self.result.titles:
+            self.result.titles[section] = text
+        elif text and section is not None:
+            target = self.result.items if listed else self.result.paragraphs
+            target.setdefault(section, []).append(text)
         elif text:
             self.result.unplaced.append((self.last, text))
         if section is not None:
@@ -171,7 +218,12 @@ class _Walker:
                 self.result.tracked = True
                 self._children(child)
             elif tag == "bookmarkStart":
-                name = child.get(_q("name")) or ""
+                raw = child.get(_q("name")) or ""
+                name = section_of(raw, self.stored)
+                if is_hashed(raw) and raw not in self.stored:
+                    # An unresolved section cannot continue the preceding section's list.
+                    self.listing = None
+                    continue
                 if self.known is None or name in self.known:
                     self.open[identifier] = name
                     self._start(name)
@@ -180,6 +232,9 @@ class _Walker:
             elif tag == "commentRangeStart":
                 self.ranges.add(identifier)
                 self._place(identifier)
+                if identifier in self.comments:
+                    for name in self.open.values():
+                        self._span(self.comments[identifier], name)
             elif tag == "commentRangeEnd":
                 self.ranges.discard(identifier)
             elif tag == "commentReference":
@@ -205,7 +260,7 @@ def read_word(path: Path, sections: set[str] | None = None) -> WordText:
     """
     document, notes = _open(path)
     comments = _read_comments(notes)
-    walker = _Walker(sections, comments)
+    walker = _Walker(sections, comments, read_custom_properties(path))
     walker._children(document)
     result = walker.result
     return result

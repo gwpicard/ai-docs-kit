@@ -35,7 +35,7 @@ components fitted to the brand, from the brand's guidelines, templates and appro
 | S4 | **The Word copy is the text.** Headings, paragraphs and lists, with a one-line reference in place of each table, chart or figure. | Reviewers comment on wording, which is what a document review is about. No attempt at page fidelity. |
 | S5 | **Checks run on every build, never on request.** There is no separate check skill. | A version cannot reach a person without its look record. |
 | S6 | **The session's Claude is the model.** Skills and agents make no API calls of their own. | No API key, no cassettes on the skill path. The engine stays deterministic. |
-| S7 | **No version reaches a person unlooked-at.** A version is marked sent only when its look record has no open error. | The same guarantee as the engine's ship gate, extended to the look agent. |
+| S7 | **No version reaches a person unlooked-at.** A version is handed over with its look summary line, which names every open error and every page not looked at. | The person is never told a version is clean when it is not: the summary line states the open errors and the unlooked pages plainly. |
 | S8 | **Formatting never round-trips.** Bold, colour, a resized box or a moved shape in a review copy is read as intent, never copied. | The brand cannot leak out through the review loop. |
 | S9 | **Brand-neutral.** No third-party brand names, logos, fonts or images ship. | A neutral theme with an open-licensed font is the showcase. |
 | S10 | **Two layers: the plugin and the person's layer.** The plugin (engine, skills, agents, component library, neutral theme) is shared code, replaced on every update. The person's layer (brand folder, preferences, working files, versions) is data the plugin reads. | An update never loses what a person built. See section 10. |
@@ -50,8 +50,8 @@ when it reaches that stage.
 | Skill | Does |
 |---|---|
 | `brand` | Reads guidelines, templates and approved examples; drafts tokens, voice and rules, each with its source; asks the person to confirm only what was inferred rather than read; writes the brand folder. Wraps the engine's existing `brand` commands. |
-| `create` | Survey or resume; name the document type; gather facts with sources; agree the outline (the one stop); draft through agents; build; look at every page and fix what was found, at most two rounds; mark the version sent. |
-| `review` | Read a review copy; compare it with the sent version by section; apply wording; classify comments; ask once for the structural items; redraft; rebuild through the same look; propose rules from lasting preferences; mark the next version sent. |
+| `create` | Survey or resume; name the document type; gather facts with sources; agree the outline (the one stop); draft through agents; build; look at every page and fix what was found, at most two rounds; give the person the PDF, the editable copy and the look summary line. |
+| `review` | Read a review copy; compare it with the version it was built from by section; apply wording; classify comments; ask once for the structural items; redraft; rebuild through the same look; propose rules from lasting preferences; give the person the next version with its look summary line. |
 
 | Step | Who | Why |
 |---|---|---|
@@ -66,6 +66,29 @@ when it reaches that stage.
 
 An agent gets everything it needs in its prompt and never explores the repository. Its output is
 validated by an `ai-docs-kit` command before the skill reads it.
+
+After the outline is agreed and its working file has a source list, the skill saves the gathered
+facts with `ai-docs-kit facts add <name>.md <facts.json>`. The input is the gather agent's `facts`
+array: each entry has `text`, `source` and an optional `locator`. The command refuses an unlisted
+source key before saving anything and keeps each text, source and locator combination once.
+`ai-docs-kit facts list <name>.md` prints one fact per line with its key and locator. `section put`
+uses every stored fact as evidence alongside the sources, front matter and section's previous text;
+unsupported figures, dates, names and source keys are still refused. A missing fact store contributes
+no extra evidence.
+
+The guard excludes inline citation metadata such as `[S3 p.6-7]`, `[S1, p. 12]` or `[S1 00:41]` from claim and
+evidence tokens, and validates the source key in both prose and bullets. A page or timestamp cannot
+support a number in a claim, including when the citation appears in the section's previous text.
+The working file keeps the citation text unchanged.
+
+Ordinary opening words such as `The` and `In` are excluded from capitalised names at sentence
+boundaries, including after closing quotation marks or parentheses. The remaining name, including a single word
+such as `EU` or `Varnholm`, still needs evidence. A month on its own is calendar wording; the guard
+still checks the year and numeric day.
+Evidence retains isolated capitalised words even at sentence openings, so a gathered fact beginning
+with a name can support that name after an opening word in a draft.
+Source keys and source text are tokenised as separate evidence entries, so a capitalised opening
+such as `The EU` or `The Northern Fisheries Council` keeps the same sentence boundary as the draft.
 
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
@@ -83,13 +106,18 @@ marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills ca
 5. write the editable copy;
 6. write a new version under `<name>.versions/vN/` with the engine's findings.
 
+Document builds support `body`, `callout`, `chart`, `bullets` and `key-numbers`.
+The document list draws headed or plain items, nested sub-lines and citations;
+key figures draw 2 to 4 values with labels in the document's type scale. Both
+write their items as lists inside the section's bookmark in the Word copy.
+
 The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit look <version>
 --findings <file>` validates them (sections and pages exist, severities known) and adds them to the
 version's look record. The skill fixes what was found and rebuilds, at most twice, then reports what
 remains by section.
 
-`ai-docs-kit sent <version> --to <who>` refuses while the look record has an open error or a page that
-was not looked at.
+The skill gives the person the PDF, the editable copy and the summary line of `look`, which names any
+open error and any page not looked at.
 
 ## 5. The editable copies
 
@@ -112,17 +140,22 @@ same layout facts the checks read. A reviewer who retypes a bullet edits one nam
 ### 5.2 Word
 
 Headings, paragraphs and lists, in section order. Each section sits inside a bookmark named by its
-id. A table, chart or figure becomes one line: `[Table 2: <title>]`. Fonts and colours come from the
+id. Word accepts only names of at most 40 letters, digits and `_` that start with a letter, so
+`bookmark_names.py` keeps a valid id as it is, writes any other id as `Xenc_` plus an escape (`__` for
+`_`, `_x<hex>_` for another character) and, when that runs past 40 characters, as `Xh_` plus a hash of
+the id. The copy stores the map from each `Xh_` name to its id in its custom document properties, so
+a copy that travels alone still reads back; `review read` reports text under an `Xh_` name missing
+from the map as `unplaced`. A table, chart or figure becomes one line: `[Table 2: <title>]`. Fonts and colours come from the
 theme's tokens; nothing else is styled.
 
 ## 6. The review round trip
 
-`ai-docs-kit review read <review-copy>` finds the working file and the sent version the copy came
+`ai-docs-kit review read <review-copy>` finds the working file and the version the copy came
 from, reads it, and writes a review plan.
 
 | The reviewer did | Detected by | Becomes |
 |---|---|---|
-| Rewrote text inside a section | bookmark (Word) or shape name (PowerPoint); diff against the sent copy | The wording is applied; the section's text becomes `owner="human"` |
+| Rewrote text inside a section | bookmark (Word) or shape name (PowerPoint); diff against the copy it was built from | The wording is applied; the section's text becomes `owner="human"` |
 | Left a comment | comment anchor mapped to a section | A confirm item; the agent proposes `apply` (the comment is the wording), `redraft` (an ask) or `restructure` |
 | Deleted a slide or a section | section id missing | A structural confirm item |
 | Reordered | id sequence differs | A structural confirm item |
@@ -130,6 +163,12 @@ from, reads it, and writes a review plan.
 | Bolded, recoloured, moved or resized | run properties, geometry | An emphasis hint, never applied |
 
 Word comments come from `comments.xml` with their ranges; tracked changes from `w:ins` and `w:del`.
+The plan keeps a section's edited heading in `title` and its body in `wording`, each null when
+unchanged. Headings are identified by the Word paragraph's heading style, so a body paragraph that
+repeats the title stays in the body. A section still present with its title cleared is refused with
+exit 2 before a plan is written, including when the section holds only a title. Removing the whole
+section remains a structural confirm item. Plans written before the split lack the `title` key and
+keep the previous wording path when applied.
 Bookmarks move when Word saves, so a change is attributed by range overlap. A Word copy with nothing
 in it raises a warning that tracked changes may have been off. PowerPoint comments come from both the
 legacy (`ppt/comments/`) and the modern (`ppt/comments/modernComment_*`) parts, anchored to a slide
@@ -137,7 +176,7 @@ and, when given, a shape.
 
 `ai-docs-kit review apply <name>.md --plan <decided.json>` applies wording, writes `redraft=` asks,
 applies the structural items the person accepted, and prints what it touched. It refuses when the
-working file changed since the sent version in a section the plan touches, and says which.
+working file changed since the version the copy came from in a section the plan touches, and says which. It also reports sections that changed since then or went missing.
 
 A section with `owner="human"` is never rewritten by an agent. A redrafted section stays agent-owned
 and carries `because="redrafted for <who> at v<N>: <the ask>"`.
@@ -146,22 +185,27 @@ and carries `because="redrafted for <who> at v<N>: <the ask>"`.
 
 When a comment states a lasting preference, the `review` skill proposes a rule in the engine's rule
 format, with the comment as its provenance. `ai-docs-kit rule test <rule> --example <version>/<section>`
-accepts it only if it fires on the commented section and on none of the brand's approved exemplars. An
-accepted rule enters the brand's rulebook on probation (advisory) and blocks only after the person
-promotes it. This is principle 8 of `docs/ENGINE.md` applied to comments.
+accepts it only if it fires on the commented section and on none of the brand's approved exemplars.
+The version folder is identified by its `composition.json`; the complete section id after it is
+kept literally, including `./` and leading or trailing slashes. An accepted rule enters the brand's
+rulebook on probation (advisory) and blocks only after the person promotes it. This is principle 8 of
+`docs/ENGINE.md` applied to comments.
 
 ## 8. What appears in a project folder
 
 ```
 <folder>/
   <source material the person dropped in>
-  <name>.md                 the working file: the whole state
+  <name>.md                 the working file: front matter, sources and sections
+  .ai_docs_kit/facts/<name>.md.json  gathered facts agreed at the outline
   <name>.pdf                the latest deliverable
   <name>.pptx | <name>.docx the latest editable copy
   <name>.versions/vN/       every build: PDF, editable copy, pages/, manifest with the look record
 ```
 
 Caches and the render kit live under the plugin's data folder, never in the project folder.
+The gathered facts are the person's data, not a cache: keep `.ai_docs_kit/` beside the working file
+when moving it to another folder.
 
 ## 9. Not in scope
 

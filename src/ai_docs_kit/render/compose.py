@@ -32,6 +32,7 @@ class ComposeError(ValueError):
 class ComposedSection(BaseModel):
     id: str
     component: str
+    intent: str | None = None
     props: dict[str, Any]
     content: dict[str, Any] = Field(default_factory=dict)
     image_path: Path | None = Field(default=None, exclude=True)
@@ -89,6 +90,8 @@ def _compose_section(section: Section, fmt: Format, chooser: Chooser, index: int
         "paragraphs": list(section.paragraphs),
         "source_line": section.source_line or "",
     }
+    if section.spoken is not None:
+        props["spoken"] = section.spoken
     component = _component(section, fmt, chooser, index, total)
     content = {
         "data": section.data,
@@ -98,7 +101,7 @@ def _compose_section(section: Section, fmt: Format, chooser: Chooser, index: int
     }
     if component in CHART_COMPONENTS:
         content["chart"] = resolve_chart(section.data).model_dump(mode="json")
-    return ComposedSection(id=section.id, component=component, props=props, content=content)
+    return ComposedSection(id=section.id, component=component, intent=section.intent, props=props, content=content)
 
 
 def _resolve_image(image: str | None, assets: list[Path]) -> Path | None:

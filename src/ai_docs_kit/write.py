@@ -1,6 +1,7 @@
 """Prepare and draft a reviewable working file."""
 
 import asyncio
+import codecs
 import os
 import shutil
 import sys
@@ -39,6 +40,7 @@ from ai_docs_kit.source.files import apply_to_file, current_rev
 from ai_docs_kit.source.ids import IdStore, stamp
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import TEXT_FIELDS
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.source.serialiser import serialise
 from ai_docs_kit.sources import extract
 from ai_docs_kit.theme import Theme
@@ -195,6 +197,13 @@ async def _facts(project: Any, run_dir: Any, agents: Any) -> Any:
     return facts
 
 
+def _drop_byte_order_mark(file: Path) -> None:
+    """A working file the command has read is left without a byte order mark."""
+    raw = file.read_bytes()
+    if raw.startswith(codecs.BOM_UTF8):
+        file.write_bytes(raw[len(codecs.BOM_UTF8) :])
+
+
 def _outline_output(file: Any, doc: Any, questions: Any = ()) -> None:
     for section in doc.sections:
         print(f"{section.id} {section.intent} {section.title}")
@@ -235,7 +244,7 @@ class _DraftedWriter:
 
 
 def fact_guard_for(doc: Document, facts: Sequence[Fact]) -> FactGuard:
-    metadata = [f"{s.key} {s.text}" for s in doc.sources]
+    metadata = [part for source in doc.sources for part in (source.key, source.text)]
     metadata += [value for value in doc.front.values() if isinstance(value, str)]
     evidence = [f.text for f in facts] + metadata
     exempt = {token for text in metadata for token in support_tokens(text) if NUMBER.fullmatch(token)}
@@ -263,7 +272,8 @@ async def run_write(
     run_dir = project / ".ai_docs_kit" / "write" / file.stem
     oplog = project / ".ai_docs_kit" / "oplog.jsonl"
     ids = IdStore(project / ".ai_docs_kit" / "ids.json")
-    doc, _ = parse(file.read_text())
+    doc, _ = parse(read_source(file))
+    _drop_byte_order_mark(file)
     if not approve:
         if doc.sections:
             _outline_output(file, doc)
@@ -335,7 +345,7 @@ async def run_write(
                 if s.owner != "human" and not s.lock and s.id not in summaries
             )
         )
-        updated, _ = parse(file.read_text())
+        updated, _ = parse(read_source(file))
         macro_dir = out / "macro"
         if macro_dir.exists():
             shutil.rmtree(macro_dir)

@@ -2,7 +2,15 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from ai_docs_kit.checks.engine import CHECKS, CheckContext, UnknownCheckError, make_finding, register
+from ai_docs_kit.checks.engine import (
+    CHECKS,
+    CheckContext,
+    UnknownCheckError,
+    finding_key,
+    make_finding,
+    register,
+    section_key,
+)
 from ai_docs_kit.facts.layout import PlacedShape, PlacedWord
 from ai_docs_kit.model import Finding, Rule, Section
 from ai_docs_kit.model.rules import Tier
@@ -13,6 +21,8 @@ def _texts(section: Section, field: str) -> list[str]:
         return [section.title] if section.title else []
     if field == "paragraphs":
         return section.paragraphs
+    if field == "spoken":
+        return [section.spoken] if section.spoken else []
     if field == "items":
         return [
             text
@@ -44,7 +54,7 @@ class TextPattern:
                         section_id=section.id,
                         role=field,
                         measured={"field": field, "text": breaking},
-                        key=None if section.id is not None else f"section-{index}",
+                        key=finding_key(section, index),
                     )
                 )
         return findings
@@ -83,8 +93,12 @@ def _section_value(values: dict[str, str], section_id: str | None) -> str | None
 
 
 def select(ctx: CheckContext, spec: dict[str, Any]) -> list[Selected]:
-    sections = {section.id: section.intent for section in ctx.doc.sections if section.id is not None}
-    components = {section.id: section.component for section in ctx.composition.sections} if ctx.composition else {}
+    sections = {section_key(section, i): section.intent for i, section in enumerate(ctx.doc.sections)}
+    composed = ctx.composition.sections if ctx.composition else []
+    components = {
+        section_key(section, i): c.component
+        for i, (section, c) in enumerate(zip(ctx.doc.sections, composed, strict=False))
+    }
     return [
         item
         for item in _selected(ctx, spec["kind"])

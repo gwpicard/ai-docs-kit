@@ -1,0 +1,18 @@
+id: dates
+intent: bullets
+title: Review dates
+items:
+  - head: January
+    body: Survey the site.
+    sub:
+      - Record the access route.
+      - Check the gate.
+    citations: [{key: S1, locator: p.2}]
+  - body: Confirm the delivery date.
+    citations: [{key: S2, locator: '00:41'}]
+  - head: March
+    body: Publish the findings.
+    sub:
+      - Include the site sketch.
+    citations: [{key: S1, locator: p.4}]
+source_line: 'Source: synthetic site register and planning transcript.'

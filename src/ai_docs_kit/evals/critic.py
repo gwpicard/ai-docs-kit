@@ -59,7 +59,7 @@ Verdict = Callable[[CriticCase, int], Awaitable[Answer]]
 
 
 class ScriptedCritic:
-    async def __call__(self, case: CriticCase, run: int) -> Answer:
+    async def __call__(self, case: CriticCase, run: int) -> Answer:  # noqa: ARG002 - fixed by the judge protocol
         return case.verdict
 
 
