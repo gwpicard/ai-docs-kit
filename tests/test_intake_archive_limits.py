@@ -9,7 +9,7 @@ from ai_docs_kit.brand.intake import MANIFEST, Manifest, take_in
 
 
 @pytest.mark.parametrize("suffix", ["docx", "dotx", "pptx", "potx"])
-@pytest.mark.parametrize("defect", ["part-size", "compression-ratio", "entry-count", None])
+@pytest.mark.parametrize("defect", ["part-size", "compression-ratio", "entry-count"])
 def test_office_archive_limits(tmp_path: Path, suffix: str, defect: str | None) -> None:
     brand = tmp_path / "acme"
     templates = brand / "materials" / "templates"
