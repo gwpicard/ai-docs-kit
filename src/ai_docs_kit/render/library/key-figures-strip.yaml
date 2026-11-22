@@ -1,0 +1,10 @@
+name: key-figures-strip
+format: doc
+label: Document key figures
+intents: [key-numbers]
+capacity:
+  title_words: [1, 10]
+  items: [2, 4]
+  item_chars: [1, 60]
+elements: [heading, figure-value, figure-caption, figure-citation, source]
+fixture: tests/fixtures/components/key-figures-strip.yaml

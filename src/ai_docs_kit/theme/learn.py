@@ -54,6 +54,8 @@ def _load_rule(path: Path) -> Rule:
         raise RuleError(f"{path}: no such rule file", 2)
     try:
         rule = Rule.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        if "/" in rule.id or "\\" in rule.id:
+            raise ValueError("rule id must not contain path separators")
         _check_kind(rule.check)
     except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError) as error:
         raise RuleError(f"{path}: not a valid rule: {' '.join(str(error).split())}", 2) from error

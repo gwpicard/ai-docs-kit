@@ -394,6 +394,7 @@ class Document(BaseModel):
 
 * `parse(text) -> (Document, list[Finding])` never raises; a malformed file produces findings (`parse-error`, `missing-id`, `unknown-intent`...).
 * `serialise(doc) -> str` is canonical: attribute order fixed, one blank line between sections, trailing newline. Property: `parse(serialise(d)) == d` (hypothesis test).
+* Quoted attribute values escape backslashes, double quotes, newlines, carriage returns and tabs as `\\`, `\"`, `\n`, `\r` and `\t`; the parser decodes these escapes. Other backslash sequences and bare values stay literal.
 * Parsing uses `markdown-it-py` with the `front_matter` and `container` plugins; only section boundaries and the `> key:` convention are custom.
 * Id stamping is the only write the engine makes to the file apart from applying patches and rewriting deprecated spellings. Ids are never reused after deletion (keep a tombstone list in `.docla/ids.json`) so old review comments and versions cannot attach to a new section.
 * **Deprecated spellings.** The day you rename an attribute or intent, add an alias table and keep reading the old spelling forever (reporting `old-spelling` once and rewriting on next build). Sent documents come back months later.
@@ -1014,7 +1015,7 @@ variants: [grey, colour]
 key-figures, quote, image-with-text, full-image, chart (bar, column, line, donut, stacked), table, timeline,
 process (steps), matrix (2x2), team/people, contact, closing.
 
-*Documents:* cover, contents, chapter-opener, body (prose, 1 or 2 columns), callout, key-figures strip,
+*Documents:* cover, contents, chapter-opener, body (prose, 1 or 2 columns), bullet list, callout, key-figures strip,
 figure (chart/image with caption and source), table, sidebar, pull-quote, timeline, references, back-cover.
 
 Ship each with a fixture, a swatch frame, a capacity, and a golden layout-facts file.
