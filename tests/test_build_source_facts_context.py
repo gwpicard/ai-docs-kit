@@ -49,9 +49,8 @@ def test_build_refreshes_evidence_and_records_number_errors(tmp_path, capsys, fo
         assert output.err == ""
 
 
-@pytest.mark.parametrize("command", ["check", "build"])
 @pytest.mark.parametrize("payload", [b"{", b"[{}]", b'[{"text":"\xc3'])
-def test_build_and_check_refuse_invalid_evidence(tmp_path, capsys, command, payload):
+def test_build_and_check_refuse_invalid_evidence(tmp_path, capsys, payload):
     source = tmp_path / "readings.md"
     source.write_text(
         "---\nformat: slides\ntitle: Readings\n---\n\n"
@@ -62,8 +61,9 @@ def test_build_and_check_refuse_invalid_evidence(tmp_path, capsys, command, payl
     stored.parent.mkdir(parents=True)
     stored.write_bytes(payload)
 
-    assert main([command, str(source)]) == 2
-    captured = capsys.readouterr()
-    assert captured.err.startswith(f"{stored}: not valid facts (")
-    assert len(captured.err.splitlines()) == 1
-    assert not (tmp_path / "readings.versions").exists()
+    for command in ("check", "build"):
+        assert main([command, str(source)]) == 2
+        captured = capsys.readouterr()
+        assert captured.err.startswith(f"{stored}: not valid facts (")
+        assert len(captured.err.splitlines()) == 1
+        assert not (tmp_path / "readings.versions").exists()
