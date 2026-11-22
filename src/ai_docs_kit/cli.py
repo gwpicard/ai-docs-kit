@@ -26,7 +26,7 @@ from ai_docs_kit.render.compose import ComposeError, Composition, assemble, comp
 from ai_docs_kit.render.kit import read_tokens
 from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError, compile_pdf, typst_version
 from ai_docs_kit.review.read import add_review_commands, run_review
-from ai_docs_kit.section_command import add_section_commands, run_section
+from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
@@ -218,22 +218,31 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
     sheet = _sheet(built, result, out)
     pptx = _pptx(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
-    version = write_version(
-        file,
-        built.doc,
-        built.comp,
-        built.pdf,
-        result.facts,
-        built.findings + result.findings,
-        result.pngs,
-        None,
-        theme=theme,
-        final=final,
-        look=result.record(),
-        sheet=sheet,
-        pptx=pptx,
-        docx=docx,
-    )
+    findings = built.findings + result.findings
+    try:
+        version = write_version(
+            file,
+            built.doc,
+            built.comp,
+            built.pdf,
+            result.facts,
+            findings,
+            result.pngs,
+            None,
+            theme=theme,
+            final=final,
+            look=result.record(),
+            sheet=sheet,
+            pptx=pptx,
+            docx=docx,
+        )
+    except OSError as error:
+        raise _BuildFailed(f"Cannot write version: {error}") from error
+    for finding in findings:
+        if finding.severity == "error":
+            print(_line(finding))
+    for gap in version.manifest.gaps:
+        print(f"gap {gap.section or '-'}: {gap.text}")
     print(version.path)
     return _gate_report(ship_gate(version)) if final else 0
 
@@ -276,6 +285,8 @@ def _look_pages(version_dir: Path) -> int:
     lines = [_page_line(page) for page in pages]
     try:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
+        if not isinstance(findings, list):
+            raise TypeError("expected a JSON array of findings")
         notes = [
             f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}"
             for f in findings
@@ -428,6 +439,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_brand_commands(subparsers)
     add_section_commands(subparsers)
+    add_facts_commands(subparsers)
     add_review_commands(subparsers)
     add_rule_commands(subparsers)
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
@@ -500,6 +512,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_brand(args)
     if args.command == "section":
         return run_section(args)
+    if args.command == "facts":
+        return run_facts(args)
     if args.command == "review":
         return run_review(args)
     if args.command == "rule":

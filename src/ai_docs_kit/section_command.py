@@ -1,4 +1,4 @@
-"""`ai-docs-kit section get|put|list`: read and replace one section through the patch guards."""
+"""Section commands and the gathered facts that support their patch guards."""
 
 import argparse
 import sys
@@ -12,6 +12,12 @@ from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import PatchRejected
 from ai_docs_kit.source.read import read_source
 from ai_docs_kit.source.serialiser import _section
+from ai_docs_kit.store.gathered import (
+    GatheredFactsError,
+    add_gathered_facts,
+    gathered_facts_path,
+    read_gathered_facts,
+)
 
 
 class _Refused(Exception):
@@ -39,6 +45,32 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
         action="store_true",
         help='remove the redraft ask; if because= is missing, write because="redrafted: <the ask>"',
     )
+
+
+def add_facts_commands(subparsers: argparse._SubParsersAction) -> None:  # type: ignore[type-arg]
+    facts = subparsers.add_parser("facts", help="store and list gathered facts for a working file")
+    commands = facts.add_subparsers(dest="facts_command", required=True)
+    add = commands.add_parser("add", help="add gathered facts from a JSON list, keeping each fact once")
+    add.add_argument("file", type=Path, help="the working file")
+    add.add_argument("facts", type=Path, help="a JSON list with text, source and optional locator")
+    listing = commands.add_parser("list", help="print every stored fact with its source key and locator")
+    listing.add_argument("file", type=Path, help="the working file")
+
+
+def run_facts(args: argparse.Namespace) -> int:
+    try:
+        doc = _load(args.file)
+        if args.facts_command == "add":
+            added = add_gathered_facts(args.file, args.facts, {s.key for s in doc.sources})
+            print(f"added {added} gathered facts")
+        else:
+            for fact in read_gathered_facts(gathered_facts_path(args.file), missing_ok=True):
+                citation = fact.source + (f" {fact.locator}" if fact.locator else "")
+                print(" ".join(f"[{citation}] {fact.text}".split()))
+        return 0
+    except (_Refused, GatheredFactsError, OSError) as error:
+        print(" ".join(str(error).split()), file=sys.stderr)
+        return 2
 
 
 def _load(path: Path) -> Document:
@@ -110,9 +142,10 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
         new.redraft = None
     else:
         new.redraft = old.redraft
-    evidence = [f"{s.key} {s.text}" for s in doc.sources]
+    evidence = [part for source in doc.sources for part in (source.key, source.text)]
     evidence.extend(v for v in doc.front.values() if isinstance(v, str))
     evidence.extend(_fields(old))
+    evidence.extend(fact.text for fact in read_gathered_facts(gathered_facts_path(path), missing_ok=True))
     guard = FactGuard(evidence, {s.key for s in doc.sources})
     store = path.parent / ".ai_docs_kit"
     oplog = store / "oplog.jsonl"
@@ -142,3 +175,6 @@ def run_section(args: argparse.Namespace) -> int:
     except _Refused as error:
         print(error, file=sys.stderr)
         return error.code
+    except GatheredFactsError as error:
+        print(" ".join(str(error).split()), file=sys.stderr)
+        return 2

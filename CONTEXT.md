@@ -34,6 +34,7 @@ The words the skills add, used the same way in skills, agents, code and docs:
 
 - *Skill*: A Claude Code skill the person invokes: `brand`, `create` or `review`. A skill holds judgement and conversation; the engine holds everything deterministic.
 - *Agent*: A subagent a skill spawns for one bounded job (`gather`, `write-section`, `look`, `review-classify`). It gets everything it needs in its prompt and returns a fixed shape.
+- *Gathered facts*: Statements extracted from source material and agreed at the outline, each with a source key and optional locator, stored beside the working file for drafting.
 - *Editable copy*: The `.pptx` (slides) or `.docx` (doc) written beside the PDF on every build, for a reviewer to edit text and comment in. The PDF is the deliverable; the editable copy is the review surface.
 - *Look record*: What a build saw: the engine's findings plus the `look` agent's findings, stored in the version manifest. A version with an open error in its look record cannot be sent.
 - *Sent version*: A version marked as given to a named reviewer. A returned copy is compared with the sent version, never with a fresh build.
