@@ -54,6 +54,8 @@ def _load_rule(path: Path) -> Rule:
         raise RuleError(f"{path}: no such rule file", 2)
     try:
         rule = Rule.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        if "/" in rule.id or "\\" in rule.id:
+            raise ValueError("rule id must not contain path separators")
         _check_kind(rule.check)
     except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError) as error:
         raise RuleError(f"{path}: not a valid rule: {' '.join(str(error).split())}", 2) from error
@@ -168,12 +170,16 @@ def run_adopt(rule_path: Path, theme_folder: Path) -> int:
     adopted = rule.model_copy(update={"origin": "feedback", "status": "probation"})
     target = theme.root / "rules" / "learned" / f"{adopted.id}.yaml"
     target.parent.mkdir(parents=True, exist_ok=True)
+    original = target.read_bytes() if target.exists() else None
     data = json.loads(adopted.model_dump_json(by_alias=True, exclude_none=True))
     target.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     try:
         load_theme_rules(load_theme(theme.root))
     except ThemeError as error:
-        target.unlink()
+        if original is None:
+            target.unlink()
+        else:
+            target.write_bytes(original)
         print(f"{rule.id}: not adopted: {error}", file=sys.stderr)
         return 1
     print(f"{adopted.id}: adopted on probation: {target}")

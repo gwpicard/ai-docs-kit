@@ -1,0 +1,17 @@
+id: figures
+intent: key-numbers
+title: Key figures
+items:
+  - head: 42%
+    body: Completion rate
+    citations: [{key: S1, locator: p.5}]
+  - head: '120'
+    body: Sites surveyed
+    citations: [{key: S1, locator: p.5}]
+  - head: 85%
+    body: Return rate
+    citations: [{key: S1, locator: p.5}]
+  - head: '24'
+    body: Reports issued
+    citations: [{key: S1, locator: p.5}]
+source_line: 'Source: synthetic site register.'

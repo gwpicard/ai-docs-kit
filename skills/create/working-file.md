@@ -105,7 +105,7 @@ working file's format. Intent names and component names are distinct.
 | Format | Allowed intents |
 | --- | --- |
 | slides | `cover`, `quote`, `statement`, `bullets`, `agenda`, `comparison`, `key-numbers`, `table`, `chronology`, `people`, `contact`, `chapter-break`, `image-text`, `card-set`, `full-image`, `chart`, `closing`, `process`, `matrix` |
-| doc | `body`, `callout`, `chart` |
+| doc | `body`, `callout`, `chart`, `bullets`, `key-numbers` |
 
 A `doc` chart needs a `data` block. Slide charts and tables use their data
 components when data is present; some slide intents also depend on item count

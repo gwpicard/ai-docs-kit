@@ -29,8 +29,10 @@ SEVERITY = {
 FENCE_OPEN = re.compile(r"^:::\s*\{(.*)\}\s*$")
 FENCE_CLOSE = re.compile(r"^:::\s*$")
 CODE_FENCE = re.compile(r"^```\s*(\w*)\s*$")
-ATTR = re.compile(r'#([^\s}]+)|\.([^\s}]+)|([A-Za-z_][\w-]*)=(?:"([^"]*)"|(\S+))')
-CITATION = re.compile(r"\s*\[([A-Za-z]+\d+)(?:\s+([^\]]+))?\]")
+ATTR = re.compile(r'#([^\s}]+)|\.([^\s}]+)|([A-Za-z_][\w-]*)=(?:"((?:\\.|[^"\\])*)"|(\S+))')
+ATTR_ESCAPE = re.compile(r'\\([\\"nrt])')
+ATTR_UNESCAPES = {"\\": "\\", '"': '"', "n": "\n", "r": "\r", "t": "\t"}
+CITATION = re.compile(r"\s*\[([A-Za-z]+\d+)(?:(?:,\s*|\s+)([^\]]+))?\]")
 HEAD = re.compile(r"^\*\*(.+?)\*\*(.*)$")
 SOURCE_LINE = re.compile(r"^-\s*\[([^\]]+)\]\s*(.*)$")
 QUOTE = re.compile(r"^>\s*(note|spoken|source):\s*(.*)$")
@@ -100,7 +102,7 @@ class _Parser:
                 continue
             if name is None:
                 continue
-            value = quoted if quoted is not None else bare
+            value = ATTR_ESCAPE.sub(lambda m: ATTR_UNESCAPES[m[1]], quoted) if quoted is not None else bare
             if name == "intent":
                 seen_intent = True
             self.assign(section, name, value, line_no, warned)
