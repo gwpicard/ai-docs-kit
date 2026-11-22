@@ -2,6 +2,12 @@
 
 Do not stop and do not ask the person anything in this stage; the outline was agreed.
 
+Read [working-file.md](working-file.md) for the section syntax and allowed intents,
+and include the relevant parts in each agent's prompt. Before drafting, confirm
+the outline stage saved the agreed facts with
+`ai-docs-kit facts add <name>.md <facts.json>`; if that step is missing, save them
+now using the agreed gather array and the working file's source list.
+
 1. Read the agreed facts with `ai-docs-kit facts list <name>.md`. For each section, start one `write-section` agent, all in parallel. Give each its id, its brief, its intent, the facts it may use with their source keys, the brand's voice rules and the section as it stands (from `ai-docs-kit section get <name>.md <id>`).
 2. Each agent returns one section block. Write it back only through `ai-docs-kit section put <name>.md <id> --from <block file>`. Never edit the working file directly in this stage. If `section put` refuses a block (a guard, an unknown source key, a locked or human-owned section), do not force it: re-brief the agent once with the refusal, and if it refuses again, leave the section and list it in the final report.
 
