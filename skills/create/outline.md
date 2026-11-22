@@ -2,6 +2,9 @@
 
 This is the one stop of the skill.
 
+Read [working-file.md](working-file.md) for the front matter, sources, section
+syntax and allowed intents before proposing or writing the outline.
+
 1. Build the outline from the document type: one line per section with its id, its intent, the facts it will use (by source key) and one sentence on what it says. Follow the type's required sections and length.
 2. Show the person the outline, the gaps the material leaves and any question that only they can answer. Ask in one message.
 3. Wait for the person to agree. Revise and show it again until they confirm. Do not draft anything before they approve it.

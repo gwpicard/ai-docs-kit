@@ -206,9 +206,21 @@ def _read(archive: zipfile.ZipFile, label: str, sections: set[str] | None, resul
             match = NAME.fullmatch(name)
             text = "\n".join(lines).strip()
             if match and owner is not None and match.group(1) == owner:
-                result.fields.setdefault(owner, {})[match.group(2)] = text
-                result.formats[(owner, match.group(2))] = hints
+                path = match.group(2)
+                fields = result.fields.setdefault(owner, {})
+                if path in fields:
+                    # Duplicated boxes keep their name but cannot replace the first box's wording.
+                    if text:
+                        result.unplaced.append((owner, text))
+                else:
+                    fields[path] = text
+                    result.formats[(owner, path)] = hints
             elif text:
+                result.unplaced.append((last, text))
+        # Native tables hold DrawingML paragraphs outside the ordinary text shapes.
+        for table in slide.iter(_q(A, "tbl")):
+            text = "\n".join(_paragraphs(table)).strip()
+            if text:
                 result.unplaced.append((last, text))
         if owner is not None:
             last = owner

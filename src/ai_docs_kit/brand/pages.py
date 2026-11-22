@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 import pdfplumber
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from ai_docs_kit.brand.intake import MANIFEST, Manifest, MaterialEntry, Role
 from ai_docs_kit.brand.workspace import BrandError
@@ -68,7 +68,10 @@ def load_manifest(brand: Path) -> Manifest:
     path = brand / MANIFEST
     if not path.exists():
         raise BrandError("Run ai_docs_kit brand intake first")
-    return Manifest.model_validate_json(path.read_text(encoding="utf-8"))
+    try:
+        return Manifest.model_validate_json(path.read_bytes())
+    except ValidationError as error:
+        raise BrandError(f"{path}: not a valid intake manifest ({error.error_count()} errors)") from error
 
 
 def _fonts(facts: PageFacts) -> list[FontUse]:
