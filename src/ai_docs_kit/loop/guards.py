@@ -13,7 +13,7 @@ NUM = re.compile(r"(?<![\w.])[-+]?\d[\d,.]*\d%?|\b\d%?")
 MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
 DATE = re.compile(rf"\b(?:19|20)\d{{2}}\b|\b\d{{1,2}}\s+(?:{MONTHS})\b", re.IGNORECASE)
 ENT = re.compile(r"\b[A-Z][a-zA-Z&-]+(?:[ ]+[A-Z][a-zA-Z&-]+)*\b")
-SENTENCE_START = re.compile(r"""(?:^|[.!?]["'”’]*\s+)[\s"'“‘(]*$""")
+SENTENCE_START = re.compile(r"""(?:^|[.!?]["'”’)]*\s+)[\s"'“‘(]*$""")
 OPENERS = {"A", "An", "The", "In", "On", "At", "By", "For", "From", "To", "With", "As", "After", "Before", "During"}
 WORDS = (
     "zero one two three four five six seven eight nine ten eleven twelve thirteen "

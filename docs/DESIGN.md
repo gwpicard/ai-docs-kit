@@ -82,7 +82,7 @@ support a number in a claim, including when the citation appears in the section'
 The working file keeps the citation text unchanged.
 
 Ordinary opening words such as `The` and `In` are excluded from capitalised names at sentence
-boundaries, including after closing quotation marks. The remaining name, including a single word
+boundaries, including after closing quotation marks or parentheses. The remaining name, including a single word
 such as `EU` or `Varnholm`, still needs evidence. A month on its own is calendar wording; the guard
 still checks the year and numeric day.
 Evidence retains isolated capitalised words even at sentence openings, so a gathered fact beginning

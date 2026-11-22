@@ -34,6 +34,9 @@ def test_sentence_openings_after_closing_quotes(
     working.write_text(original, encoding="utf-8")
     before = working.read_bytes()
     text = f"the note says {opening}complete{terminal}{closing} {claim}"
+    if claim == "The fleet was counted.":
+        # Pair the ordinary-word control with a name after the same boundary.
+        text += f" the note says {opening}complete{terminal}{closing} The EU completed it."
     block = tmp_path / "draft.md"
     block.write_text(
         '::: {#findings .section intent="body"}\n## Findings\n\n' + ("- " if bullet else "") + text + "\n:::\n",
