@@ -32,18 +32,19 @@ def _write_atomic(path: Path, text: str) -> None:
         raise
 
 
-def _append_log(
+def _write_logged(
     oplog: Path,
     path: Path,
     patch: Patch,
-    rev: int,
+    result: Document,
     before: Document,
     *,
     kept: Mapping[str, Collection[str]] | None = None,
 ) -> None:
+    text = serialise(result)
     inverse = inverse_ops(before, patch, kept=kept)
     entry = {
-        "rev": rev,
+        "rev": result.rev,
         "author": patch.author,
         "reason": patch.reason,
         "finding_ids": patch.finding_ids,
@@ -51,9 +52,20 @@ def _append_log(
         "file": path.name,
         "inverse": [op.model_dump(mode="json") for op in inverse] if inverse is not None else None,
     }
+    line = json.dumps(entry, sort_keys=True) + "\n"
     oplog.parent.mkdir(parents=True, exist_ok=True)
     with oplog.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+        offset = handle.tell()
+        try:
+            # Record the inverse before replacing the working file.
+            handle.write(line)
+            handle.flush()
+            _write_atomic(path, text)
+        except BaseException:
+            # A failed replacement must not leave a history entry for an unapplied patch.
+            handle.seek(offset)
+            handle.truncate()
+            raise
 
 
 def _parse_editable(path: Path) -> Document:
@@ -79,8 +91,7 @@ def apply_to_file(
     stamped = stamped.model_copy(update={"rev": current_rev(oplog)})
     result = apply_patch(stamped, patch, fact_guard, kept=kept)
     ids.save()
-    _write_atomic(path, serialise(result))
-    _append_log(oplog, path, patch, result.rev, stamped, kept=kept)
+    _write_logged(oplog, path, patch, result, stamped, kept=kept)
     return result
 
 
@@ -103,6 +114,5 @@ def apply_to_document(path: Path, before: Document, patch: Patch, oplog: Path, i
     base = before.model_copy(update={"rev": current_rev(oplog)})
     result = apply_patch(base, patch)
     ids.save()
-    _write_atomic(path, serialise(result))
-    _append_log(oplog, path, patch, result.rev, base)
+    _write_logged(oplog, path, patch, result, base)
     return result
