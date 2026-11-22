@@ -244,7 +244,7 @@ class _DraftedWriter:
 
 
 def fact_guard_for(doc: Document, facts: Sequence[Fact]) -> FactGuard:
-    metadata = [f"{s.key} {s.text}" for s in doc.sources]
+    metadata = [part for source in doc.sources for part in (source.key, source.text)]
     metadata += [value for value in doc.front.values() if isinstance(value, str)]
     evidence = [f.text for f in facts] + metadata
     exempt = {token for text in metadata for token in support_tokens(text) if NUMBER.fullmatch(token)}
