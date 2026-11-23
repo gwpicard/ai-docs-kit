@@ -1,5 +1,6 @@
 """Read a Word file into per-section text, comments and emphasis; the archive is treated as hostile."""
 
+import posixpath
 import zipfile
 import zlib
 from dataclasses import dataclass, field
@@ -11,6 +12,7 @@ from ai_docs_kit.bookmark_names import is_hashed, section_of
 from ai_docs_kit.store.stamp import read_custom_properties
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+PKG = "http://schemas.openxmlformats.org/package/2006/relationships"
 MAX_ENTRIES = 2000
 MAX_PART = 32 << 20
 MAX_TOTAL = 128 << 20
@@ -96,17 +98,30 @@ def check_archive(archive: zipfile.ZipFile, label: str) -> None:
         raise ValueError(f"{label}: the archive is too large to read safely")
 
 
+def _comments_part(archive: zipfile.ZipFile, label: str) -> str:
+    name = "word/_rels/document.xml.rels"
+    data = _part(archive, name, label, required=False)
+    if data is not None:
+        for rel in _parse(data, label, name).findall(f"{{{PKG}}}Relationship"):
+            if rel.get("TargetMode") == "External" or not rel.get("Type", "").endswith("/comments"):
+                continue
+            target = rel.get("Target") or ""
+            return target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("word", target))
+    return "word/comments.xml"
+
+
 def _open(path: Path) -> tuple[etree._Element, etree._Element | None]:
     label = path.name
     try:
         with zipfile.ZipFile(path) as archive:
             check_archive(archive, label)
             body = _part(archive, "word/document.xml", label, required=True)
-            notes = _part(archive, "word/comments.xml", label, required=False)
+            comments_name = _comments_part(archive, label)
+            notes = _part(archive, comments_name, label, required=False)
     except ARCHIVE_ERRORS as error:
         raise ValueError(f"{label}: not a readable Word file ({error})") from None
     assert body is not None
-    return _parse(body, label, "word/document.xml"), (_parse(notes, label, "word/comments.xml") if notes else None)
+    return _parse(body, label, "word/document.xml"), (_parse(notes, label, comments_name) if notes else None)
 
 
 def _read_comments(root: etree._Element | None) -> dict[str, Comment]:
