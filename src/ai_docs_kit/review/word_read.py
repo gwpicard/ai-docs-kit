@@ -1,5 +1,6 @@
 """Read a Word file into per-section text, comments and emphasis; the archive is treated as hostile."""
 
+import lzma
 import zipfile
 import zlib
 from dataclasses import dataclass, field
@@ -85,7 +86,15 @@ def _parse(data: bytes, label: str, name: str) -> etree._Element:
     return root
 
 
-ARCHIVE_ERRORS = (zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error)
+ARCHIVE_ERRORS = (
+    zipfile.BadZipFile,
+    zipfile.LargeZipFile,
+    EOFError,
+    NotImplementedError,
+    RuntimeError,
+    zlib.error,
+    lzma.LZMAError,
+)
 
 
 def check_archive(archive: zipfile.ZipFile, label: str) -> None:

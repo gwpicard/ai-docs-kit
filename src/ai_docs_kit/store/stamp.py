@@ -1,5 +1,6 @@
 """Record a version number in an Office copy's custom document properties."""
 
+import lzma
 import zlib
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,7 @@ def read_custom_properties(path: Path) -> dict[str, str]:
         ValueError,
         RuntimeError,
         zlib.error,
+        lzma.LZMAError,
         EOFError,
     ):
         return {}
