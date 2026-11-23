@@ -308,10 +308,9 @@ def _look_findings(version_dir: Path, file: Path) -> int:
 
     try:
         version = load_version(version_dir)
-    except ValidationError as error:
-        raise ValueError(
-            f"{version_dir / 'manifest.json'}: not valid manifest ({error.error_count()} errors)"
-        ) from error
+    except (ValidationError, UnicodeDecodeError) as error:
+        errors = error.error_count() if isinstance(error, ValidationError) else 1
+        raise ValueError(f"{version_dir / 'manifest.json'}: not valid manifest ({errors} errors)") from error
     pages = _read_pages(version_dir)
     try:
         raw = json.loads(file.read_text(encoding="utf-8"))
