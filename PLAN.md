@@ -112,6 +112,8 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Deviations
 
+- Issue 327 tests: use the supplied regression as the oracle, with DESIGN.md sections 5.1 and 6 and the clean Office-reader refusal lesson. Commit it unchanged before adding two CLI cases for a missing middle or final slide with opposite section orders and intact-copy controls. All three cases fail by assertion because `review read` returns 0 and overwrites the plan with a deletion. Require exit 2, one diagnostic line naming the copy and preservation of the existing plan; the added cases also preserve the copy and working file. Keep all tests in one signed-off commit by amending the initial commit. Use a uv cache under `$TMPDIR` because the default cache is outside the writable sandbox. No production code, existing tests, dependencies or rendering changes.
+
 - Issue 280 authoring integration: the required check found the incoming working-file reference still restricted documents to three intents. Add `bullets` and `key-numbers` to its table so it matches the chooser, as the existing `tests/test_create_working_file_reference.py` requires. No test changes or new edge cases are needed.
 
 - Issue 280 latest integration: retain both branches' decisions and lessons when resolving PLAN.md; consolidate duplicate guidance to meet the fewer-than-30-lines check in `tests/test_tidy_delivery.py`.
