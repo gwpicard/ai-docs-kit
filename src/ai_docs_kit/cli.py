@@ -306,7 +306,12 @@ def _look_findings(version_dir: Path, file: Path) -> int:
 
     from ai_docs_kit.store import LookFinding, load_version, update_manifest
 
-    version = load_version(version_dir)
+    try:
+        version = load_version(version_dir)
+    except ValidationError as error:
+        raise ValueError(
+            f"{version_dir / 'manifest.json'}: not valid manifest ({error.error_count()} errors)"
+        ) from error
     pages = _read_pages(version_dir)
     try:
         raw = json.loads(file.read_text(encoding="utf-8"))
