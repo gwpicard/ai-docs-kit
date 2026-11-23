@@ -5,7 +5,7 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ai_docs_kit.brand.git import run_git
 from ai_docs_kit.brand.workspace import BrandError
@@ -138,5 +138,10 @@ def record_change(
 
 
 def change_log(brand: Path) -> list[ChangeRecord]:
-    records = [ChangeRecord.model_validate_json(path.read_text()) for path in (brand / "changes").glob("*/record.json")]
+    records = []
+    for path in (brand / "changes").glob("*/record.json"):
+        try:
+            records.append(ChangeRecord.model_validate_json(path.read_bytes()))
+        except ValidationError as error:
+            raise BrandError(f"{path}: not a valid change record ({error.error_count()} errors)") from error
     return sorted(records, key=lambda record: int(record.id.split("-", 1)[0]))
