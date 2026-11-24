@@ -16,5 +16,8 @@
     "LICENSE"
   ],
   "Check command": "uv run ruff check . && uv run ruff format --check .",
-  "Smoke command": "uv run ai-docs-kit doctor"
+  "Smoke command": "uv run ai-docs-kit doctor",
+  "Codex writable roots": [
+    "~/.cache/uv"
+  ]
 }
