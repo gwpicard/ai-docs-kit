@@ -16,6 +16,10 @@ def _check_kind(check: dict[str, Any]) -> None:
     kind = check.get("kind")
     if not isinstance(kind, str) or kind not in CHECKS:
         raise ValueError(f"unknown check kind {kind!r}")
+    if kind == "text-pattern":
+        field = check.get("field")
+        if not isinstance(field, str) or field not in ("title", "paragraphs", "spoken", "items"):
+            raise ValueError(f"unknown text field {field!r}")
     regex = check.get("regex")
     if "regex" in check:
         if not isinstance(regex, str):
