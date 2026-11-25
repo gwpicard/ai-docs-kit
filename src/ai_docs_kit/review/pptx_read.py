@@ -1,5 +1,6 @@
 """Read a PowerPoint file into per-field text, comments and emphasis; the archive is treated as hostile."""
 
+import lzma
 import posixpath
 import re
 import zipfile
@@ -172,7 +173,7 @@ def read_deck(path: Path, sections: set[str] | None = None) -> DeckText:
         with zipfile.ZipFile(path) as archive:
             check_archive(archive, label)
             _read(archive, label, sections, result)
-    except ARCHIVE_ERRORS as error:
+    except (*ARCHIVE_ERRORS, lzma.LZMAError) as error:
         raise ValueError(f"{label}: not a readable PowerPoint file ({error})") from None
     return result
 
@@ -187,9 +188,11 @@ def _read(archive: zipfile.ZipFile, label: str, sections: set[str] | None, resul
     last: str | None = None
     for position, entry in enumerate(root.iter(_q(P, "sldId")), start=1):
         part = targets.get(entry.get(_q(R, "id")) or "")
-        slide = _tree(archive, part, label) if part else None
-        if part is None or slide is None:
+        if part is None:
             continue
+        data = _part(archive, part, label, required=True, kind="PowerPoint")
+        assert data is not None
+        slide = _parse(data, label, part)
         boxes = _boxes(slide)
         names = {shape_id: name for shape_id, name, _, _ in boxes}
         owner: str | None = None
