@@ -200,11 +200,17 @@ def _read(archive: zipfile.ZipFile, label: str, sections: set[str] | None, resul
             match = NAME.fullmatch(name)
             if match and (sections is None or match.group(1) in sections):
                 owner = owner or match.group(1)
+        if owner is None:
+            common = slide.find(_q(P, "cSld"))
+            slide_name = common.get("name") if common is not None else None
+            if slide_name and (sections is None or slide_name in sections):
+                owner = slide_name
         if owner in result.slide_of:
             owner = None  # a second slide for a section counts as new text, not as the section
         elif owner is not None:
             result.order.append(owner)
             result.slide_of[owner] = position
+            result.fields.setdefault(owner, {})
         for _, name, lines, hints in boxes:
             match = NAME.fullmatch(name)
             text = "\n".join(lines).strip()
