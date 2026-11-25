@@ -1,5 +1,6 @@
 """Read a PowerPoint file into per-field text, comments and emphasis; the archive is treated as hostile."""
 
+import lzma
 import posixpath
 import re
 import zipfile
@@ -172,7 +173,7 @@ def read_deck(path: Path, sections: set[str] | None = None) -> DeckText:
         with zipfile.ZipFile(path) as archive:
             check_archive(archive, label)
             _read(archive, label, sections, result)
-    except ARCHIVE_ERRORS as error:
+    except (*ARCHIVE_ERRORS, lzma.LZMAError) as error:
         raise ValueError(f"{label}: not a readable PowerPoint file ({error})") from None
     return result
 
