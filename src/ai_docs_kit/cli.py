@@ -138,6 +138,11 @@ def _line(finding: Finding) -> str:
 
 
 def _build(file: Path, out: Path, theme: Theme, *, final: bool = False) -> int:
+    for directory in (out / "render", out / "look"):
+        try:
+            directory.mkdir(exist_ok=True)
+        except OSError as error:
+            raise _BuildFailed(f"ai_docs_kit: cannot use {directory} as a build folder: {error.strerror}") from error
     built = _render(file, out, theme)
     print(built.pdf)
     return _version_build(file, out, theme, built, final)
