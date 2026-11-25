@@ -134,6 +134,9 @@ One slide per PDF page. Each slide is built from the layout facts of that page:
 * tables as native tables where the component is a table, named the same way;
 * speaker notes from the section's notes field, when it has one.
 
+A textless slide carries its section id in its slide name, so deleting or moving an image-only
+section still produces a structural confirm item. Named text boxes remain the primary section anchor.
+
 The text-hidden render guarantees the picture and the boxes line up; the field boxes come from the
 same layout facts the checks read. A reviewer who retypes a bullet edits one named text box.
 
