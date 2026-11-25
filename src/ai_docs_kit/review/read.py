@@ -152,12 +152,12 @@ def build_plan(
             structure.append(StructureItem(kind="unplaced", text=text, after=follows))
     for owner, comment in copy.comments:
         anchor = _norm("".join(comment.anchor))
-        spans = [name for name in comment.spans if name in sections]
+        spans = [section_id for section_id in comment.spans if section_id in sections]
         if owner in sections:
             spans = spans or [owner]
-            for name in spans:
+            for section_id in spans:
                 note = CommentItem(author=comment.author, text=comment.text, anchor=anchor, spans=spans)
-                sections[name].confirm.append(note)
+                sections[section_id].confirm.append(note)
         else:
             structure.append(
                 StructureItem(
