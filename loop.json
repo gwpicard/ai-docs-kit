@@ -1,0 +1,23 @@
+{
+  "Prepare command": "uv sync",
+  "Test command": "uv run python -m pytest",
+  "Test files command": "uv run python -m pytest {files}",
+  "Loop branch": "lite/main",
+  "Session minutes": 90,
+  "Parallel": 2,
+  "Builder": "codex gpt-6.1-sol",
+  "Test writer": "codex gpt-6.1-sol",
+  "Reviewer": "codex gpt-6.1-sol",
+  "Pass": "codex gpt-6.1-sol",
+  "Protected paths": [
+    ".claude/",
+    ".githooks/",
+    ".github/",
+    "LICENSE"
+  ],
+  "Check command": "uv run ruff check . && uv run ruff format --check .",
+  "Smoke command": "uv run ai-docs-kit doctor",
+  "Codex writable roots": [
+    "~/.cache/uv"
+  ]
+}
