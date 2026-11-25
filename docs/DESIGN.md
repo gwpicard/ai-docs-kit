@@ -162,7 +162,9 @@ from, reads it, and writes a review plan.
 | Added text with no section id | unmapped text | A confirm item for the person to place |
 | Bolded, recoloured, moved or resized | run properties, geometry | An emphasis hint, never applied |
 
-Word comments come from `comments.xml` with their ranges; tracked changes from `w:ins` and `w:del`.
+Word comments come from the document's internal comments relationship target with their ranges,
+falling back to `word/comments.xml` when no internal comments relationship is present;
+tracked changes come from `w:ins` and `w:del`.
 The plan keeps a section's edited heading in `title` and its body in `wording`, each null when
 unchanged. Headings are identified by the Word paragraph's heading style, so a body paragraph that
 repeats the title stays in the body. An unchanged trailing source line is excluded from body wording
