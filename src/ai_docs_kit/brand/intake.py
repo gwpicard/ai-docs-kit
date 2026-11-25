@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ai_docs_kit.brand.workspace import MATERIAL_CLASSES
 from ai_docs_kit.model.source import Format
-from ai_docs_kit.review.word_read import ARCHIVE_ERRORS
+from ai_docs_kit.review.word_read import ARCHIVE_ERRORS, MAX_PART, check_archive
 
 Role = Literal["guidelines", "templates", "examples", "logos", "fonts", "notes", "unsorted"]
 FileType = Literal[
@@ -92,12 +92,22 @@ def _office(path: Path, kind: FileType) -> tuple[int | None, Format | None, str 
     fmt: Format = "slides" if kind in ("pptx", "potx") else "doc"
     try:
         with zipfile.ZipFile(path) as archive:
+            check_archive(archive, path.name)
+            for entry in archive.infolist():
+                if entry.file_size > MAX_PART or (
+                    entry.file_size > 1 << 20 and entry.file_size > 200 * entry.compress_size
+                ):
+                    return None, fmt, unreadable_office_reason(path.name)
             if not {"[Content_Types].xml", "docProps/app.xml"} & set(archive.namelist()):
                 return None, fmt, unreadable_office_reason(path.name)
             if fmt == "slides":
                 return sum(bool(re.fullmatch(r"ppt/slides/slide\d+\.xml", n)) for n in archive.namelist()), fmt, None
             try:
-                root = ElementTree.fromstring(archive.read("docProps/app.xml"))
+                with archive.open("docProps/app.xml") as stream:
+                    data = stream.read(MAX_PART + 1)
+                if len(data) > MAX_PART:
+                    return None, fmt, unreadable_office_reason(path.name)
+                root = ElementTree.fromstring(data)
                 pages = next((node.text for node in root.iter() if node.tag.split("}")[-1] == "Pages"), None)
                 return int(pages) if pages is not None else None, fmt, None
             except KeyError:
