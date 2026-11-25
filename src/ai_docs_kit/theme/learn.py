@@ -97,6 +97,8 @@ def _example_doc(folder: Path, section_id: str) -> tuple[Document, Composition]:
         sections = data["sections"]
         if not isinstance(sections, list) or any(not isinstance(s, dict) for s in sections):
             raise ValueError("sections must be a list of objects")
+        if any(not isinstance(s.get("props"), dict) for s in sections):
+            raise ValueError("section props must be objects")
         entry = next((s for s in sections if s.get("id") == section_id), None)
         props = None if entry is None else entry["props"]
         intent = "body" if entry is None else entry.get("intent") or "body"
