@@ -20,5 +20,11 @@
   "Codex writable roots": [
     "~/.cache/uv"
   ],
-  "Test minutes": 90
+  "Test minutes": 90,
+  "Red-team surfaces": [
+    "the working-file parser and serialiser",
+    "`ai-docs-kit section put` and its guards",
+    "reading Word and PowerPoint review copies (`ai-docs-kit review read`)",
+    "the build's PDF and editable copy (`ai-docs-kit build`)"
+  ]
 }
