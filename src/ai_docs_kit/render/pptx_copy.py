@@ -160,6 +160,9 @@ def write_pptx(
             slide.shapes.add_picture(str(picture), 0, 0, deck.slide_width, deck.slide_height)
             words = [w for w in facts.words if w.box.page == entry["page"]]
             present = {w.section_id for w in words}
+            if not words and one_each:
+                # A textless section has no named text box to carry its identity.
+                slide.name = comp.sections[number].id
             slide_notes = [
                 notes[s.id]
                 for i, s in enumerate(comp.sections)
