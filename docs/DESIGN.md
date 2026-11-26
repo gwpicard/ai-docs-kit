@@ -111,8 +111,10 @@ on page 1, without a separate cover page. It shows the title, the audience when
 present and the build date in British form. The theme draws it using document
 type and colour tokens. Title and audience have `front.title` and `front.audience`
 element marks, named by `look --pages`, outside the document's sections. The
-composition stores the date and optional front matter for that version; older
-compositions without them remain readable. Untitled documents, slides and
+page index lists only editable section ids. Section font-size findings exclude
+the title block, whose marks and field paths remain in the page's regions and
+layout facts. The composition stores the date and optional front matter for that
+version; older compositions without them remain readable. Untitled documents, slides and
 component swatches have no title block.
 
 Document builds support `body`, `callout`, `chart`, `bullets` and `key-numbers`.
