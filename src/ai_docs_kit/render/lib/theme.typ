@@ -29,6 +29,9 @@
   rgb(tokens.at(name))
 }
 
+#import "title-block.typ": title-block
+#let doc-title-block = title-block.with(type-style: type-style, colour: colour, space: space)
+
 #let page-setup(format, body) = {
   if format == "slides" {
     set page(width: 960pt, height: 540pt, margin: 0pt)
