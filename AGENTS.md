@@ -38,14 +38,3 @@ Commands:
 - Use no em dashes.
 - Put no agent attribution in commit messages or pull request bodies.
 
-## Loop
-Prepare command: `uv sync`
-Test command: `uv run python -m pytest`
-Test files command: `uv run python -m pytest {files}`
-Loop branch: lite/main
-Session minutes: 90
-Parallel: 3
-Builder model: sonnet
-Reviewer model: sonnet
-Protected paths: `.claude/`, `.githooks/`, `.github/`, `LICENSE`
-Check command: `uv run ruff check . && uv run ruff format --check .`

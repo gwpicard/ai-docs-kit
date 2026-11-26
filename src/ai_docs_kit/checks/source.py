@@ -2,6 +2,7 @@ from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, r
 from ai_docs_kit.model import Finding, Provenance, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
 from ai_docs_kit.render.compose import component_for
+from ai_docs_kit.source.parser import CITATION
 
 PROVENANCE = Provenance(source={"doc": "DESIGN.md", "section": "10.5"})
 
@@ -16,15 +17,17 @@ class CitationsResolve:
             make_finding(
                 rule,
                 ctx,
-                message=f"citation key {citation.key} is not listed in ## Sources",
+                message=f"citation key {key} is not listed in ## Sources",
                 section_id=section.id,
-                measured={"key": citation.key},
-                key=finding_key(section, index, citation.key),
+                measured={"key": key},
+                key=finding_key(section, index, key),
             )
             for index, section in enumerate(ctx.doc.sections)
-            for item in section.items
-            for citation in item.citations
-            if citation.key not in listed
+            for key in [
+                *(citation.key for item in section.items for citation in item.citations),
+                *(match.group(1) for paragraph in section.paragraphs for match in CITATION.finditer(paragraph)),
+            ]
+            if key not in listed
         ]
 
 
