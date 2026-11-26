@@ -19,5 +19,6 @@
   "Smoke command": "uv run ai-docs-kit doctor",
   "Codex writable roots": [
     "~/.cache/uv"
-  ]
+  ],
+  "Test minutes": 90
 }
