@@ -1,9 +1,11 @@
-# Intent: AGENTS.md gives agents the repository layout, commands and working rules while keeping the loop settings intact.
+# Intent: AGENTS.md gives agents the repository layout, commands and working rules while the loop settings stay intact.
+import json
 from pathlib import Path
 
 AGENTS = Path(__file__).resolve().parents[2] / "AGENTS.md"
+LOOP_JSON = Path(__file__).resolve().parents[2] / "loop.json"
 
-# The settings AI Loop Kit 2 reads from the `## Loop` section. The person may tune their
+# The settings AI Loop Kit 3 reads from `loop.json`. The person may tune their
 # values; each key must stay present.
 LOOP_KEYS = ["Prepare command", "Test command", "Test files command", "Loop branch"]
 
@@ -35,15 +37,13 @@ def _has_all(text: str, needles: list[str]) -> list[str]:
     return [n for n in needles if n.lower() not in lowered]
 
 
-def test_D1_loop_section_unchanged():
-    section = _section("Loop")
-    assert section is not None, "AGENTS.md must keep a '## Loop' section"
-    assert section.startswith("## Loop\n")
-    present = {line.split(":", 1)[0] for line in section.splitlines()}
-    missing = [k for k in LOOP_KEYS if k not in present]
+def test_D1_loop_settings_unchanged():
+    assert _section("Loop") is None, "loop settings live in loop.json, not AGENTS.md"
+    settings = json.loads(LOOP_JSON.read_text(encoding="utf-8"))
+    missing = [k for k in LOOP_KEYS if k not in settings]
     assert not missing, f"loop settings missing: {missing}"
-    assert "Prepare command: `uv sync" in section
-    assert "Test command: `uv run python -m pytest`" in section
+    assert settings["Prepare command"].startswith("uv sync")
+    assert settings["Test command"] == "uv run python -m pytest"
 
 
 def test_D1_title_lines_kept():

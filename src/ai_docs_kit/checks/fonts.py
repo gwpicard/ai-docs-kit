@@ -50,6 +50,8 @@ class FontFamily:
         seen: set[tuple[str | None, str]] = set()
         findings: list[Finding] = []
         for word in ctx.facts.words:
+            if rule.scope.roles is not None and word.role not in rule.scope.roles:
+                continue
             family = family_of(word.font)
             identity = (word.section_id, family)
             if _key(family) not in keys and identity not in seen:

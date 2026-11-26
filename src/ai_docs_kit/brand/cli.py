@@ -602,16 +602,22 @@ def _set(brand: Path, args: argparse.Namespace) -> int:
         return 2
     if not args.reason.strip():
         raise BrandError(f"A reason is required to set {args.path}")
-    begin_change(brand, "set-" + re.sub(r"[^a-z0-9]+", "-", args.path.lower()).strip("-")[:36])
-    departure = set_token(
-        brand,
-        args.path,
-        value,
-        provenance=ValueProvenance(label="answered", source=ValueSource(question="cli", note=args.reason)),
-        reason=args.reason,
-        person="owner",
-        approved=args.approve,
-    )
+    branch = begin_change(brand, "set-" + re.sub(r"[^a-z0-9]+", "-", args.path.lower()).strip("-")[:36])
+    try:
+        departure = set_token(
+            brand,
+            args.path,
+            value,
+            provenance=ValueProvenance(label="answered", source=ValueSource(question="cli", note=args.reason)),
+            reason=args.reason,
+            person="owner",
+            approved=args.approve,
+        )
+    except ThemeError:
+        # set_token has restored the files; discard the empty change branch too.
+        run_git(brand, "checkout", "main")
+        run_git(brand, "branch", "-d", branch)
+        raise
     evidence = [Evidence(file="theme/tokens.yaml", note=args.path)]
     if departure:
         source = departure.source.source

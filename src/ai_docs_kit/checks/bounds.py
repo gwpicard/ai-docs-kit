@@ -49,8 +49,8 @@ def _margins(ctx: CheckContext, rule: Rule) -> Margins:
 
 
 def _min_size(ctx: CheckContext, rule: Rule) -> float:
-    """Return the theme's minimum type size for the document's format, or the rule's `min_pt`."""
-    if ctx.theme is not None:
+    """Use theme tokens for `geo.min-font`; other rules keep their authored `min_pt`."""
+    if ctx.theme is not None and rule.id == "geo.min-font":
         return ctx.theme.tokens.type.scale[ctx.doc.format].min_size
     return float(rule.check["min_pt"][ctx.doc.format])
 
