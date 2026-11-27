@@ -1,7 +1,7 @@
 """Fact support and preservation checks for section rewrites."""
 
 import re
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from decimal import Decimal, InvalidOperation, localcontext
 
 from ai_docs_kit.agents.gatherer import Fact
@@ -13,7 +13,7 @@ NUM = re.compile(r"(?<![\w.])[-+]?\d[\d,.]*\d%?|\b\d%?")
 MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
 DATE = re.compile(rf"\b(?:19|20)\d{{2}}\b|\b\d{{1,2}}\s+(?:{MONTHS})\b", re.IGNORECASE)
 ENT = re.compile(r"\b[A-Z][a-zA-Z&-]+(?:[ ]+[A-Z][a-zA-Z&-]+)*\b")
-SENTENCE_START = re.compile(r"""(?:^|[.!?]["'”’)]*\s+)[\s"'“‘(]*$""")
+SENTENCE_START = re.compile(r"""(?:^|[.!?]["'”’)]*\s+|\*\*[^*\n]+(?:[:.]\*\*|\*\*\s*[:.]|:)\s+)[\s"'“‘(]*$""")
 OPENERS = {"A", "An", "The", "In", "On", "At", "By", "For", "From", "To", "With", "As", "After", "Before", "During"}
 WORDS = (
     "zero one two three four five six seven eight nine ten eleven twelve thirteen "
@@ -21,13 +21,25 @@ WORDS = (
 ).split()
 WORD_NUMBERS = {word: str(i) for i, word in enumerate(WORDS)}
 WORD = re.compile(r"\b(?:" + "|".join(WORDS) + r")\b", re.IGNORECASE)
+DOCUMENT_COUNT = re.compile(WORD.pattern + r"(?=\s+(sources?|sections?)\b)", re.IGNORECASE)
 CALC = re.compile(r"^\s*calc:\s*(sum|difference|ratio|percentage)\(([^()]*)\)\s*=\s*([-+]?\d[\d,]*(?:\.\d+)?%?)\s*$")
 NUMBER = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?%?")
 
 
-def support_tokens(text: str, *, evidence: bool = False) -> set[str]:
+def support_tokens(text: str, *, evidence: bool = False, document_counts: Mapping[str, int] | None = None) -> set[str]:
     """Collect claim tokens, keeping isolated opening names when reading evidence."""
     text = CITATION.sub(" ", text)
+    if document_counts is not None:
+        # Remove only matching occurrences before sets combine claims or evidence.
+        text = DOCUMENT_COUNT.sub(
+            lambda match: (
+                ""
+                if WORD_NUMBERS[match.group().lower()]
+                == str(document_counts.get(match.group(1).lower().removesuffix("s")))
+                else match.group()
+            ),
+            text,
+        )
     text = WORD.sub(lambda match: WORD_NUMBERS[match.group().lower()], text)
     entities = set()
     for match in ENT.finditer(text):
@@ -49,16 +61,23 @@ def support_tokens(text: str, *, evidence: bool = False) -> set[str]:
 
 
 def _fields(section: Section) -> list[str]:
-    return [
+    fields = [
         section.title or "",
         section.source_line or "",
         *section.paragraphs,
-        *(value for item in section.items for value in (item.head or "", item.body, *item.sub)),
     ]
+    for item in section.items:
+        # Restore punctuated bold boundaries removed when the parser splits a head.
+        if item.head and (":" in item.head or item.head.endswith(".") or item.body.startswith((":", "."))):
+            fields.append(f"**{item.head}** {item.body}")
+        else:
+            fields.extend((item.head or "", item.body))
+        fields.extend(item.sub)
+    return fields
 
 
-def fact_tokens(section: Section) -> set[str]:
-    return set().union(*(support_tokens(value) for value in _fields(section)))
+def fact_tokens(section: Section, *, document_counts: Mapping[str, int] | None = None) -> set[str]:
+    return set().union(*(support_tokens(value, document_counts=document_counts) for value in _fields(section)))
 
 
 def fact_number_tokens(fact: Fact) -> set[str]:
@@ -73,10 +92,12 @@ def fact_number_tokens(fact: Fact) -> set[str]:
     return tokens
 
 
-def resolve_numbers(section: Section, facts: Sequence[Fact]) -> dict[str, list[str]]:
+def resolve_numbers(
+    section: Section, facts: Sequence[Fact], *, document_counts: Mapping[str, int] | None = None
+) -> dict[str, list[str]]:
     return {
         token: sorted(fact.id for fact in facts if fact.id is not None and token in fact_number_tokens(fact))
-        for token in fact_tokens(section)
+        for token in fact_tokens(section, document_counts=document_counts)
         if NUMBER.fullmatch(token)
     }
 
@@ -125,8 +146,12 @@ class FactGuard:
         facts: Sequence[Fact] = (),
         numbers_from_facts: bool = False,
         exempt: Collection[str] = (),
+        document_counts: Mapping[str, int] | None = None,
     ):
-        self.allowed = set().union(*(support_tokens(text, evidence=True) for text in evidence))
+        self.document_counts = document_counts
+        self.allowed = set().union(
+            *(support_tokens(text, evidence=True, document_counts=document_counts) for text in evidence)
+        )
         for fact in facts:
             self.allowed.update(support_tokens(fact.text, evidence=True), fact_number_tokens(fact))
         self.facts = facts
@@ -143,7 +168,7 @@ class FactGuard:
             if (calculation := _calculation(line, self.allowed)) is not None
         ]
         derived = {result for result, _ in calculations}
-        self.resolved = resolve_numbers(section, self.facts)
+        self.resolved = resolve_numbers(section, self.facts, document_counts=self.document_counts)
         for result, operands in calculations:
             if result in self.resolved and not self.resolved[result]:
                 self.resolved[result] = sorted(
@@ -153,7 +178,7 @@ class FactGuard:
                         if fact.id is not None and any(operand in fact_number_tokens(fact) for operand in operands)
                     }
                 )
-        unsupported = fact_tokens(section) - self.allowed - derived
+        unsupported = fact_tokens(section, document_counts=self.document_counts) - self.allowed - derived
         if self.numbers_from_facts:
             unsupported.update(token for token, ids in self.resolved.items() if not ids and token not in self.exempt)
         if self.citation_keys is not None:

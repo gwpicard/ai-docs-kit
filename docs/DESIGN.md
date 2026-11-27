@@ -89,6 +89,12 @@ Evidence retains isolated capitalised words even at sentence openings, so a gath
 with a name can support that name after an opening word in a draft.
 Source keys and source text are tokenised as separate evidence entries, so a capitalised opening
 such as `The EU` or `The Northern Fisheries Council` keeps the same sentence boundary as the draft.
+Text after a bold head ending in a colon or full stop, inside or just outside the closing bold
+markers, also starts a sentence. This includes `**Option A: Extend as proposed.**` and
+`**Eastfield:** Keep the zone`, in prose and list items; longer names still need evidence.
+`section put` accepts a number word immediately before `source`, `sources`, `section` or `sections`
+when it equals the working file's corresponding count. This exemption belongs only to that phrase;
+the count supplies no evidence for an unrelated figure, including in a later replacement.
 
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
