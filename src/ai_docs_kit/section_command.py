@@ -9,7 +9,7 @@ from ai_docs_kit.loop.guards import FactGuard, _fields
 from ai_docs_kit.model import Document, Patch, PatchOp, Section
 from ai_docs_kit.render.components import ManifestError, all_manifests
 from ai_docs_kit.render.compose import component_for
-from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev
+from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev, project_lock
 from ai_docs_kit.source.ids import IdStore
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import PatchRejected
@@ -38,6 +38,7 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
     commands = section.add_subparsers(dest="section_command", required=True)
     listing = commands.add_parser("list", help="print every section id with its intent, owner and redraft ask")
     listing.add_argument("file", type=Path, help="the working file")
+    listing.add_argument("--json", action="store_true", help="print the document as JSON")
     get = commands.add_parser("get", help="print one section with the sources it cites")
     get.add_argument("file", type=Path, help="the working file")
     get.add_argument("id", help="the section id")
@@ -50,6 +51,7 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
     put.add_argument("file", type=Path, help="the working file")
     put.add_argument("id", help="the section id")
     put.add_argument("--from", dest="source", type=Path, required=True, help="a file holding the new section block")
+    put.add_argument("--base-rev", type=int, default=None, help="refuse if the document is no longer at this revision")
     put.add_argument(
         "--redraft-done",
         action="store_true",
@@ -188,6 +190,11 @@ def _check_may_replace(old: Section) -> None:
 
 
 def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
+    store = path.parent / ".ai_docs_kit"
+    oplog = store / "oplog.jsonl"
+    revision = current_rev(oplog)
+    if args.base_rev is not None and args.base_rev != revision:
+        raise _Refused(f"document is at rev {revision}, not {args.base_rev}; read it again")
     old = _find(doc, args.id)
     _check_may_replace(old)
     new = _replacement(args.source)
@@ -201,11 +208,13 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
     evidence.extend(v for v in doc.front.values() if isinstance(v, str))
     evidence.extend(_fields(old))
     evidence.extend(fact.text for fact in read_gathered_facts(gathered_facts_path(path), missing_ok=True))
-    guard = FactGuard(evidence, {s.key for s in doc.sources})
-    store = path.parent / ".ai_docs_kit"
-    oplog = store / "oplog.jsonl"
+    guard = FactGuard(
+        evidence,
+        {s.key for s in doc.sources},
+        document_counts={"source": len(doc.sources), "section": len(doc.sections)},
+    )
     patch = Patch(
-        base_rev=current_rev(oplog),
+        base_rev=revision,
         author="ai",
         reason="section put" + (" (redraft done)" if args.redraft_done else ""),
         ops=[PatchOp(op="replace_section", section_id=args.id, value=new)],
@@ -221,17 +230,23 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
 
 def run_section(args: argparse.Namespace) -> int:
     try:
+        if args.section_command == "put":
+            with project_lock(args.file.parent / ".ai_docs_kit"):
+                return _put(args.file, _load(args.file), args)
         doc = _load(args.file)
         if args.section_command == "list":
+            if args.json:
+                from ai_docs_kit.api import read_document
+
+                print(read_document(args.file).model_dump_json())
+                return 0
             return _list(doc)
         if args.section_command == "get":
             return _get(doc, args.id)
-        if args.section_command == "brief":
-            return _brief(doc, args)
-        return _put(args.file, doc, args)
+        return _brief(doc, args)
     except _Refused as error:
         print(" ".join(str(error).split()), file=sys.stderr)
         return error.code
-    except (GatheredFactsError, ThemeError, ManifestError, OSError) as error:
+    except (GatheredFactsError, ThemeError, ManifestError, OSError, ValueError) as error:
         print(" ".join(str(error).split()), file=sys.stderr)
         return 2

@@ -103,12 +103,44 @@ Evidence retains isolated capitalised words even at sentence openings, so a gath
 with a name can support that name after an opening word in a draft.
 Source keys and source text are tokenised as separate evidence entries, so a capitalised opening
 such as `The EU` or `The Northern Fisheries Council` keeps the same sentence boundary as the draft.
+Text after a bold head ending in a colon or full stop, inside or just outside the closing bold
+markers, also starts a sentence. This includes `**Option A: Extend as proposed.**` and
+`**Eastfield:** Keep the zone`, in prose and list items; longer names still need evidence.
+Parsed item heads retain sentence-start normalisation: `Summary:` is ordinary opening wording
+and `In March:` is calendar wording; a remaining name such as `Varnholm` in `In Varnholm:`
+still needs evidence.
+`section put` accepts a number word immediately before `source`, `sources`, `section` or `sections`
+when it equals the working file's corresponding count. This exemption belongs only to that phrase;
+the count supplies no evidence for an unrelated figure, including in a later replacement.
+
+Working-file patches hold an advisory lock on the shared `.ai_docs_kit` folder across
+reading, checking and writing, without creating a lock file. `section put` also prepares
+its evidence inside this lock. Its optional `--base-rev N` refuses a changed revision
+with exit 1 and `document is at rev M, not N; read it again`, leaving the working file
+and oplog unchanged. Without the option it reads the current revision inside the lock.
+Writing requires `fcntl`, available on macOS and Linux; other platforms refuse clearly.
 
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
 `${CLAUDE_PLUGIN_ROOT}/bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder.
 
 ## 4. The build
+
+`ai-docs-kit theme which <name>.md` prints the theme folder and the rule that selected it;
+`--json` prints an object with `path` and `rule`. The shared engine function `resolve_theme(path)`
+resolves front matter `theme` first as a folder relative to the working file (identified by
+`theme.yaml`), then as a brand slug in `.brand/<slug>/theme` beside that file, then as `neutral`.
+An absolute theme folder is also accepted, including a brand kept elsewhere with `--root`.
+Without a theme key, exactly one brand selects that brand's theme, and no brand selects the shipped
+neutral theme. An unknown value or a missing key with two or more brands is refused with exit 2
+and one stderr line naming the candidates. Brand discovery uses the brand workspace's slug and
+repository checks, independent of the caller's current folder. Theme loading still validates the
+selected folder's tokens, fonts and voice.
+
+`build` and `check` use this same resolution when `--theme` is omitted. An explicit `--theme <folder>`
+wins even if the working file's selection would be refused. Projects with a single brand and no
+theme key therefore build and check with that brand's theme. The create and review skills call
+`theme which` for their working file and pass its result to commands that need an explicit theme.
 
 `ai-docs-kit build <name>.md` does, every time:
 
