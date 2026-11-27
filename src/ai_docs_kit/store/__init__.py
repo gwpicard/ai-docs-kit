@@ -15,7 +15,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 import ai_docs_kit
-from ai_docs_kit.facts.layout import LayoutFacts
+from ai_docs_kit.facts.layout import LayoutFacts, front_matter_ids
 from ai_docs_kit.model import Document, Finding, Format
 from ai_docs_kit.model.text import NonBlank
 from ai_docs_kit.render.compose import Composition, component_for
@@ -127,10 +127,11 @@ def load_version(path: Path) -> Version:
 
 
 def _sections(facts: LayoutFacts, page: int) -> list[str]:
+    front = front_matter_ids(facts)
     ends = {m.id: m.page for m in facts.marks if isinstance(m, SectionMark) and m.edge == "end"}
     result: list[str] = []
     for mark in facts.marks:
-        included = isinstance(mark, ElementMark) and mark.page == page
+        included = isinstance(mark, ElementMark) and mark.page == page and mark.id not in front
         if isinstance(mark, SectionMark) and mark.edge == "start":
             included = mark.page <= page <= ends.get(mark.id, mark.page)
         if included and mark.id not in result:
@@ -141,7 +142,16 @@ def _sections(facts: LayoutFacts, page: int) -> list[str]:
 def _regions(facts: LayoutFacts, page: int, sections: list[str]) -> list[dict[str, Any]]:
     elements = [m for m in facts.marks if isinstance(m, ElementMark) and m.page == page]
     regions: list[dict[str, Any]] = [
-        {"section": m.id, "role": m.role, "x": m.x, "y": m.y, "w": m.w, "h": m.h} for m in elements
+        {
+            "section": m.id,
+            "role": m.role,
+            "x": m.x,
+            "y": m.y,
+            "w": m.w,
+            "h": m.h,
+            **({"field": m.field} if m.field and m.field.startswith("front.") else {}),
+        }
+        for m in elements
     ]
     for section in sections:
         if any(m.id == section for m in elements):

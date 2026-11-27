@@ -33,6 +33,9 @@ FUNCTIONS = """
 
 #let space(n) = space-unit * space-scale.at(n)
 
+#import "title-block.typ": title-block
+#let doc-title-block = title-block.with(type-style: type-style, colour: colour, space: space)
+
 #let page-setup(format, body) = {
   if format not in pages {
     panic("unknown page format: " + repr(format) + "; the theme has " + pages.keys().join(", "))

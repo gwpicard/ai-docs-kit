@@ -261,7 +261,13 @@ def _gate_report(reasons: list[str]) -> int:
 
 
 def _page_line(page: dict[str, Any]) -> str:
-    return f"page {page['page']}: {', '.join(page['sections'])}"
+    fields = dict.fromkeys(
+        region["field"]
+        for region in page.get("regions", [])
+        if isinstance(region.get("field"), str) and region["field"].startswith("front.")
+    )
+    suffix = f"; {', '.join(fields)}" if fields else ""
+    return f"page {page['page']}: {', '.join(page['sections'])}{suffix}"
 
 
 def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
@@ -277,6 +283,9 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
                 raise KeyError("page and sections")
             if not all(isinstance(section, str) for section in page["sections"]):
                 raise TypeError("section id is not a string")
+            regions = page.get("regions", [])
+            if not isinstance(regions, list) or not all(isinstance(region, dict) for region in regions):
+                raise TypeError("regions is not an array of objects")
     except OSError as error:
         raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
     except (KeyError, TypeError, ValueError) as error:
