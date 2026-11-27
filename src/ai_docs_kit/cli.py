@@ -11,13 +11,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pydantic import TypeAdapter, ValidationError
+from pydantic import TypeAdapter
 
 from ai_docs_kit import __version__
-from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.brand.cli import add_brand_commands, run_brand
 from ai_docs_kit.building import _BuildFailed as _BuildFailed
-from ai_docs_kit.building import _Built, _draw, build_document
+from ai_docs_kit.building import _Built, _draw, _source_facts, build_document
 from ai_docs_kit.building import _parse as _parse_document
 from ai_docs_kit.building import _pptx as _write_pptx
 from ai_docs_kit.checks.catalogue import all_rules, document_rules
@@ -271,13 +270,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
     except ThemeError as error:
         raise _BuildFailed(str(error)) from error
     assets = [file.parent / "assets", theme.root / "assets"]
-    facts_path = file.parent / ".ai_docs_kit" / "write" / file.stem / "facts.json"
-    source_facts = None
-    if facts_path.exists():
-        try:
-            source_facts = TypeAdapter(list[Fact]).validate_json(facts_path.read_bytes())
-        except ValidationError as error:
-            raise _BuildFailed(f"{facts_path}: not valid facts ({error.error_count()} errors)") from error
+    source_facts = _source_facts(file)
     try:
         comp = compose(doc, assets=assets)
     except ComposeError:

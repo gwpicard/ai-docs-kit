@@ -6,6 +6,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from pydantic import TypeAdapter, ValidationError
+
+from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.checks.catalogue import all_rules
 from ai_docs_kit.loop.look import Look
 from ai_docs_kit.model import Document, Finding
@@ -119,6 +122,16 @@ def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
     return write_docx(out / f"{file.stem}.docx", comp=built.comp, theme=theme)
 
 
+def _source_facts(file: Path) -> list[Fact] | None:
+    facts_path = file.parent / ".ai_docs_kit" / "write" / file.stem / "facts.json"
+    if not facts_path.exists():
+        return None
+    try:
+        return TypeAdapter(list[Fact]).validate_json(facts_path.read_bytes())
+    except ValidationError as error:
+        raise _BuildFailed(f"{facts_path}: not valid facts ({error.error_count()} errors)") from error
+
+
 def inspect_render(
     file: Path, out: Path, theme: Theme, built: _Built, *, final: bool = False, project: Path | None = None
 ) -> Look:
@@ -143,6 +156,7 @@ def inspect_render(
                 critic=None,
                 final=final,
                 assets=[file.parent / "assets", theme.root / "assets"],
+                source_facts=_source_facts(file),
             ),
         )
     )
