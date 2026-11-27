@@ -198,7 +198,11 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
     evidence.extend(v for v in doc.front.values() if isinstance(v, str))
     evidence.extend(_fields(old))
     evidence.extend(fact.text for fact in read_gathered_facts(gathered_facts_path(path), missing_ok=True))
-    guard = FactGuard(evidence, {s.key for s in doc.sources})
+    guard = FactGuard(
+        evidence,
+        {s.key for s in doc.sources},
+        document_counts={"source": len(doc.sources), "section": len(doc.sections)},
+    )
     store = path.parent / ".ai_docs_kit"
     oplog = store / "oplog.jsonl"
     patch = Patch(
