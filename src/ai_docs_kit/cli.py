@@ -17,18 +17,21 @@ from ai_docs_kit import __version__
 from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.brand.cli import add_brand_commands, run_brand
 from ai_docs_kit.building import _BuildFailed as _BuildFailed
-from ai_docs_kit.building import _draw, _parse, build_document
+from ai_docs_kit.building import _Built, _draw, build_document
+from ai_docs_kit.building import _parse as _parse_document
+from ai_docs_kit.building import _pptx as _write_pptx
 from ai_docs_kit.checks.catalogue import all_rules, document_rules
 from ai_docs_kit.checks.engine import CheckContext, run_checks
 from ai_docs_kit.config import default_config_text
 from ai_docs_kit.facts.layout import layout_facts
 from ai_docs_kit.facts.raster import PdfiumRasteriser
-from ai_docs_kit.model import Finding
+from ai_docs_kit.model import Document, Finding
 from ai_docs_kit.render.compose import ComposeError, compose, font_paths
 from ai_docs_kit.render.kit import read_tokens
 from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, typst_version
 from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
+from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme, resolve_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
@@ -88,11 +91,22 @@ def _line(finding: Finding) -> str:
     return f"{finding.severity} {finding.rule_id} {finding.section_id or '-'} {finding.message}"
 
 
+def _parse(file: Path) -> tuple[Document, list[Finding]]:
+    return _parse_document(file, reader=lambda path: read_source(path))
+
+
+def _pptx(file: Path, out: Path, built: _Built, facts: Any) -> Path | None:
+    """Keep the CLI copy hook while the shared pipeline owns its implementation."""
+    return _write_pptx(file, out, built, facts)
+
+
 def _build(file: Path, out: Path, theme: Theme, *, final: bool = False, json_output: bool = False) -> int:
     from ai_docs_kit.api import BuildResult
     from ai_docs_kit.store.gate import ship_gate
 
-    version, findings = build_document(file, out, theme, final=final, on_rendered=None if json_output else print)
+    version, findings = build_document(
+        file, out, theme, final=final, on_rendered=None if json_output else print, pptx_writer=_pptx
+    )
     if json_output:
         print(BuildResult.from_version(version, findings).model_dump_json())
         return int(bool(ship_gate(version))) if final else 0

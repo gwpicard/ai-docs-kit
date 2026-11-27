@@ -34,9 +34,9 @@ class _BuildFailed(ValueError):
         self.code = code
 
 
-def _parse(file: Path) -> tuple[Document, list[Finding]]:
+def _parse(file: Path, *, reader: Callable[[Path], str] = read_source) -> tuple[Document, list[Finding]]:
     try:
-        text = read_source(file)
+        text = reader(file)
     except UnicodeDecodeError as error:
         raise _BuildFailed(f"{file}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
     doc, findings = parse(text)
@@ -156,6 +156,7 @@ def build_document(
     *,
     final: bool = False,
     on_rendered: Callable[[Path], None] | None = None,
+    pptx_writer: Callable[[Path, Path, _Built, Any], Path | None] = _pptx,
 ) -> tuple[Version, list[Finding]]:
     """Render, look and save a version for both the CLI and Python API."""
     for directory in (out / "render", out / "look"):
@@ -168,7 +169,7 @@ def build_document(
         on_rendered(built.pdf)
     result = inspect_render(file, out, theme, built, final=final)
     sheet = _sheet(built, result, out)
-    pptx = _pptx(file, out, built, result.facts)
+    pptx = pptx_writer(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
     findings = built.findings + result.findings
     try:
