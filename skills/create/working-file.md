@@ -128,6 +128,45 @@ the working file. Repeated additions keep each text, source and locator
 combination once. Facts live in `.ai_docs_kit/facts/<name>.md.json` beside the
 working file; keep both when moving the document.
 
+Every figure must occur in the source text at its locator, using the guard's
+normalisation (`1,200` matches `1200`, and `four` matches `4`). For PDFs cite a
+page (`p.4`), for transcripts a cue (`00:41`), and for tables a cell
+(`routes!B2`) or row (`routes!2`). Without a locator the whole source is checked;
+plain text and Markdown always use the whole file. Locator metadata cannot
+supply a figure. Source paths resolve relative to the working file's folder.
+Missing or unreadable local sources are refused. URL sources are accepted as
+`unverified` with a warning, because their text cannot be checked.
+
+`facts add` refuses a derived figure stored as a plain fact when the source does
+not state it. Store a `calc:` line instead, after the facts it uses. Each operand
+must occur in an earlier stored or same-batch fact. Supported operations are
+`sum`, `difference`, `ratio` and `percentage`; results are recomputed and rounded
+to the stated decimal places. Use ungrouped operands, separated by commas;
+`percentage` results end in `%`.
+
+For example, the cost fact cites `[S1 p.4]`, the trips fact cites `[S2 00:41]`,
+and their ratio is stored as:
+
+```json
+[
+  {"text": "The service cost £184,000.", "source": "S1", "locator": "p.4"},
+  {"text": "The service ran 61,300 trips.", "source": "S2", "locator": "00:41"},
+  {"text": "calc: ratio(184000, 61300) = 3.00", "source": "S1"}
+]
+```
+
+Show the figure with both operand citations and put the same calculation in its
+section's private note. Keep the `calc:` line alone in that note so it matches
+the guard's grammar:
+
+```markdown
+The cost per trip was £3.00. [S1 p.4] [S2 00:41]
+> note: calc: ratio(184000, 61300) = 3.00
+```
+
+An incorrect result, missing operand or unsupported plain figure refuses the
+whole batch with one stderr line per refused fact, leaving stored facts intact.
+
 Write the working file directly only to lay down the agreed outline. Afterwards
 read sections with `ai-docs-kit section get <name>.md <id>` and replace them only
 through `ai-docs-kit section put <name>.md <id> --from <block file>`. Give each

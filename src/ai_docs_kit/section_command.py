@@ -71,7 +71,9 @@ def run_facts(args: argparse.Namespace) -> int:
     try:
         doc = _load(args.file)
         if args.facts_command == "add":
-            added = add_gathered_facts(args.file, args.facts, {s.key for s in doc.sources})
+            added, warnings = add_gathered_facts(args.file, args.facts, {s.key: s.text for s in doc.sources})
+            for warning in warnings:
+                print(warning, file=sys.stderr)
             print(f"added {added} gathered facts")
         else:
             for fact in read_gathered_facts(gathered_facts_path(args.file), missing_ok=True):
@@ -79,7 +81,8 @@ def run_facts(args: argparse.Namespace) -> int:
                 print(" ".join(f"[{citation}] {fact.text}".split()))
         return 0
     except (_Refused, GatheredFactsError, OSError) as error:
-        print(" ".join(str(error).split()), file=sys.stderr)
+        for line in str(error).splitlines():
+            print(" ".join(line.split()), file=sys.stderr)
         return 2
 
 
