@@ -52,6 +52,7 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
     put.add_argument("id", help="the section id")
     put.add_argument("--from", dest="source", type=Path, required=True, help="a file holding the new section block")
     put.add_argument("--base-rev", type=int, default=None, help="refuse if the document is no longer at this revision")
+    put.add_argument("--json", action="store_true", help="print the new revision and section id as JSON")
     put.add_argument(
         "--redraft-done",
         action="store_true",
@@ -220,11 +221,14 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
         ops=[PatchOp(op="replace_section", section_id=args.id, value=new)],
     )
     try:
-        apply_to_file(path, patch, oplog, IdStore(store / "ids.json"), guard)
+        result = apply_to_file(path, patch, oplog, IdStore(store / "ids.json"), guard)
     except PatchRejected as error:
         detail = f" ({', '.join(guard.unsupported)})" if error.code == "fact-unsupported" else ""
         raise _Refused(f"{error}{detail}") from error
-    print(f"replaced section {args.id}")
+    if args.json:
+        print(json.dumps({"rev": result.rev, "section_id": args.id}))
+    else:
+        print(f"replaced section {args.id}")
     return 0
 
 

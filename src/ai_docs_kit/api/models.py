@@ -7,12 +7,22 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ai_docs_kit.model import Finding
+from ai_docs_kit.model import Finding, Section
 from ai_docs_kit.store import Version
 
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class EditResult(_Model):
+    rev: int
+    section: Section
+
+
+class EditError(_Model):
+    code: str
+    message: str
 
 
 class BuildResult(_Model):
