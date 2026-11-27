@@ -9,7 +9,7 @@ Write one section of a working file.
 
 ## Input
 
-The prompt holds the working file path, one section id, its brief, its intent, the facts it may use (each with a source key) and the brand's voice rules. Read the section as it stands with `ai-docs-kit section get <file> <id>`. A redraft ask or a finding in the prompt says what to change.
+The prompt holds the working file path, one section id, its agreed brief, its intent, the facts it may use (each with a source key) and the output of `ai-docs-kit section brief` for this section and theme. The section brief supplies the format's voice summary, banned and preferred terms, chosen component and capacity limits. Follow these rules and limits when writing. Read the section as it stands with `ai-docs-kit section get <file> <id>`. A redraft ask or a finding in the prompt says what to change.
 
 ## Output
 
