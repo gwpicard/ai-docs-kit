@@ -21,6 +21,7 @@ from ai_docs_kit.building import _parse as _parse_document
 from ai_docs_kit.building import _pptx as _write_pptx
 from ai_docs_kit.checks.catalogue import all_rules, document_rules
 from ai_docs_kit.checks.engine import CheckContext, run_checks
+from ai_docs_kit.checks.text_present import WordCopyError
 from ai_docs_kit.config import default_config_text
 from ai_docs_kit.facts.layout import layout_facts
 from ai_docs_kit.facts.raster import PdfiumRasteriser
@@ -301,6 +302,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
         assets=assets,
         pages_png=pages_png,
         source_facts=source_facts,
+        word_copy=out / f"{file.stem}.docx" if (out / f"{file.stem}.docx").is_file() else None,
     )
     return _report(file, out, built.findings + run_checks(rules, ctx))
 
@@ -404,7 +406,7 @@ def _run_file_command(args: argparse.Namespace) -> int:
     except _BuildFailed as error:
         print(error, file=sys.stderr)
         return error.code
-    except (ThemeError, OSError, UnicodeError) as error:
+    except (ThemeError, OSError, UnicodeError, WordCopyError) as error:
         print(" ".join(str(error).splitlines()), file=sys.stderr)
         return 2
 

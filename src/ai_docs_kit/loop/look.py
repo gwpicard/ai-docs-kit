@@ -50,6 +50,7 @@ class LookContext:
     assets: list[Path] | None = None
     clean_pages: frozenset[str] = frozenset()
     source_facts: Sequence[Fact] | None = None
+    word_copy: Path | None = None
 
 
 class Look(BaseModel):
@@ -125,6 +126,7 @@ async def look(pdf: Path, comp: Composition, ctx: LookContext) -> Look:
         assets=ctx.assets,
         pages_png=pngs,
         source_facts=ctx.source_facts,
+        word_copy=ctx.word_copy,
     )
     rules = ctx.rules if ctx.rules is not None else all_rules() + load_theme_rules(ctx.theme)
     tiers = {tier: "ok" for tier in ("source", "geometry", "pixel")}
