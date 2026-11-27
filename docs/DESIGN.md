@@ -99,6 +99,13 @@ still needs evidence.
 when it equals the working file's corresponding count. This exemption belongs only to that phrase;
 the count supplies no evidence for an unrelated figure, including in a later replacement.
 
+Working-file patches hold an advisory lock on the shared `.ai_docs_kit` folder across
+reading, checking and writing, without creating a lock file. `section put` also prepares
+its evidence inside this lock. Its optional `--base-rev N` refuses a changed revision
+with exit 1 and `document is at rev M, not N; read it again`, leaving the working file
+and oplog unchanged. Without the option it reads the current revision inside the lock.
+Writing requires `fcntl`, available on macOS and Linux; other platforms refuse clearly.
+
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
 `${CLAUDE_PLUGIN_ROOT}/bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder.
