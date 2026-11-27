@@ -94,20 +94,20 @@ def test_the_gate_functions_are_gone_and_ship_gate_stays():
 
 def test_look_findings_ends_with_the_summary_line_for_a_clean_look(version, capsys):
     errors = _manifest(version)["findings"]["error"]
-    assert _summary(version, [], capsys) == f"open errors: {errors}, pages not looked at: none"
+    assert _summary(version, [], capsys) == f"open errors: {errors}, engine page pass could not check: none"
 
 
 def test_the_summary_counts_a_recorded_look_error(version, capsys):
     errors = _manifest(version)["findings"]["error"]
     section = json.loads((version / "pages" / "pages.json").read_text())["pages"][0]["sections"][0]
     finding = {"severity": "error", "rule": "look.cut-off", "page": 1, "section": section, "message": "Cut off."}
-    assert _summary(version, [finding], capsys) == f"open errors: {errors + 1}, pages not looked at: none"
+    assert _summary(version, [finding], capsys) == f"open errors: {errors + 1}, engine page pass could not check: none"
 
 
-def test_the_summary_names_the_pages_not_looked_at(version, capsys):
+def test_the_summary_names_the_pages_the_engine_page_pass_could_not_check(version, capsys):
     _edit(version, lambda d: d["look"].update(could_not=["semantic page 2: timeout"], clean=False))
     line = _summary(version, [], capsys)
     assert line.startswith("open errors: ")
-    assert "pages not looked at: " in line
+    assert "engine page pass could not check: " in line
     assert "page 2" in line
     assert not line.endswith("none")
