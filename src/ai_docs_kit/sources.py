@@ -73,17 +73,16 @@ def source_text_at(source: Path, locator: str | None) -> str:
         if matches:
             return "\n".join(matches)
     elif suffix in {".csv", ".xlsx"}:
-        from ai_docs_kit.tables import table_facts
+        from ai_docs_kit.tables import read_cells
 
-        facts = table_facts(source, "S1")
+        cells = read_cells(source, include_all=True)
         if locator is None:
-            return "\n".join(fact.text for fact in facts)
+            return "\n".join(cell.value.text for cell in cells)
         row = re.fullmatch(r"(.+)!(\d+)(?::\2)?", locator)
         matches = [
-            fact.text
-            for fact in facts
-            if fact.locator == locator
-            or (row and re.fullmatch(re.escape(row[1]) + r"![A-Z]+" + row[2], fact.locator or ""))
+            cell.value.text
+            for cell in cells
+            if cell.locator == locator or (row and re.fullmatch(re.escape(row[1]) + r"![A-Z]+" + row[2], cell.locator))
         ]
         if matches:
             return "\n".join(matches)
