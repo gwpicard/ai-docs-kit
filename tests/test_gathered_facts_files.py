@@ -39,6 +39,7 @@ BAD_INPUTS = [
 
 
 def _seed(tmp_path):
+    (tmp_path / "survey.csv").write_text("Category,Count\nVessels,823\n", encoding="utf-8")
     working = tmp_path / "report.md"
     working.write_text(WORKING, encoding="utf-8")
     incoming = tmp_path / "incoming.json"

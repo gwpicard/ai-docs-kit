@@ -177,12 +177,26 @@ class _Parser:
                 text = "\n".join(content)
                 if tag == "data":
                     self.data_block(section, text, start)
+                elif tag == "paragraph":
+                    self.paragraph_block(section, text, start)
                 else:
                     section.code.append(text)
                 return index
             content.append(line)
         self.report("parse-error", "A code block is not closed.", str(start), section.id)
         return index
+
+    def paragraph_block(self, section: Section, text: str, line_no: int) -> None:
+        try:
+            # The closing fence consumed the scalar's final physical newline.
+            loaded = yaml.safe_load(text + "\n")
+        except yaml.YAMLError as error:
+            self.report("parse-error", f"The paragraph block is not valid YAML: {error}", str(line_no), section.id)
+            return
+        if isinstance(loaded, str):
+            section.paragraphs.append(loaded)
+        else:
+            self.report("parse-error", "The paragraph block is not a string.", str(line_no), section.id)
 
     def data_block(self, section: Section, text: str, line_no: int) -> None:
         try:
