@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-docs-kit"
-version = "0.0.1"
+version = "0.1.0"
 description = "Claude skills that write branded reports and decks as PDF, check every build against a brand rulebook, and learn from comments in Word and PowerPoint."
 readme = "README.md"
 requires-python = ">=3.12"
