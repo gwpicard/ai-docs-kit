@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from ai_docs_kit.model import Document, Patch, PatchOp, Section
 
-TEXT_FIELDS = ("title", "items", "paragraphs", "code", "note", "spoken", "source_line", "data")
+TEXT_FIELDS = ("title", "items", "paragraphs", "content_order", "code", "note", "spoken", "source_line", "data")
 IDENTITY_FIELDS = ("id", "intent", "section")
 APPEARANCE_KEYS = ("color", "font", "size", "x", "y")
 

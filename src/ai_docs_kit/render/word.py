@@ -9,6 +9,7 @@ from docx.oxml.ns import qn
 from docx.shared import RGBColor
 
 from ai_docs_kit.bookmark_names import bookmark_name, is_hashed
+from ai_docs_kit.model.source import content_fields
 from ai_docs_kit.render.compose import ComposedSection, Composition
 from ai_docs_kit.store.stamp import add_docx_properties
 from ai_docs_kit.theme import Theme
@@ -45,14 +46,30 @@ def _item_text(item: dict[str, Any]) -> str:
 def _lines(section: ComposedSection, numbers: dict[str, int]) -> list[tuple[str, str]]:
     """The (style, text) lines of one section; a chart, table or figure is one numbered line."""
     label = LABELS.get(section.component)
+    props = section.props
+    reference = None
     if label:
         numbers[label] = numbers.get(label, 0) + 1
-        return [("Normal", f"[{label} {numbers[label]}: {section.props['title']}]")]
-    props = section.props
-    lines = [("Heading 1", props["title"])] if props["title"] else []
-    lines += [("Normal", text) for text in props["paragraphs"]]
-    lines += [("List Bullet", _item_text(item)) for item in props["items"]]
-    if props["source_line"]:
+        reference = ("Normal", f"[{label} {numbers[label]}: {props['title']}]")
+        if not props.get("content_order"):
+            return [reference]
+    lines = [("Heading 1", props["title"])] if props["title"] and not label else []
+    # Older compositions retain their original paragraphs-first Word order.
+    fallback = [
+        *[f"paragraphs[{i}]" for i in range(len(props["paragraphs"]))],
+        *[f"items[{i}]" for i in range(len(props["items"]))],
+    ]
+    order = content_fields(
+        len(props["paragraphs"]), len(props["items"]), bool(label), props.get("content_order", fallback)
+    )
+    for field in order:
+        if field == "data" and reference:
+            lines.append(reference)
+        elif field.startswith("paragraphs["):
+            lines.append(("Normal", props["paragraphs"][int(field[11:-1])]))
+        elif field.startswith("items["):
+            lines.append(("List Bullet", _item_text(props["items"][int(field[6:-1])])))
+    if props["source_line"] and not label:
         lines.append(("Normal", props["source_line"]))
     return lines
 

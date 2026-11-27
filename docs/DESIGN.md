@@ -153,6 +153,12 @@ Document builds support `body`, `callout`, `chart`, `bullets` and `key-numbers`.
 The document list draws headed or plain items, nested sub-lines and citations;
 key figures draw 2 to 4 values with labels in the document's type scale. Both
 write their items as lists inside the section's bookmark in the Word copy.
+All five components draw their paragraphs too. The section records the order of
+paragraphs, list items and chart data as field paths, so the PDF and Word copy
+retain the working file's reading order, including prose after a list. A chart's
+numbered Word reference sits where its data appears. Callout prose stays inside
+the unbreakable frame. Key-number prose flows outside the unbreakable strip;
+prose between figure lists separates them into strips.
 
 The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit look <version>
 --findings <file>` validates them (sections and pages exist, severities known) and adds them to the

@@ -5,7 +5,7 @@ from typing import Any
 import yaml  # type: ignore[import-untyped]
 
 from ai_docs_kit.model import Citation, Document, Finding, Item, Remedy, Section, Source
-from ai_docs_kit.model.source import Format
+from ai_docs_kit.model.source import Format, content_fields
 
 APPEARANCE = {"color", "font", "size", "x", "y"}
 STRING_ATTRS = {"intent", "section", "component", "because", "redraft", "image"}
@@ -166,6 +166,11 @@ class _Parser:
                 index = self.code_block(section, lines, index, number, fence.group(1))
             else:
                 self.body_line(section, line)
+        # Omit the legacy canonical order so older model round trips stay equal.
+        if section.content_order == content_fields(
+            len(section.paragraphs), len(section.items), section.data is not None
+        ):
+            section.content_order = []
 
     def code_block(self, section: Section, lines: list[tuple[int, str]], index: int, start: int, tag: str) -> int:
         content: list[str] = []
@@ -192,6 +197,8 @@ class _Parser:
             return
         if isinstance(loaded, dict):
             section.data = loaded
+            if "data" not in section.content_order:
+                section.content_order.append("data")
         else:
             self.report("parse-error", "The data block is not a mapping.", str(line_no), section.id)
 
@@ -205,10 +212,12 @@ class _Parser:
         elif stripped.startswith("## ") and section.title is None:
             section.title = stripped[3:].strip()
         elif line.startswith("- "):
+            section.content_order.append(f"items[{len(section.items)}]")
             section.items.append(self.item(line[2:], section))
         elif re.match(r"^\s+- ", line) and section.items:
             section.items[-1].sub.append(stripped[2:].strip())
         else:
+            section.content_order.append(f"paragraphs[{len(section.paragraphs)}]")
             section.paragraphs.append(PARAGRAPH_ESCAPE.sub(lambda match: match[0].replace("\\", "", 1), stripped))
 
     def document(self, lines: list[str], start: int) -> tuple[str, list[Source], list[Section]]:

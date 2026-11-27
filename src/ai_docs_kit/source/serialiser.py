@@ -85,11 +85,23 @@ def _section_blocks(section: Section) -> list[str]:
     blocks = []
     if section.title is not None:
         blocks.append(f"## {section.title}")
-    if section.items:
-        blocks.append("\n".join(_item(item) for item in section.items))
-    blocks.extend(_paragraph(text) for text in section.paragraphs)
+    previous = ""
+    for field in section.ordered_content():
+        if field == "data":
+            # Keep notes before data for sections without recorded mixed order.
+            if section.content_order:
+                blocks.append(f"```data\n{_dump(section.data)}```")
+        elif field.startswith("items["):
+            text = _item(section.items[int(field[6:-1])])
+            if previous.startswith("items["):
+                blocks[-1] += "\n" + text
+            else:
+                blocks.append(text)
+        else:
+            blocks.append(_paragraph(section.paragraphs[int(field[11:-1])]))
+        previous = field
     blocks.append(_quotes(section))
-    if section.data is not None:
+    if section.data is not None and not section.content_order:
         blocks.append(f"```data\n{_dump(section.data)}```")
     blocks.extend(f"```\n{code}\n```" for code in section.code)
     return [block for block in blocks if block]
