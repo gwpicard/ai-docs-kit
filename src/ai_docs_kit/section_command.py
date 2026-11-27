@@ -1,11 +1,14 @@
 """Section commands and the gathered facts that support their patch guards."""
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from ai_docs_kit.loop.guards import FactGuard, _fields
 from ai_docs_kit.model import Document, Patch, PatchOp, Section
+from ai_docs_kit.render.components import ManifestError, all_manifests
+from ai_docs_kit.render.compose import component_for
 from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev
 from ai_docs_kit.source.ids import IdStore
 from ai_docs_kit.source.parser import parse
@@ -18,6 +21,8 @@ from ai_docs_kit.store.gathered import (
     gathered_facts_path,
     read_gathered_facts,
 )
+from ai_docs_kit.theme import ThemeError, load_theme, neutral_theme
+from ai_docs_kit.theme.voice import load_voice
 
 
 class _Refused(Exception):
@@ -36,6 +41,11 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
     get = commands.add_parser("get", help="print one section with the sources it cites")
     get.add_argument("file", type=Path, help="the working file")
     get.add_argument("id", help="the section id")
+    brief = commands.add_parser("brief", help="print one section's voice rules and component capacity limits")
+    brief.add_argument("file", type=Path, help="the working file")
+    brief.add_argument("id", help="the section id")
+    brief.add_argument("--theme", type=Path, default=None, help="theme folder (default: the neutral theme)")
+    brief.add_argument("--json", action="store_true", help="print the brief as one JSON object")
     put = commands.add_parser("put", help="replace one section through the patch guards")
     put.add_argument("file", type=Path, help="the working file")
     put.add_argument("id", help="the section id")
@@ -116,6 +126,48 @@ def _get(doc: Document, section_id: str) -> int:
     return 0
 
 
+def _brief(doc: Document, args: argparse.Namespace) -> int:
+    section = _find(doc, args.id)
+    theme = neutral_theme() if args.theme is None else load_theme(args.theme)
+    voice = load_voice(theme)
+    component = component_for(section, doc.format, doc.sections.index(section), len(doc.sections))
+    manifest = all_manifests().get(component) if component is not None else None
+    summary = voice.summary.get(doc.format, "")
+    capacity = manifest.capacity if manifest is not None else {}
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "section": section.id,
+                    "intent": section.intent,
+                    "format": doc.format,
+                    "component": component,
+                    "voice": summary,
+                    "banned": voice.banned,
+                    "terminology": [term.model_dump(mode="json") for term in voice.terminology],
+                    "capacity": capacity,
+                },
+                ensure_ascii=False,
+            )
+        )
+    else:
+        print(f"Section: {section.id}")
+        print(f"Intent: {section.intent}")
+        print(f"Format: {doc.format}")
+        print(f"Component: {component or 'none'}")
+        print(f"Voice: {summary}")
+        print("Banned:")
+        for term in voice.banned:
+            print(f"- {term}")
+        print("Terminology:")
+        for entry in voice.terminology:
+            print(f"- {entry.preferred}: replaces {', '.join(entry.avoid)}")
+        print("Capacity:")
+        for measure, (low, high) in capacity.items():
+            print(f"- {measure}: {low} to {high}")
+    return 0
+
+
 def _replacement(path: Path) -> Section:
     if not path.is_file():
         raise _Refused(f"{path}: no such file", 2)
@@ -171,10 +223,12 @@ def run_section(args: argparse.Namespace) -> int:
             return _list(doc)
         if args.section_command == "get":
             return _get(doc, args.id)
+        if args.section_command == "brief":
+            return _brief(doc, args)
         return _put(args.file, doc, args)
     except _Refused as error:
-        print(error, file=sys.stderr)
+        print(" ".join(str(error).split()), file=sys.stderr)
         return error.code
-    except GatheredFactsError as error:
+    except (GatheredFactsError, ThemeError, ManifestError, OSError) as error:
         print(" ".join(str(error).split()), file=sys.stderr)
         return 2
