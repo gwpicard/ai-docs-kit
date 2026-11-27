@@ -92,6 +92,9 @@ such as `The EU` or `The Northern Fisheries Council` keeps the same sentence bou
 Text after a bold head ending in a colon or full stop, inside or just outside the closing bold
 markers, also starts a sentence. This includes `**Option A: Extend as proposed.**` and
 `**Eastfield:** Keep the zone`, in prose and list items; longer names still need evidence.
+Parsed item heads retain sentence-start normalisation: `Summary:` is ordinary opening wording
+and `In March:` is calendar wording; a remaining name such as `Varnholm` in `In Varnholm:`
+still needs evidence.
 `section put` accepts a number word immediately before `source`, `sources`, `section` or `sections`
 when it equals the working file's corresponding count. This exemption belongs only to that phrase;
 the count supplies no evidence for an unrelated figure, including in a later replacement.
