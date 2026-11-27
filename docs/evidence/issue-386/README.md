@@ -57,3 +57,16 @@ field anchors and the PDF, and requires no inserted prose to become unplaced.
 
 The generated occurrence is aligned against the stored copy before style hints
 are considered. A style shared with new prose cannot identify the reference.
+
+## Typed paragraph integration
+
+The incoming working-file parser supports typed multiline paragraph blocks.
+They now record their position beside inline prose, lists and chart data.
+`tests/test_doc_typed_paragraph_order.py` saves each of the five component
+sections twice through the CLI and checks the PDF wording, paragraph field
+anchors, composition order and Word order after each save.
+
+The [working file](typed-paragraphs/report.md) was built through the CLI. Both
+rendered pages were inspected: [page 1](typed-paragraphs/p01.png) and
+[page 2](typed-paragraphs/p02.png). Opening prose stays above the list or table,
+closing prose stays below it, and the callout stays inside its frame.

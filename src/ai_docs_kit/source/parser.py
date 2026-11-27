@@ -199,6 +199,7 @@ class _Parser:
             self.report("parse-error", f"The paragraph block is not valid YAML: {error}", str(line_no), section.id)
             return
         if isinstance(loaded, str):
+            section.content_order.append(f"paragraphs[{len(section.paragraphs)}]")
             section.paragraphs.append(loaded)
         else:
             self.report("parse-error", "The paragraph block is not a string.", str(line_no), section.id)
