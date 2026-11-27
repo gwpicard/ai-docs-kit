@@ -30,9 +30,13 @@ FIXTURES = Path(__file__).parent / "fixtures" / "section-put-fact-guard"
 def test_opening_names_use_evidence_without_weakening_refusals(tmp_path, capsys, bullet, fact, claim, token):
     working = tmp_path / "report.md"
     working.write_text(
-        (FIXTURES / "working.md").read_text(encoding="utf-8").replace("the EU survey", "the regional survey"),
+        (FIXTURES / "working.md")
+        .read_text(encoding="utf-8")
+        .replace("the EU survey", "the regional survey")
+        .replace("- [S1] ", "- [S1] survey.md, "),
         encoding="utf-8",
     )
+    (tmp_path / "survey.md").write_text(fact, encoding="utf-8")
     facts = tmp_path / "facts.json"
     facts.write_text(json.dumps([{"text": fact, "source": "S1"}]), encoding="utf-8")
     assert main(["facts", "add", str(working), str(facts)]) == 0

@@ -8,6 +8,8 @@ import pdfplumber
 import pytest
 
 from ai_docs_kit.cli import main
+from ai_docs_kit.render.typst import compile_pdf
+from ai_docs_kit.theme import neutral_theme
 
 WORKING = """---
 doctype: report
@@ -44,10 +46,18 @@ def _run(argv, capsys):
     return code, captured.out, captured.err
 
 
-def _seed(folder: Path) -> Path:
+def _seed(folder: Path, *, sources: bool = True) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "report.md"
     path.write_text(WORKING, encoding="utf-8")
+    if sources:
+        source = folder / "fleet-register.typ"
+        source.write_text("\n#pagebreak()\n".join([FACTS[0]["text"]] * 8), encoding="utf-8")
+        compile_pdf(source, folder, folder / "fleet-register.pdf", [neutral_theme().fonts_dir])
+        (folder / "harbour-survey.csv").write_text("Vessels,Share\n5232,42%\n", encoding="utf-8")
+        (folder / "operations.vtt").write_text(
+            "WEBVTT\n\n00:00:41.000 --> 00:00:45.000\n" + FACTS[2]["text"] + "\n", encoding="utf-8"
+        )
     return path
 
 
@@ -107,7 +117,7 @@ def test_facts_add_persists_beside_working_file_and_merges_duplicates(tmp_path, 
     assert store.is_dir(), "facts belong in .ai_docs_kit beside the working file, regardless of cwd"
 
     # Only the working file and its store travel; neither input JSON file is available here.
-    resumed = _seed(tmp_path / "resumed")
+    resumed = _seed(tmp_path / "resumed", sources=False)
     shutil.copytree(store, resumed.parent / ".ai_docs_kit")
     first.unlink()
     second.unlink()
@@ -119,7 +129,7 @@ def test_facts_list_keeps_distinct_sources_and_locators_and_accepts_an_omitted_l
     facts = [
         FACTS[0],
         {**FACTS[0], "locator": "p.8"},
-        {**FACTS[0], "source": "S2"},
+        {**FACTS[0], "source": "S2", "locator": "harbour-survey!A2"},
         FACTS[1],
         FACTS[2],
     ]
