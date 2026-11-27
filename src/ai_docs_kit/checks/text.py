@@ -50,7 +50,15 @@ def _hit(term: str, texts: list[str]) -> bool:
 def _field_finding(
     ctx: CheckContext, rule: Rule, section: Section, field: str, banned: list[str], index: int, sources: list[str]
 ) -> Finding | None:
-    texts = [_without_source_quotes(text, sources) for text in _texts(section, field)]
+    texts = _texts(section, field)
+    if field == "items":
+        # A bold head is part of its bullet, so a quotation can close in the body.
+        texts = [
+            text
+            for item in section.items
+            for text in [" ".join(part for part in (item.head, item.body) if part), *item.sub]
+        ]
+    texts = [_without_source_quotes(text, sources) for text in texts]
     terms = sorted({term for term in banned if _hit(term, texts)})
     if not terms:
         return None
