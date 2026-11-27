@@ -204,8 +204,15 @@ The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit 
 version's look record. The skill fixes what was found and rebuilds, at most twice, then reports what
 remains by section.
 
+The ship gate requires the version's look record to carry the look agent's findings. Recording
+an empty array through `look --findings` counts as read; a missing agent findings list does not.
+The engine page pass stays in the same look record with its existing fields and is reported as
+`engine page pass`, including any pages it could not check. A clean `build --final` without agent
+findings still writes its version, then exits 1 with `not ready: not looked at by the look agent`.
+
 The skill gives the person the PDF, the editable copy and the summary line of `look`, which names any
-open error and any page not looked at.
+open error and any page the engine page pass could not check. Missing look agent findings must also
+be reported before the version can be described as ready to ship.
 
 ## 5. The editable copies
 
