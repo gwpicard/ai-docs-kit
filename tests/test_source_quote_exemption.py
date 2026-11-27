@@ -39,9 +39,7 @@ def test_only_verified_quoted_occurrences_escape_the_banned_term_check(tmp_path,
     ]
     if evidence == "gathered-fact":
         (tmp_path / "separate.md").write_text("The recording is complete.\n", encoding="utf-8")
-        (tmp_path / "workshop.vtt").write_text(
-            f"WEBVTT\n\n00:00:41.000 --> 00:00:45.000\n{source}\n", encoding="utf-8"
-        )
+        (tmp_path / "workshop.vtt").write_text(f"WEBVTT\n\n00:00:41.000 --> 00:00:45.000\n{source}\n", encoding="utf-8")
         sources = ["- [S1] separate.md", "- [S2] workshop.vtt"]
     # Exercise both section and evidence orders without changing their associations.
     if command == "build":
