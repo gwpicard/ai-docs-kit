@@ -104,14 +104,14 @@ def _value(value: object, fmt: str) -> CellValue:
     return parse_text_value(str(value))
 
 
-def _sheet_cells(sheet: str, values: dict[tuple[int, int], CellValue]) -> list[TableCell]:
+def _sheet_cells(sheet: str, values: dict[tuple[int, int], CellValue], *, include_all: bool = False) -> list[TableCell]:
     if not values:
         return []
     header_row = min(row for row, _ in values)
     label_column = min(column for _, column in values)
     cells = []
     for (row, column), value in sorted(values.items()):
-        if row == header_row or (column == label_column and value.kind == "text"):
+        if not include_all and (row == header_row or (column == label_column and value.kind == "text")):
             continue
         header = values.get((header_row, column))
         label = values.get((row, label_column))
@@ -129,7 +129,7 @@ def _sheet_cells(sheet: str, values: dict[tuple[int, int], CellValue]) -> list[T
     return cells
 
 
-def _xlsx(path: Path) -> list[TableCell]:
+def _xlsx(path: Path, *, include_all: bool = False) -> list[TableCell]:
     book = openpyxl.load_workbook(path, data_only=True)
     try:
         result = []
@@ -140,13 +140,13 @@ def _xlsx(path: Path) -> list[TableCell]:
                 for cell in row
                 if cell.value is not None
             }
-            result.extend(_sheet_cells(sheet.title, values))
+            result.extend(_sheet_cells(sheet.title, values, include_all=include_all))
         return result
     finally:
         book.close()
 
 
-def _csv(path: Path) -> list[TableCell]:
+def _csv(path: Path, *, include_all: bool = False) -> list[TableCell]:
     with path.open(encoding="utf-8-sig", newline="") as handle:
         values = {
             (row, column): parse_text_value(value)
@@ -154,15 +154,16 @@ def _csv(path: Path) -> list[TableCell]:
             for column, value in enumerate(line, 1)
             if value.strip()
         }
-    return _sheet_cells(path.stem, values)
+    return _sheet_cells(path.stem, values, include_all=include_all)
 
 
-def read_cells(path: Path) -> list[TableCell]:
+def read_cells(path: Path, *, include_all: bool = False) -> list[TableCell]:
+    """Read data cells, optionally retaining headers and labels for source evidence."""
     try:
         if path.suffix.lower() == ".xlsx":
-            return _xlsx(path)
+            return _xlsx(path, include_all=include_all)
         if path.suffix.lower() == ".csv":
-            return _csv(path)
+            return _csv(path, include_all=include_all)
         raise ValueError("Unsupported table format")
     except Exception as error:
         raise TableError(f"Cannot read table {path.name}: {error}") from error
