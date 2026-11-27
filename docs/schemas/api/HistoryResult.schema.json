@@ -1,0 +1,19 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "rev": {
+      "title": "Rev",
+      "type": "integer"
+    },
+    "target_rev": {
+      "title": "Target Rev",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "rev",
+    "target_rev"
+  ],
+  "title": "HistoryResult",
+  "type": "object"
+}

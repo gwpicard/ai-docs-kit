@@ -207,14 +207,8 @@ def inverse_ops(
         elif op.op == "delete_section":
             index = _index(sections, op.section_id)
             old = sections[index]
-            if len(sections) == 1:
-                undo = [PatchOp(op="insert_after", section_id=op.section_id, after_id=None, value=old)]
-            else:
-                neighbour = sections[index - 1] if index else sections[1]
-                undo = [PatchOp(op="insert_after", section_id=op.section_id, after_id=neighbour.id, value=old)]
-                if index == 0:
-                    assert neighbour.id is not None
-                    undo.append(PatchOp(op="move_section", section_id=neighbour.id, after_id=old.id))
+            anchor = sections[index - 1].id if index else None
+            undo = [PatchOp(op="insert_after", section_id=op.section_id, after_id=anchor, value=old)]
         else:
             return None
         inverse = undo + inverse

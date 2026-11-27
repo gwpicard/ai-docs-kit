@@ -20,6 +20,7 @@ from ai_docs_kit.api.models import (
     EditResult,
     FieldBox,
     FieldPage,
+    HistoryResult,
     Page,
     PageRegion,
     PreviewResult,
@@ -28,7 +29,7 @@ from ai_docs_kit.building import _render, build_document, inspect_render
 from ai_docs_kit.facts.layout import LayoutFacts
 from ai_docs_kit.model import Document, Finding, Patch, PatchOp, Section
 from ai_docs_kit.render.compose import Composition
-from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_document, current_rev, project_lock
+from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_history, apply_to_document, current_rev, project_lock
 from ai_docs_kit.source.ids import IdStore
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import PatchRejected
@@ -44,6 +45,7 @@ __all__ = [
     "FieldBox",
     "FieldPage",
     "Finding",
+    "HistoryResult",
     "Page",
     "PageRegion",
     "PatchRejected",
@@ -59,6 +61,8 @@ __all__ = [
     "move_section",
     "preview",
     "read_document",
+    "redo",
+    "undo",
 ]
 
 
@@ -140,6 +144,18 @@ def move_section(path: Path | str, section_id: str, after_id: str, base_rev: int
     return _edit(path, PatchOp(op="move_section", section_id=section_id, after_id=after_id), base_rev)
 
 
+def undo(path: Path | str, base_rev: int) -> HistoryResult:
+    """Apply the latest edit's recorded inverse, preserving its restored ownership."""
+    result, target_rev = apply_history(Path(path), "undo", base_rev)
+    return HistoryResult(rev=result.rev, target_rev=target_rev)
+
+
+def redo(path: Path | str, base_rev: int) -> HistoryResult:
+    """Reapply the most recently undone edit unless a later edit cleared it."""
+    result, target_rev = apply_history(Path(path), "redo", base_rev)
+    return HistoryResult(rev=result.rev, target_rev=target_rev)
+
+
 def build(path: Path | str, theme: Path | str | None = None) -> BuildResult:
     """Build the PDF and editable copy, run checks and save the next version."""
     path = Path(path)
@@ -216,7 +232,7 @@ def export_api_schemas(directory: Path) -> list[Path]:
     """Regenerate the schema pins for every public function's result model."""
     directory.mkdir(parents=True, exist_ok=True)
     paths = []
-    for model in (Document, BuildResult, PreviewResult, EditResult, EditError, Finding, Version):
+    for model in (Document, BuildResult, PreviewResult, EditResult, HistoryResult, EditError, Finding, Version):
         path = directory / f"{model.__name__}.schema.json"
         path.write_text(
             json.dumps(model.model_json_schema(), indent=2, sort_keys=True, ensure_ascii=False) + "\n",

@@ -120,6 +120,23 @@ with exit 1 and `document is at rev M, not N; read it again`, leaving the workin
 and oplog unchanged. Without the option it reads the current revision inside the lock.
 Writing requires `fcntl`, available on macOS and Linux; other platforms refuse clearly.
 
+`ai-docs-kit undo <name>.md` applies the last edit's recorded inverse as a new
+human-authored patch; `redo` reapplies the most recently undone edit. Both print
+the new revision. Repeated undo walks backwards through that working file's
+edits, skipping undo and redo entries. An edit without a recorded inverse stops
+the walk, and a new edit to that file clears its redo history. Empty history
+and a missing inverse exit 1 with one stderr line. Manual edits after undo also
+invalidate redo, including changes to another section or to formatting; a
+refused redo preserves the working file and oplog byte for byte. History stays append-only,
+and inverse operations preserve unrelated edits in the current working file.
+The Python API offers `undo(path, base_rev)` and `redo(path, base_rev)`, returning
+`HistoryResult` with `rev` and `target_rev`. They check the base revision and
+select and apply the history patch within the same project lock as other edits.
+Oplog entries identify history actions and their target revisions explicitly;
+ordinary patch reasons never identify an undo or redo. File hashes before and
+after each patch detect manual edits and prevent a discarded redo branch from
+returning after later history operations.
+
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
 `${CLAUDE_PLUGIN_ROOT}/bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder.
