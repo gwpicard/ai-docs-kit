@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
@@ -20,6 +21,7 @@ ATTR_ORDER = [
     "redraft",
 ]
 ATTR_ESCAPES = str.maketrans({"\\": "\\\\", '"': '\\"', "\n": "\\n", "\r": "\\r", "\t": "\\t"})
+PARAGRAPH_MARKER = re.compile(r"^([-*+]|[0-9]+[.)])(?= )")
 
 
 def _dump(value: Any) -> str:
@@ -75,13 +77,17 @@ def _quotes(section: Section) -> str:
     return "\n".join(f"> {name}: {value}" for name, value in fields if value is not None)
 
 
+def _paragraph(text: str) -> str:
+    return PARAGRAPH_MARKER.sub(lambda match: match[0][:-1] + "\\" + match[0][-1], text)
+
+
 def _section_blocks(section: Section) -> list[str]:
     blocks = []
     if section.title is not None:
         blocks.append(f"## {section.title}")
     if section.items:
         blocks.append("\n".join(_item(item) for item in section.items))
-    blocks.extend(section.paragraphs)
+    blocks.extend(_paragraph(text) for text in section.paragraphs)
     blocks.append(_quotes(section))
     if section.data is not None:
         blocks.append(f"```data\n{_dump(section.data)}```")
