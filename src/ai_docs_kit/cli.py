@@ -29,7 +29,7 @@ from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.read import read_source
-from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
+from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme, resolve_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
 
@@ -444,7 +444,8 @@ def _add_file_command(subparsers: Any, name: str, help: str) -> None:
     command = subparsers.add_parser(name, help=help)
     command.add_argument("file", type=Path, help="the working file")
     command.add_argument("--out", type=Path, default=None, help="output folder (default: build beside the file)")
-    command.add_argument("--theme", type=Path, default=None, help="theme folder (default: the neutral theme)")
+    default_theme = "the working file's theme" if name in ("build", "check") else "the neutral theme"
+    command.add_argument("--theme", type=Path, default=None, help=f"theme folder (default: {default_theme})")
     if name in ("build", "check"):
         command.add_argument("--final", action="store_true", help="treat the working file as a final build")
     if name == "check":
@@ -475,6 +476,9 @@ def _build_parser() -> argparse.ArgumentParser:
     write.add_argument("--yes", action="store_true")
     theme = subparsers.add_parser("theme", help="work with themes")
     theme_commands = theme.add_subparsers(dest="theme_command", required=True)
+    which = theme_commands.add_parser("which", help="show a working file's theme folder and selection rule")
+    which.add_argument("file", type=Path, help="the working file")
+    which.add_argument("--json", action="store_true", help="print the folder and rule as a JSON object")
     test = theme_commands.add_parser("test", help="test a theme")
     test.add_argument("--theme", type=Path, default=None, help="theme folder")
     evaluation = subparsers.add_parser("eval", help="run evaluations")
@@ -511,12 +515,30 @@ def _run_file_command(args: argparse.Namespace) -> int:
         print(f"ai_docs_kit: cannot use {out} as the output folder: {error.strerror}", file=sys.stderr)
         return 2
     try:
+        folder = args.theme if args.theme is not None else resolve_theme(args.file).path
+        theme = _theme(folder)
         if args.command == "check":
-            return _check(args.file, out, _theme(args.theme), final=args.final, outline=args.outline)
-        return _build(args.file, out, _theme(args.theme), final=args.final)
+            return _check(args.file, out, theme, final=args.final, outline=args.outline)
+        return _build(args.file, out, theme, final=args.final)
     except _BuildFailed as error:
         print(error, file=sys.stderr)
         return error.code
+    except (ThemeError, OSError, UnicodeError) as error:
+        print(" ".join(str(error).splitlines()), file=sys.stderr)
+        return 2
+
+
+def _theme_which(args: argparse.Namespace) -> int:
+    try:
+        selection = resolve_theme(args.file)
+    except (ThemeError, OSError, UnicodeError) as error:
+        print(" ".join(str(error).splitlines()), file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps({"path": str(selection.path), "rule": selection.rule}))
+    else:
+        print(f"{selection.path} ({selection.rule})")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -550,6 +572,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in FILE_COMMANDS:
         return _run_file_command(args)
     if args.command == "theme":
+        if args.theme_command == "which":
+            return _theme_which(args)
         return _run_theme_test(args.theme)
     if args.command == "eval":
         return _heal(args) if args.eval_command == "heal" else _critic_eval(args)

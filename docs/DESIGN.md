@@ -112,6 +112,22 @@ marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills ca
 
 ## 4. The build
 
+`ai-docs-kit theme which <name>.md` prints the theme folder and the rule that selected it;
+`--json` prints an object with `path` and `rule`. The shared engine function `resolve_theme(path)`
+resolves front matter `theme` first as a folder relative to the working file (identified by
+`theme.yaml`), then as a brand slug in `.brand/<slug>/theme` beside that file, then as `neutral`.
+An absolute theme folder is also accepted, including a brand kept elsewhere with `--root`.
+Without a theme key, exactly one brand selects that brand's theme, and no brand selects the shipped
+neutral theme. An unknown value or a missing key with two or more brands is refused with exit 2
+and one stderr line naming the candidates. Brand discovery uses the brand workspace's slug and
+repository checks, independent of the caller's current folder. Theme loading still validates the
+selected folder's tokens, fonts and voice.
+
+`build` and `check` use this same resolution when `--theme` is omitted. An explicit `--theme <folder>`
+wins even if the working file's selection would be refused. Projects with a single brand and no
+theme key therefore build and check with that brand's theme. The create and review skills call
+`theme which` for their working file and pass its result to commands that need an explicit theme.
+
 `ai-docs-kit build <name>.md` does, every time:
 
 1. parse and validate the working file (source checks);

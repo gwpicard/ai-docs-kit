@@ -17,8 +17,9 @@ class BrandError(ValueError):
     """A brand workspace cannot be created or found."""
 
 
-def default_root() -> Path:
-    return Path.cwd() / BRANDS_DIR
+def default_root(project: Path | None = None) -> Path:
+    """Locate brands beside a project's working files, or in the current folder."""
+    return (project if project is not None else Path.cwd()) / BRANDS_DIR
 
 
 def _validate_slug(slug: str) -> None:
