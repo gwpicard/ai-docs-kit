@@ -71,6 +71,20 @@ After the outline is agreed and its working file has a source list, the skill sa
 facts with `ai-docs-kit facts add <name>.md <facts.json>`. The input is the gather agent's `facts`
 array: each entry has `text`, `source` and an optional `locator`. The command refuses an unlisted
 source key before saving anything and keeps each text, source and locator combination once.
+Every figure is compared with the source text using the fact guard's tokeniser:
+the cited PDF page, transcript cue or table cell or row; plain text, Markdown
+and facts without a locator use the whole file. Local paths resolve relative to
+the working file. Unsupported figures and unreadable local sources refuse the
+whole batch, with one stderr line per refused fact and no store change. A URL
+fact is accepted with a persistent `unverified` mark and a warning because the
+engine cannot read its source text.
+
+A derived figure absent from its source is refused as a plain fact. Store a
+`calc:` line instead, such as `calc: ratio(184000, 61300) = 3.00`, after the
+facts supplying its operands. The existing calculation guard checks operands
+against earlier stored or same-batch facts and recomputes the result. Drafts
+cite those operand facts beside the figure and repeat the calculation in the
+section's note. Supported operations are sum, difference, ratio and percentage.
 `ai-docs-kit facts list <name>.md` prints one fact per line with its key and locator. `section put`
 uses every stored fact as evidence alongside the sources, front matter and section's previous text;
 unsupported figures, dates, names and source keys are still refused. A missing fact store contributes

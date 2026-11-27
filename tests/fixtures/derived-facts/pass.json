@@ -1,0 +1,5 @@
+[
+  {"text": "The service cost £184,000.", "source": "S4"},
+  {"text": "The service ran 61,300 trips.", "source": "S4"},
+  {"text": "calc: ratio(184000, 61300) = 3.00", "source": "S4"}
+]
