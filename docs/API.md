@@ -23,6 +23,25 @@ versions = list_versions(path)
 | `preview(path, scratch, theme=None)` | `PreviewResult` | Renders every page in scratch and returns PNG paths, page regions, field boxes and engine findings. Writes no version or oplog entry and leaves the working file unchanged. |
 | `list_findings(version)` | `list[Finding]` | Reads the engine findings stored in that version, even when the working file has changed or disappeared. |
 | `list_versions(path)` | `list[Version]` | Reads version paths, numbers and manifests in ascending numeric order. Returns an empty list when no version folder exists. |
+| `edit_fields(path, section_id, fields, base_rev)` | `EditResult` | Sets section fields and `owner="human"`, keeping the person's wording without a fact guard. |
+| `add_section(path, after_id, section, base_rev)` | `EditResult` | Inserts a human-owned `Section` after the named section, or at the start when `after_id=None`. Allocates an id if absent without changing the input model. |
+| `delete_section(path, section_id, base_rev)` | `EditResult` | Removes the section and returns its content with the new revision. |
+| `move_section(path, section_id, after_id, base_rev)` | `EditResult` | Moves a section after the named section, keeping its content and id. |
+
+Every edit writes one `author="human"` patch under the project lock. `EditResult`
+holds `rev` and `section`. Use the revision from `read_document` for `base_rev`.
+`PatchRejected` carries `code` and `message`, represented by the `EditError`
+schema. A stale revision (`stale-base-rev`), missing section (`unknown-section`)
+or target with `lock="all"` (`lock-all`) leaves the working file and history
+unchanged. Identity, appearance and section validation guards still apply.
+
+Builds, checks and previews compare section figures with the stored gathered
+facts, sources and string front matter, including human-owned sections. Cited
+figures use their source key and locator; uncited figures use all evidence.
+The previous section wording never supplies evidence for this check. The older
+writer facts store remains readable. Human-owned sections activate the check
+even before facts are gathered. For older documents without human-owned
+sections, the check remains inactive when neither facts store exists.
 
 `theme=None` follows the working file's normal theme resolution. An explicit
 folder overrides it. Source, geometry and pixel findings are included in both
@@ -47,14 +66,16 @@ for serialisation. The equivalent command-line JSON surfaces are:
 
 ```sh
 ai-docs-kit section list report.md --json
+ai-docs-kit section put report.md summary --from summary.md --json
 ai-docs-kit build report.md --json
 ai-docs-kit look report.versions/v1 --pages --json
 ```
 
-The last command reads a `PreviewResult` from the saved version without
-rebuilding it. Without `--json`, the commands retain their text output and exit
-codes. `build --final --json` also retains the final gate's exit code and keeps
-all output in the single JSON result.
+`section put --json` prints `{"rev": 1, "section_id": "summary"}` after its
+normal guarded replacement. The last command reads a `PreviewResult` from the
+saved version without rebuilding it. Without `--json`, the commands retain
+their text output and exit codes. `build --final --json` also retains the final
+gate's exit code and keeps all output in the single JSON result.
 
 Result schemas are pinned in `docs/schemas/api/`. After an intentional model
 change, regenerate them from the source:

@@ -270,7 +270,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
     except ThemeError as error:
         raise _BuildFailed(str(error)) from error
     assets = [file.parent / "assets", theme.root / "assets"]
-    source_facts = _source_facts(file)
+    source_facts = _source_facts(file, doc)
     try:
         comp = compose(doc, assets=assets)
     except ComposeError:

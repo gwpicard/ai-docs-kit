@@ -18,6 +18,7 @@ from ai_docs_kit.source.files import current_rev
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.read import read_source
 from ai_docs_kit.store import Version, write_version
+from ai_docs_kit.store.gathered import GatheredFactsError, gathered_facts_path, read_gathered_facts
 from ai_docs_kit.theme import Theme, ThemeError
 from ai_docs_kit.theme.rules import load_theme_rules
 
@@ -122,14 +123,25 @@ def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
     return write_docx(out / f"{file.stem}.docx", comp=built.comp, theme=theme)
 
 
-def _source_facts(file: Path) -> list[Fact] | None:
+def _source_facts(file: Path, doc: Document) -> list[Fact] | None:
     facts_path = file.parent / ".ai_docs_kit" / "write" / file.stem / "facts.json"
-    if not facts_path.exists():
-        return None
+    gathered_path = gathered_facts_path(file)
+    if not facts_path.exists() and not gathered_path.exists():
+        # Human wording bypasses the edit guard, so it must be checked even
+        # before facts have been gathered. Retain the legacy AI-only fallback.
+        return [] if any(section.owner == "human" for section in doc.sections) else None
     try:
-        return TypeAdapter(list[Fact]).validate_json(facts_path.read_bytes())
+        facts = TypeAdapter(list[Fact]).validate_json(facts_path.read_bytes()) if facts_path.exists() else []
     except ValidationError as error:
         raise _BuildFailed(f"{facts_path}: not valid facts ({error.error_count()} errors)") from error
+    try:
+        facts.extend(
+            Fact(text=fact.text, source_key=fact.source, locator=fact.locator)
+            for fact in read_gathered_facts(gathered_path, missing_ok=True)
+        )
+    except GatheredFactsError as error:
+        raise _BuildFailed(str(error)) from error
+    return facts
 
 
 def inspect_render(
@@ -156,7 +168,7 @@ def inspect_render(
                 critic=None,
                 final=final,
                 assets=[file.parent / "assets", theme.root / "assets"],
-                source_facts=_source_facts(file),
+                source_facts=_source_facts(file, built.doc),
             ),
         )
     )
