@@ -86,13 +86,19 @@ def _version_for(folder: Path, copy: Path) -> tuple[int, Path, Warning | None]:
     return number, found[number], warning
 
 
-def _body_text(sent: WordText, copy: WordText, section: str, source_line: str) -> tuple[str, str]:
+def _body_content(
+    sent: WordText, copy: WordText, section: str, source_line: str
+) -> tuple[str, str, list[str], list[str]]:
     before, after = sent.paragraphs.get(section, []), copy.paragraphs.get(section, [])
+    order_before = list(sent.content_order.get(section, []))
+    order_after = list(copy.content_order.get(section, []))
     source = _norm(strip_xml_illegal(source_line))
     if source and before and after and _norm(before[-1]) == _norm(after[-1]) == source:
         # The Word writer appends the source after the body. Keep any identical body paragraphs.
+        order_before = [field for field in order_before if field != f"paragraphs[{len(before) - 1}]"]
+        order_after = [field for field in order_after if field != f"paragraphs[{len(after) - 1}]"]
         before, after = before[:-1], after[:-1]
-    return "\n\n".join(before), "\n\n".join(after)
+    return "\n\n".join(before), "\n\n".join(after), order_before, order_after
 
 
 def _exclude_reference(parts: WordText, section: str, index: int) -> None:
@@ -160,7 +166,9 @@ def build_plan(
     structure: list[StructureItem] = []
     changed = False
     for section in sent.order:
-        before, after = _body_text(sent, copy, section, (source_lines or {}).get(section, ""))
+        before, after, order_before, order_after = _body_content(
+            sent, copy, section, (source_lines or {}).get(section, "")
+        )
         title_before, title_after = sent.titles.get(section, ""), copy.titles.get(section, "")
         listed_before, listed_after = _items(sent, section), _items(copy, section)
         item = SectionPlan(title=None, wording=None, owner=None)
@@ -183,8 +191,8 @@ def build_plan(
                 item.wording, item.owner = after, "human"
         if present and has_content and listed_before != listed_after:
             item.items, item.owner = list(copy.items.get(section, [])), "human"
-        if references_before and references_after and sent.content_order[section] != copy.content_order[section]:
-            item.content_order, item.owner = list(copy.content_order[section]), "human"
+        if present and has_content and order_before != order_after:
+            item.content_order, item.owner = order_after, "human"
             if before != after:
                 item.wording = after
         seen = Counter((e[0], _norm(e[1]), e[2]) for e in sent.emphasis.get(section, []))

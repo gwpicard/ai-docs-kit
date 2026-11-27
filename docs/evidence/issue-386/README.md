@@ -70,3 +70,19 @@ The [working file](typed-paragraphs/report.md) was built through the CLI. Both
 rendered pages were inspected: [page 1](typed-paragraphs/p01.png) and
 [page 2](typed-paragraphs/p02.png). Opening prose stays above the list or table,
 closing prose stays below it, and the callout stays inside its frame.
+
+## Ordinary Word review order
+
+`tests/test_word_review_content_order.py` builds body, bullets, callout and
+key-number sections, edits their Word copy, reads and applies the review plan,
+then rebuilds. The cases remove opening prose, insert prose, delete an item and
+move an item without changing its text. Each case first checks an untouched
+copy. Source controls cover an absent source, a distinct source and a source
+identical to the retained closing paragraph.
+
+The [rebuilt working file](word-review-delete-opening/report.md) and
+[rendered page](word-review-delete-opening/p01.png) show the deletion case with
+identical source text. Closing prose remains
+after the first item, and the source stays outside editable wording and order.
+An ordinary review must carry content order even when no chart reference is
+present. The regression fails through the rebuilt PDF on the previous reader.
