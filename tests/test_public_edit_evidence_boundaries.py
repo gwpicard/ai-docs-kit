@@ -5,6 +5,7 @@ import json
 import pytest
 
 from ai_docs_kit import api, cli
+from ai_docs_kit.model import Section
 
 
 def _working(tmp_path):
@@ -64,6 +65,19 @@ def test_human_edit_is_checked_before_any_facts_are_gathered(tmp_path):
     )
     findings = [finding for finding in api.build(path).findings if finding.rule_id == "source.number-in-source"]
     assert [(finding.section_id, finding.measured["number"]) for finding in findings] == [("reading", "987")]
+
+
+@pytest.mark.parametrize("existing", ["", '::: {.section intent="body"}\n\nOriginal wording.\n:::\n'])
+def test_prepend_returns_the_inserted_section_with_no_existing_ids(tmp_path, existing):
+    path = tmp_path / "readings.md"
+    path.write_text("---\nformat: doc\n---\n\n" + existing, encoding="utf-8")
+    before = api.read_document(path)
+    result = api.add_section(path, None, Section(intent="body", paragraphs=["Added wording."]), 0)
+    after = api.read_document(path)
+    assert result.rev == after.rev == 1
+    assert result.section == after.sections[0]
+    assert result.section.id and result.section.paragraphs == ["Added wording."]
+    assert after.sections[1:] == before.sections
 
 
 @pytest.mark.parametrize("command", ["build", "check"])

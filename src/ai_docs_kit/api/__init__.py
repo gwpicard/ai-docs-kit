@@ -97,7 +97,11 @@ def _edit(path: Path | str, op: PatchOp, base_rev: int) -> EditResult:
         patch = Patch(base_rev=base_rev, author="human", reason=f"human {op.op}", ops=[op])
         result = apply_to_document(path, before, patch, store / "oplog.jsonl", IdStore(store / "ids.json"))
         if op.op == "insert_after":
-            position = next((i + 1 for i, section in enumerate(result.sections) if section.id == op.after_id), 0)
+            position = (
+                0
+                if op.after_id is None
+                else next(i + 1 for i, section in enumerate(result.sections) if section.id == op.after_id)
+            )
             changed = result.sections[position]
         elif op.op == "delete_section":
             assert old is not None
