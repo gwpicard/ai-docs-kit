@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from ai_docs_kit.model import Document
+from ai_docs_kit.source.atomic import write_atomic
 
 ID_LENGTH = 5
 ID_SPACE = 16**ID_LENGTH
@@ -45,8 +46,7 @@ class IdStore:
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         text = json.dumps({"issued": sorted(self.issued)}, indent=2) + "\n"
-        with self.path.open("w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        write_atomic(self.path, text)
 
 
 def stamp(doc: Document, store: IdStore) -> tuple[Document, list[str]]:
