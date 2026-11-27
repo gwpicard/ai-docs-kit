@@ -145,7 +145,14 @@ def _source_facts(file: Path, doc: Document) -> list[Fact] | None:
 
 
 def inspect_render(
-    file: Path, out: Path, theme: Theme, built: _Built, *, final: bool = False, project: Path | None = None
+    file: Path,
+    out: Path,
+    theme: Theme,
+    built: _Built,
+    *,
+    final: bool = False,
+    project: Path | None = None,
+    word_copy: Path | None = None,
 ) -> Look:
     """Run the normal deterministic look, optionally keeping its cache in scratch."""
     from ai_docs_kit.loop.look import LookContext, look
@@ -169,6 +176,7 @@ def inspect_render(
                 final=final,
                 assets=[file.parent / "assets", theme.root / "assets"],
                 source_facts=_source_facts(file, built.doc),
+                word_copy=word_copy,
             ),
         )
     )
@@ -193,10 +201,10 @@ def build_document(
     built = _render(file, out, theme)
     if on_rendered is not None:
         on_rendered(built.pdf)
-    result = inspect_render(file, out, theme, built, final=final)
+    docx = _docx(file, out, built, theme)
+    result = inspect_render(file, out, theme, built, final=final, word_copy=docx)
     sheet = _sheet(built, result, out)
     pptx = pptx_writer(file, out, built, result.facts)
-    docx = _docx(file, out, built, theme)
     findings = built.findings + result.findings
     try:
         version = write_version(

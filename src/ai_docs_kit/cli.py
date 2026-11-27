@@ -301,6 +301,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
         assets=assets,
         pages_png=pages_png,
         source_facts=source_facts,
+        word_copy=out / f"{file.stem}.docx" if (out / f"{file.stem}.docx").is_file() else None,
     )
     return _report(file, out, built.findings + run_checks(rules, ctx))
 
