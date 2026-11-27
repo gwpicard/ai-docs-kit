@@ -129,7 +129,7 @@ def test_facts_list_keeps_distinct_sources_and_locators_and_accepts_an_omitted_l
     facts = [
         FACTS[0],
         {**FACTS[0], "locator": "p.8"},
-        {**FACTS[0], "source": "S2", "locator": "harbour-survey!A2"},
+        {**FACTS[0], "source": "S2", "locator": "'harbour-survey'!A2"},
         FACTS[1],
         FACTS[2],
     ]
