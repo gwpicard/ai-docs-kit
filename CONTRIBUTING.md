@@ -38,7 +38,8 @@ The first release is `0.1.0`, tagged `v0.1.0`. For each release:
    surfaces in PLAN.md, including command output and exit codes, working-file
    and version formats, review readers and editable copies. Use the changelog's
    section format and mark incompatible changes `Breaking:`, with migration
-   instructions. The public Python API will be documented when it lands.
+   instructions. Include public Python API functions, result models and JSON
+   Schemas, as documented in `docs/API.md`.
 3. Run `uv run python -m pytest tests/test_release_contract.py` to check version
    agreement, including rejection of a mismatched changelog heading. Run the
    project's required checks, sign off the commits with `git commit -s` and open

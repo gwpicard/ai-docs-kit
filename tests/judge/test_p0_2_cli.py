@@ -73,10 +73,10 @@ def test_D4_installed_docla_command_runs_doctor(tmp_path):
     assert result.returncode == 0
 
 
-def test_D5_version_prints_docla_0_0_1(capsys):
+def test_D5_version_prints_ai_docs_kit_0_1_0(capsys):
     _require_main()
     code, out, _ = _run(["--version"], capsys)
-    assert out.strip() == "ai_docs_kit 0.0.1"
+    assert out.strip() == "ai_docs_kit 0.1.0"
     assert code == 0
 
 

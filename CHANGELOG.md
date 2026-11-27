@@ -9,6 +9,15 @@ change with `Breaking:` and explain what callers or existing files must change.
 
 First release baseline, for the `v0.1.0` tag.
 
+### Python API
+
+- `ai_docs_kit.api` provides `read_document`, `build`, `preview`, `list_findings`
+  and `list_versions` with typed results. Builds save a version and an editable
+  copy; previews render and check pages in scratch without saving a version.
+  The API runs deterministic checks, prints nothing and makes no model calls.
+- Result models have pinned JSON Schemas in `docs/schemas/api/`. See
+  [the Python API reference](docs/API.md) for signatures, results and errors.
+
 ### Command line
 
 - `ai-docs-kit --version` prints `ai_docs_kit 0.1.0`.
@@ -31,8 +40,13 @@ First release baseline, for the `v0.1.0` tag.
   changes, specimens, calibration and change history. `doctor` prints the local
   Python, Typst and API-key availability checks.
 - Other commands are `init`, `check`, `write`, `section list`, `section get`,
-  `section brief`, `section put`, `facts add`, `facts list`, `theme test`,
-  `eval heal` and `eval critic`. Each command exposes its arguments with `--help`.
+  `section brief`, `section put`, `facts add`, `facts list`, `theme which`,
+  `theme test`, `eval heal` and `eval critic`. Each command exposes its arguments
+  with `--help`. `theme which` reports the selected theme folder and selection
+  rule, with `--json` for a JSON object.
+- `section list --json`, `build --json` and `look --pages --json` return
+  structured results; the build and look results use the Python API's models.
+  Without `--json`, these commands retain their text output and exit codes.
 - Exit codes and text output are part of the command surface: commands generally
   return 0 on success, 1 for a failed check or refused operation and 2 for invalid
   input or a build error. Diagnostics may be on stderr; findings and summaries
