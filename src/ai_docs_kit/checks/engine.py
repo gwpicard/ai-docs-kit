@@ -33,6 +33,7 @@ class CheckContext:
 
     source_facts: Sequence[Fact] | None = None
     word_copy: Path | None = None
+    outline: bool = False
 
     def page_png(self, n: int) -> Path:
         if n < 1 or n > len(self.pages_png):

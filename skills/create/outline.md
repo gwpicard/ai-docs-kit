@@ -9,6 +9,7 @@ syntax and allowed intents before proposing or writing the outline.
 2. Show the person the outline, the gaps the material leaves and any question that only they can answer. Ask in one message.
 3. Wait for the person to agree. Revise and show it again until they confirm. Do not draft anything before they approve it.
 4. Once agreed, lay down the working file `<name>.md` for the structure only: front matter, the source list and one fenced section per outline line, each with its intent and a brief in `because=`. This is the only time you write the file directly. Run `ai-docs-kit check <name>.md --outline` to confirm that it fits the type.
+   This defers data-dependent intent errors before a data block exists, including a document chart. Unknown intents still need correcting; a full check or build still requires the chart's data.
 5. Write the agreed facts as a JSON array in `<facts.json>`, using each fact's `text`, `source` and optional `locator` from the gather agent. Run `ai-docs-kit facts add <name>.md <facts.json>` before drafting. It validates source keys and checks every figure against the source at its locator before storing the batch atomically under `.ai_docs_kit/` beside the working file. Read them back with `ai-docs-kit facts list <name>.md`.
 
 `facts add` refuses a derived figure stored as a plain fact when the source does

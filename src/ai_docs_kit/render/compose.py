@@ -23,7 +23,7 @@ M1_COMPONENTS: dict[tuple[Format, str], str] = {
 }
 
 
-CHART_COMPONENTS: frozenset[str] = frozenset({"chart", "chart-table"})
+CHART_COMPONENTS: frozenset[str] = frozenset({"chart", "doc-chart", "chart-table"})
 
 
 class ComposeError(ValueError):

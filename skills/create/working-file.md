@@ -107,7 +107,10 @@ working file's format. Intent names and component names are distinct.
 | slides | `cover`, `quote`, `statement`, `bullets`, `agenda`, `comparison`, `key-numbers`, `table`, `chronology`, `people`, `contact`, `chapter-break`, `image-text`, `card-set`, `full-image`, `chart`, `closing`, `process`, `matrix` |
 | doc | `body`, `callout`, `chart`, `bullets`, `key-numbers` |
 
-A `doc` chart needs a `data` block. Slide charts and tables use their data
+A `doc` chart needs a `data` block for a full check or build. `check --outline`
+accepts its intent before data exists; keep drafting the data after agreement.
+Document bar and column charts draw as charts; unsupported types use a table.
+Slide charts and tables use their data
 components when data is present; some slide intents also depend on item count
 or an image. The chooser handles those choices; do not guess a component from
 the intent's spelling.

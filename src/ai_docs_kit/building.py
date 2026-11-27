@@ -10,6 +10,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.checks.catalogue import all_rules
+from ai_docs_kit.checks.engine import CheckContext, run_checks
 from ai_docs_kit.loop.look import Look
 from ai_docs_kit.model import Document, Finding
 from ai_docs_kit.render.compose import ComposeError, Composition, assemble, compose, font_paths
@@ -69,7 +70,9 @@ def _render(file: Path, out: Path, theme: Theme) -> _Built:
     try:
         comp = compose(doc, assets=[file.parent / "assets", theme.root / "assets"])
     except ComposeError as error:
-        raise _BuildFailed(str(error)) from error
+        rules = [rule for rule in all_rules() if rule.id == "source.intent-known"]
+        findings = run_checks(rules, CheckContext(doc))
+        raise _BuildFailed("\n".join(_line(finding) for finding in findings) or str(error)) from error
     return _draw(file, out, doc, findings, comp, theme)
 
 
