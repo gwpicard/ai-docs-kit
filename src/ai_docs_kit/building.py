@@ -10,9 +10,11 @@ from pydantic import TypeAdapter, ValidationError
 
 from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.checks.catalogue import all_rules
+from ai_docs_kit.facts.layout import LayoutFacts
 from ai_docs_kit.loop.look import Look
 from ai_docs_kit.model import Document, Finding
 from ai_docs_kit.render.compose import ComposeError, Composition, assemble, compose, font_paths
+from ai_docs_kit.render.marks import SectionMark
 from ai_docs_kit.render.typst import TypstError, compile_pdf
 from ai_docs_kit.source.files import current_rev
 from ai_docs_kit.source.parser import parse
@@ -175,6 +177,17 @@ def inspect_render(
     return result
 
 
+def _located_findings(findings: list[Finding], facts: LayoutFacts) -> list[Finding]:
+    """Locate source findings at their section's start without changing source-only checks."""
+    pages = {mark.id: mark.page for mark in facts.marks if isinstance(mark, SectionMark) and mark.edge == "start"}
+    return [
+        finding.model_copy(update={"page": pages[owner]})
+        if finding.tier == "source" and finding.page is None and (owner := finding.owner or finding.section_id) in pages
+        else finding
+        for finding in findings
+    ]
+
+
 def build_document(
     file: Path,
     out: Path,
@@ -197,7 +210,7 @@ def build_document(
     sheet = _sheet(built, result, out)
     pptx = pptx_writer(file, out, built, result.facts)
     docx = _docx(file, out, built, theme)
-    findings = built.findings + result.findings
+    findings = _located_findings(built.findings + result.findings, result.facts)
     try:
         version = write_version(
             file,
@@ -217,4 +230,5 @@ def build_document(
         )
     except OSError as error:
         raise _BuildFailed(f"Cannot write version: {error}") from error
+    (out / f"{file.stem}.findings.json").write_bytes(TypeAdapter(list[Finding]).dump_json(findings, indent=2))
     return version, findings

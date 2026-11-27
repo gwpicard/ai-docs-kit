@@ -2,32 +2,25 @@ from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, r
 from ai_docs_kit.checks.source import PROVENANCE
 from ai_docs_kit.model import Finding, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Tier
-from ai_docs_kit.render.components import MEASURES, ComponentManifest, all_manifests
+from ai_docs_kit.render.components import ComponentManifest, all_manifests, capacity_excesses
 from ai_docs_kit.render.compose import component_for
 
 
 def _findings(
     ctx: CheckContext, rule: Rule, section: Section, component: str, manifest: ComponentManifest, index: int
 ) -> list[Finding]:
-    findings = []
-    for name, (_, maximum) in manifest.capacity.items():
-        measure = MEASURES.get(name)
-        if measure is None:
-            continue
-        value = measure(section)
-        if value > maximum:
-            findings.append(
-                make_finding(
-                    rule,
-                    ctx,
-                    message=f"{name} value {value} exceeds maximum {maximum} for component {component}",
-                    section_id=section.id,
-                    role=name,
-                    measured={"measure": name, "value": value, "max": maximum},
-                    key=finding_key(section, index, name),
-                )
-            )
-    return findings
+    return [
+        make_finding(
+            rule,
+            ctx,
+            message=f"{name} value {value} exceeds maximum {maximum} for component {component}",
+            section_id=section.id,
+            role=name,
+            measured={"measure": name, "value": value, "max": maximum},
+            key=finding_key(section, index, name),
+        )
+        for name, value, maximum in capacity_excesses(section, manifest)
+    ]
 
 
 @register("capacity")

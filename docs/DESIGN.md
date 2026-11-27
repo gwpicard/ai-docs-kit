@@ -113,6 +113,14 @@ still needs evidence.
 when it equals the working file's corresponding count. This exemption belongs only to that phrase;
 the count supplies no evidence for an unrelated figure, including in a later replacement.
 
+The voice text from `section brief` explains that source quotations keep their own wording,
+including contractions such as "don't know" even when the brand avoids them. The banned-term
+check exempts a complete quotation in straight or curly quotation marks only when its wording
+appears in a listed source entry or gathered fact. Unquoted terms and unsupported quotations
+still produce findings. `section put` warns on stderr once for each capacity limit exceeded by
+the replacement's chosen component, using the same measures as the build. Capacity warnings
+still save the block and exit 0; the existing patch guards decide refusals.
+
 Working-file patches hold an advisory lock on the shared `.ai_docs_kit` folder across
 reading, checking and writing, without creating a lock file. `section put` also prepares
 its evidence inside this lock. Its optional `--base-rev N` refuses a changed revision
@@ -167,7 +175,12 @@ theme key therefore build and check with that brand's theme. The create and revi
 4. rasterise every page into the version's `pages/` folder, with `pages.json` (which sections sit on
    which page) and a contact sheet (deck) or spreads (document);
 5. write the editable copy;
-6. write a new version under `<name>.versions/vN/` with the engine's findings.
+6. write a new version under `<name>.versions/vN/` with the engine's findings and replace
+   `build/<name>.findings.json` with the same findings, including an empty array for a clean build
+   (`--out` selects another build folder).
+
+After the look, source findings acquire their section's starting page from layout marks.
+`look --pages` names that page, or the section when an older finding has no page.
 
 Documents with a front matter title open with a title block above the first section
 on page 1, without a separate cover page. It shows the title, the audience when
