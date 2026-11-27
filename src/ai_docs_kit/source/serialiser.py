@@ -78,6 +78,11 @@ def _quotes(section: Section) -> str:
 
 
 def _paragraph(text: str) -> str:
+    if "\n" in text or "\r" in text:
+        # A typed literal keeps paragraph boundaries and protects lines that
+        # would otherwise become items, notes, headings or closing fences.
+        literal = yaml.safe_dump(text, default_style="|", allow_unicode=True, width=10**6)
+        return f"```paragraph\n{literal}```"
     return PARAGRAPH_MARKER.sub(lambda match: match[0][:-1] + "\\" + match[0][-1], text)
 
 

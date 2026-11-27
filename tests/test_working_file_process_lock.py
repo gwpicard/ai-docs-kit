@@ -153,7 +153,8 @@ def _writer(path, oplog, section_id, barrier, disable_lock, connection):
         def overlapping_write(target, text):
             # Both replacements have passed the guards before either is allowed
             # to replace the file. A real lock serialises this checkpoint.
-            if not _directory_locked(oplog.parent):
+            # The probe itself takes a lock, so disabled controls must bypass it.
+            if disable_lock or not _directory_locked(oplog.parent):
                 barrier.wait(timeout=15)
             return write_atomic(target, text)
 
