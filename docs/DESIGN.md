@@ -159,6 +159,12 @@ retain the working file's reading order, including prose after a list. A chart's
 numbered Word reference sits where its data appears. Callout prose stays inside
 the unbreakable frame. Key-number prose flows outside the unbreakable strip;
 prose between figure lists separates them into strips.
+Generated chart references in the Word copy have a reference style that inherits
+the body appearance. Review plans exclude these references from editable prose
+and retain their data position, including after paragraph insertions or deletions
+and reference moves. An edited generated reference is reported as unplaced text.
+Older copies are read using the reference's position in the stored composition;
+literal body prose with the same wording remains editable.
 
 The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit look <version>
 --findings <file>` validates them (sections and pages exist, severities known) and adds them to the

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document as WordDocument
+from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import RGBColor
@@ -23,6 +24,7 @@ LABELS = {
     "image-with-text": "Figure",
 }
 THEME_ATTRIBUTES = ("asciiTheme", "hAnsiTheme", "eastAsiaTheme", "cstheme")
+REFERENCE_STYLE = "Document Reference"
 
 
 def _style(document: Any, name: str, family: str, colour: str) -> None:
@@ -50,7 +52,7 @@ def _lines(section: ComposedSection, numbers: dict[str, int]) -> list[tuple[str,
     reference = None
     if label:
         numbers[label] = numbers.get(label, 0) + 1
-        reference = ("Normal", f"[{label} {numbers[label]}: {props['title']}]")
+        reference = (REFERENCE_STYLE, f"[{label} {numbers[label]}: {props['title']}]")
         if not props.get("content_order"):
             return [reference]
     lines = [("Heading 1", props["title"])] if props["title"] and not label else []
@@ -74,6 +76,20 @@ def _lines(section: ComposedSection, numbers: dict[str, int]) -> list[tuple[str,
     return lines
 
 
+def reference_positions(comp: Composition) -> dict[str, tuple[int, str]]:
+    """Locate generated references among ordinary paragraphs, including copies predating the reference style."""
+    positions = {}
+    numbers: dict[str, int] = {}
+    for section in comp.sections:
+        index = 0
+        for style, text in _lines(section, numbers):
+            if style == REFERENCE_STYLE:
+                positions[section.id] = (index, strip_xml_illegal(text))
+            if style in ("Normal", REFERENCE_STYLE):
+                index += 1
+    return positions
+
+
 def _bookmark(tag: str, number: int, name: str | None = None) -> Any:
     element = OxmlElement(f"w:{tag}")
     element.set(qn("w:id"), str(number))
@@ -92,6 +108,8 @@ def write_docx(path: Path, *, comp: Composition, theme: Theme) -> Path:
     _style(document, "Normal", families[scale["body"].family], roles["ink"])
     _style(document, "List Bullet", families[scale["body"].family], roles["ink"])
     _style(document, "Heading 1", families[scale["h1"].family], roles["ink"])
+    reference_style = document.styles.add_style(REFERENCE_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+    reference_style.base_style = document.styles["Normal"]
     numbers: dict[str, int] = {}
     stored: dict[str, str] = {}
     for number, section in enumerate(comp.sections, 1):

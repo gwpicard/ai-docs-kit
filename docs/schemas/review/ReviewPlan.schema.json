@@ -205,6 +205,23 @@
           "title": "Confirm",
           "type": "array"
         },
+        "content_order": {
+          "anyOf": [
+            {
+              "items": {
+                "pattern": "^(?:(?:paragraphs|items)\\[[0-9]+\\]|data)$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The edited paragraph, item and data field order from a Word copy; null when unchanged.",
+          "title": "Content Order"
+        },
         "emphasis": {
           "items": {
             "$ref": "#/$defs/Emphasis"

@@ -22,3 +22,23 @@ before prose and keeps prose between separate figure lists. The existing
 `tests/test_components.py` checks every component against its unchanged golden
 facts. The model schemas were regenerated with
 `uv run python -m ai_docs_kit.model.schema docs/schemas`.
+
+## Chart review regression
+
+The additional pages below come from build, Word-copy edits, `review read`,
+`review apply` and a second real build in
+`tests/test_chart_word_reference_round_trip.py`. The chart prose was edited to
+"Opening wording revised.". The generated Word reference stays out of the chart's
+PDF prose. The separate body section deliberately retains identical literal text.
+
+| Build | Rebuilt page |
+|---|---|
+| Data before prose | [Page 1](chart-review-data-first/p01.png) |
+| Data between paragraphs | [Page 1](chart-review-data-between/p01.png) |
+| Data after prose | [Page 1](chart-review-data-last/p01.png) |
+
+The same regression file covers older copies without the reference style,
+paragraph insertions, deletions and splits, moved references, literal prose
+identical to a generated reference, and edited or cleared reference-only charts.
+The review-plan schema was regenerated with `export_review_schema` from
+`ai_docs_kit.review.plan`.
