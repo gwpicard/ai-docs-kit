@@ -25,7 +25,7 @@ from ai_docs_kit.api.models import (
     PageRegion,
     PreviewResult,
 )
-from ai_docs_kit.building import _render, build_document, inspect_render
+from ai_docs_kit.building import _located_findings, _render, build_document, inspect_render
 from ai_docs_kit.facts.layout import LayoutFacts
 from ai_docs_kit.model import Document, Finding, Patch, PatchOp, Section
 from ai_docs_kit.render.compose import Composition
@@ -184,7 +184,7 @@ def preview(path: Path | str, scratch: Path | str, theme: Path | str | None = No
     scratch.mkdir(parents=True, exist_ok=True)
     built = _render(path, scratch, selected)
     result = inspect_render(path, scratch, selected, built, project=scratch)
-    findings = built.findings + result.findings
+    findings = _located_findings(built.findings + result.findings, result.facts)
     return PreviewResult(
         pngs=result.pngs,
         pages=TypeAdapter(list[Page]).validate_python(page_index(result.facts, findings)),
