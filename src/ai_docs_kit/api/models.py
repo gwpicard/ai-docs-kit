@@ -20,6 +20,11 @@ class EditResult(_Model):
     section: Section
 
 
+class HistoryResult(_Model):
+    rev: int
+    target_rev: int
+
+
 class EditError(_Model):
     code: str
     message: str

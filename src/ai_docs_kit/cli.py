@@ -30,6 +30,9 @@ from ai_docs_kit.render.kit import read_tokens
 from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, typst_version
 from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
+from ai_docs_kit.source.files import apply_history
+from ai_docs_kit.source.ids import IdStoreError
+from ai_docs_kit.source.patches import PatchRejected
 from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme, resolve_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
@@ -331,6 +334,9 @@ def _build_parser() -> argparse.ArgumentParser:
     add_facts_commands(subparsers)
     add_review_commands(subparsers)
     add_rule_commands(subparsers)
+    for name in ("undo", "redo"):
+        history = subparsers.add_parser(name, help=f"{name} the last edit to a working file")
+        history.add_argument("file", type=Path, help="the working file")
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
     init = subparsers.add_parser("init", help="initialise a project")
     init.add_argument("directory", type=Path, help="project folder")
@@ -429,6 +435,17 @@ def main(argv: list[str] | None = None) -> int:
         return run_review(args)
     if args.command == "rule":
         return run_rule(args)
+    if args.command in ("undo", "redo"):
+        try:
+            result, _ = apply_history(args.file, args.command)
+        except PatchRejected as error:
+            print(" ".join(error.message.splitlines()), file=sys.stderr)
+            return 1
+        except (OSError, ValueError, IdStoreError) as error:
+            print(" ".join(str(error).splitlines()), file=sys.stderr)
+            return 2
+        print(f"rev {result.rev}")
+        return 0
     if args.command == "doctor":
         return _doctor()
     if args.command == "init":

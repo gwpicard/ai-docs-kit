@@ -1,11 +1,15 @@
 import json
 import os
+import re
 from collections.abc import Collection, Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from threading import local
+from typing import Literal
 
-from ai_docs_kit.model import Document, Patch
+from pydantic import BaseModel
+
+from ai_docs_kit.model import Document, Patch, PatchOp
 from ai_docs_kit.source.atomic import write_atomic as _write_atomic
 from ai_docs_kit.source.ids import IdStore, stamp
 from ai_docs_kit.source.parser import parse
@@ -148,3 +152,55 @@ def apply_to_document(path: Path, before: Document, patch: Patch, oplog: Path, i
         ids.save()
         _write_logged(oplog, path, patch, result, before)
         return result
+
+
+class _LogEntry(BaseModel):
+    rev: int
+    file: str
+    reason: str
+    ops: list[PatchOp]
+    inverse: list[PatchOp] | None = None
+
+
+def _history_target(oplog: Path, name: str, command: Literal["undo", "redo"]) -> _LogEntry:
+    done: list[_LogEntry] = []
+    undone: list[_LogEntry] = []
+    if oplog.exists():
+        for line in oplog.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            entry = _LogEntry.model_validate_json(line)
+            if entry.file != name:
+                continue
+            action = re.fullmatch(r"(undo|redo) rev ([1-9][0-9]*)", entry.reason)
+            if action is None:
+                done.append(entry)
+                undone.clear()
+                continue
+            source, destination = (done, undone) if action[1] == "undo" else (undone, done)
+            if not source or source[-1].rev != int(action[2]):
+                raise ValueError(f"invalid {name} history at rev {entry.rev}")
+            destination.append(source.pop())
+    candidates = done if command == "undo" else undone
+    if not candidates:
+        raise PatchRejected(f"nothing-to-{command}", f"nothing to {command} for {name}")
+    target = candidates[-1]
+    if command == "undo" and target.inverse is None:
+        raise PatchRejected("no-inverse", f"cannot undo rev {target.rev}: no recorded inverse")
+    return target
+
+
+def apply_history(path: Path, command: Literal["undo", "redo"], base_rev: int | None = None) -> tuple[Document, int]:
+    """Replay one file's history as a new human patch under the project lock."""
+    store = path.parent / ".ai_docs_kit"
+    oplog = store / "oplog.jsonl"
+    with project_lock(store):
+        before = _parse_editable(path).model_copy(update={"rev": current_rev(oplog)})
+        if base_rev is not None and base_rev != before.rev:
+            raise PatchRejected("stale-base-rev", f"document is at rev {before.rev}, not {base_rev}; read it again")
+        target = _history_target(oplog, path.name, command)
+        ops = target.inverse if command == "undo" else target.ops
+        assert ops is not None
+        patch = Patch(base_rev=before.rev, author="human", reason=f"{command} rev {target.rev}", ops=ops)
+        result = apply_to_document(path, before, patch, oplog, IdStore(store / "ids.json"))
+        return result, target.rev
