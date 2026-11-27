@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from ai_docs_kit.checks.engine import CheckContext, make_finding, register
-from ai_docs_kit.facts.layout import LayoutFacts, PlacedShape, PlacedWord
+from ai_docs_kit.facts.layout import LayoutFacts, PlacedShape, PlacedWord, front_matter_ids
 from ai_docs_kit.facts.models import FactBox, PageFacts
 from ai_docs_kit.model import Box, Finding, Provenance, Rule
 from ai_docs_kit.model.rules import Tier
@@ -123,9 +123,10 @@ class MinFont:
         if facts is None:
             return []
         minimum = _min_size(ctx, rule)
+        front = front_matter_ids(facts)
         smallest: dict[str, PlacedWord] = {}
         for word in facts.words:
-            if word.section_id is not None:
+            if word.section_id is not None and word.section_id not in front:
                 smallest[word.section_id] = min(smallest.get(word.section_id, word), word, key=lambda w: w.size)
         return [
             _font_finding(rule, ctx, word, minimum)

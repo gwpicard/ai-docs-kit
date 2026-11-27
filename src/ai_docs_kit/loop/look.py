@@ -73,13 +73,17 @@ class Look(BaseModel):
         )
 
 
-def _facts(pdf: Path, digest: str, ctx: LookContext) -> LayoutFacts:
+def _facts(pdf: Path, digest: str, ctx: LookContext, comp: Composition) -> LayoutFacts:
     cache = ctx.project / ".ai_docs_kit" / "cache" / "facts" / f"{digest}.json"
-    if cache.exists():
+    # Section and field anchors can change without changing the visible PDF.
+    signature = hashlib.sha256(comp.model_dump_json().encode("utf-8")).hexdigest()
+    composition = cache.with_suffix(".composition.sha256")
+    if cache.exists() and composition.exists() and composition.read_text(encoding="utf-8") == signature:
         return LayoutFacts.model_validate_json(cache.read_text(encoding="utf-8"))
     facts = layout_facts(pdf, ctx.main, ctx.main.parent, font_paths=font_paths(ctx.main.parent))
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(facts.model_dump_json(), encoding="utf-8")
+    composition.write_text(signature, encoding="utf-8")
     return facts
 
 
@@ -110,7 +114,7 @@ def _regions(facts: LayoutFacts, page: int, sections: list[str], regions: list[R
 async def look(pdf: Path, comp: Composition, ctx: LookContext) -> Look:
     pngs = PdfiumRasteriser().render(pdf, ctx.workdir / "pages")
     digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
-    facts = _facts(pdf, digest, ctx)
+    facts = _facts(pdf, digest, ctx, comp)
     check_ctx = CheckContext(
         ctx.doc,
         facts,

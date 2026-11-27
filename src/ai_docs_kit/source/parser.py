@@ -37,6 +37,7 @@ HEAD = re.compile(r"^\*\*(.+?)\*\*(.*)$")
 SOURCE_LINE = re.compile(r"^-\s*\[([^\]]+)\]\s*(.*)$")
 QUOTE = re.compile(r"^>\s*(note|spoken|source):\s*(.*)$")
 QUOTE_FIELDS = {"note": "note", "spoken": "spoken", "source": "source_line"}
+PARAGRAPH_ESCAPE = re.compile(r"^(\\[-*+]|[0-9]+\\[.)])(?= )")
 
 
 class _Parser:
@@ -208,7 +209,7 @@ class _Parser:
         elif re.match(r"^\s+- ", line) and section.items:
             section.items[-1].sub.append(stripped[2:].strip())
         else:
-            section.paragraphs.append(stripped)
+            section.paragraphs.append(PARAGRAPH_ESCAPE.sub(lambda match: match[0].replace("\\", "", 1), stripped))
 
     def document(self, lines: list[str], start: int) -> tuple[str, list[Source], list[Section]]:
         context: list[str] = []
