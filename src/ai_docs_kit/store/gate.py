@@ -20,4 +20,6 @@ def ship_gate(version: Version) -> list[str]:
     findings = TypeAdapter(list[Finding]).validate_json((version.path / "findings.json").read_bytes())
     if any(f.tier == "semantic" and f.severity == "error" and f.corroborated is not True for f in findings):
         reasons.append("unacknowledged vision findings")
+    if manifest.look is not None and manifest.look.agent is None:
+        reasons.append("not looked at by the look agent")
     return reasons
