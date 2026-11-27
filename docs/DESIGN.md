@@ -71,6 +71,20 @@ After the outline is agreed and its working file has a source list, the skill sa
 facts with `ai-docs-kit facts add <name>.md <facts.json>`. The input is the gather agent's `facts`
 array: each entry has `text`, `source` and an optional `locator`. The command refuses an unlisted
 source key before saving anything and keeps each text, source and locator combination once.
+Every figure is compared with the source text using the fact guard's tokeniser:
+the cited PDF page, transcript cue or table cell or row; plain text, Markdown
+and facts without a locator use the whole file. Local paths resolve relative to
+the working file. Unsupported figures and unreadable local sources refuse the
+whole batch, with one stderr line per refused fact and no store change. A URL
+fact is accepted with a persistent `unverified` mark and a warning because the
+engine cannot read its source text.
+
+A derived figure absent from its source is refused as a plain fact. Store a
+`calc:` line instead, such as `calc: ratio(184000, 61300) = 3.00`, after the
+facts supplying its operands. The existing calculation guard checks operands
+against earlier stored or same-batch facts and recomputes the result. Drafts
+cite those operand facts beside the figure and repeat the calculation in the
+section's note. Supported operations are sum, difference, ratio and percentage.
 `ai-docs-kit facts list <name>.md` prints one fact per line with its key and locator. `section put`
 uses every stored fact as evidence alongside the sources, front matter and section's previous text;
 unsupported figures, dates, names and source keys are still refused. A missing fact store contributes
@@ -105,6 +119,23 @@ its evidence inside this lock. Its optional `--base-rev N` refuses a changed rev
 with exit 1 and `document is at rev M, not N; read it again`, leaving the working file
 and oplog unchanged. Without the option it reads the current revision inside the lock.
 Writing requires `fcntl`, available on macOS and Linux; other platforms refuse clearly.
+
+`ai-docs-kit undo <name>.md` applies the last edit's recorded inverse as a new
+human-authored patch; `redo` reapplies the most recently undone edit. Both print
+the new revision. Repeated undo walks backwards through that working file's
+edits, skipping undo and redo entries. An edit without a recorded inverse stops
+the walk, and a new edit to that file clears its redo history. Empty history
+and a missing inverse exit 1 with one stderr line. Manual edits after undo also
+invalidate redo, including changes to another section or to formatting; a
+refused redo preserves the working file and oplog byte for byte. History stays append-only,
+and inverse operations preserve unrelated edits in the current working file.
+The Python API offers `undo(path, base_rev)` and `redo(path, base_rev)`, returning
+`HistoryResult` with `rev` and `target_rev`. They check the base revision and
+select and apply the history patch within the same project lock as other edits.
+Oplog entries identify history actions and their target revisions explicitly;
+ordinary patch reasons never identify an undo or redo. File hashes before and
+after each patch detect manual edits and prevent a discarded redo branch from
+returning after later history operations.
 
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
@@ -159,8 +190,15 @@ The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit 
 version's look record. The skill fixes what was found and rebuilds, at most twice, then reports what
 remains by section.
 
+The ship gate requires the version's look record to carry the look agent's findings. Recording
+an empty array through `look --findings` counts as read; a missing agent findings list does not.
+The engine page pass stays in the same look record with its existing fields and is reported as
+`engine page pass`, including any pages it could not check. A clean `build --final` without agent
+findings still writes its version, then exits 1 with `not ready: not looked at by the look agent`.
+
 The skill gives the person the PDF, the editable copy and the summary line of `look`, which names any
-open error and any page not looked at.
+open error and any page the engine page pass could not check. Missing look agent findings must also
+be reported before the version can be described as ready to ship.
 
 ## 5. The editable copies
 
