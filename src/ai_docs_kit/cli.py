@@ -9,26 +9,26 @@ import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 
 from pydantic import TypeAdapter, ValidationError
 
 from ai_docs_kit import __version__
 from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.brand.cli import add_brand_commands, run_brand
+from ai_docs_kit.building import _BuildFailed as _BuildFailed
+from ai_docs_kit.building import _draw, _parse, build_document
 from ai_docs_kit.checks.catalogue import all_rules, document_rules
 from ai_docs_kit.checks.engine import CheckContext, run_checks
 from ai_docs_kit.config import default_config_text
 from ai_docs_kit.facts.layout import layout_facts
 from ai_docs_kit.facts.raster import PdfiumRasteriser
-from ai_docs_kit.model import Document, Finding
-from ai_docs_kit.render.compose import ComposeError, Composition, assemble, compose, font_paths
+from ai_docs_kit.model import Finding
+from ai_docs_kit.render.compose import ComposeError, compose, font_paths
 from ai_docs_kit.render.kit import read_tokens
-from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError, compile_pdf, typst_version
+from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, typst_version
 from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
-from ai_docs_kit.source.parser import parse
-from ai_docs_kit.source.read import read_source
 from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme, resolve_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
@@ -80,169 +80,22 @@ def _init(directory: Path) -> int:
     return 0
 
 
-class _Built(NamedTuple):
-    doc: Document
-    findings: list[Finding]
-    render: Path
-    main: Path
-    pdf: Path
-    comp: Composition
-
-
-class _BuildFailed(Exception):
-    def __init__(self, message: str, code: int = 2) -> None:
-        super().__init__(message)
-        self.code = code
-
-
 def _out_dir(file: Path, out: Path | None) -> Path:
     return out if out is not None else file.parent / "build"
-
-
-def _parse(file: Path) -> tuple[Document, list[Finding]]:
-    try:
-        text = read_source(file)
-    except UnicodeDecodeError as error:
-        raise _BuildFailed(f"{file}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
-    doc, findings = parse(text)
-    errors = [f for f in findings if f.severity == "error"]
-    if errors:
-        raise _BuildFailed("\n".join(_line(f) for f in errors))
-    return doc, findings
-
-
-def _draw(file: Path, out: Path, doc: Document, findings: list[Finding], comp: Composition, theme: Theme) -> _Built:
-    render = out / "render"
-    if render.exists():
-        shutil.rmtree(render)
-    main = assemble(comp, render, theme=theme)
-    pdf = out / f"{file.stem}.pdf"
-    try:
-        compile_pdf(main, render, pdf, font_paths(render))
-    except TypstError as error:
-        raise _BuildFailed(str(error)) from error
-    return _Built(doc, findings, render, main, pdf, comp)
-
-
-def _render(file: Path, out: Path, theme: Theme) -> _Built:
-    doc, findings = _parse(file)
-    try:
-        comp = compose(doc, assets=[file.parent / "assets", theme.root / "assets"])
-    except ComposeError as error:
-        raise _BuildFailed(str(error)) from error
-    return _draw(file, out, doc, findings, comp, theme)
 
 
 def _line(finding: Finding) -> str:
     return f"{finding.severity} {finding.rule_id} {finding.section_id or '-'} {finding.message}"
 
 
-def _build(file: Path, out: Path, theme: Theme, *, final: bool = False) -> int:
-    for directory in (out / "render", out / "look"):
-        try:
-            directory.mkdir(exist_ok=True)
-        except OSError as error:
-            raise _BuildFailed(f"ai_docs_kit: cannot use {directory} as a build folder: {error.strerror}") from error
-    built = _render(file, out, theme)
-    print(built.pdf)
-    return _version_build(file, out, theme, built, final)
-
-
-def _sheet(built: _Built, result: Any, out: Path) -> Path:
-    """Draw the contact sheet for slides, or the facing-page spreads for a document."""
-    from ai_docs_kit.facts.sheets import contact_sheet, page_labels, spread_sheet
-    from ai_docs_kit.store import page_index
-
-    if built.comp.format != "slides":
-        return spread_sheet(result.pngs, page_labels(result.facts), out / "spreads.png")
-    components = {s.id: s.component for s in built.comp.sections}
-    labels = [
-        " ".join([str(page["page"]), *(components[s] for s in page["sections"] if s in components)])
-        for page in page_index(result.facts, [])
-    ]
-    return contact_sheet(result.pngs, labels, out / "contact.png")
-
-
-def _pptx(file: Path, out: Path, built: _Built, facts: Any) -> Path | None:
-    """Write the PowerPoint copy beside the PDF; a document has none."""
-    if built.comp.format != "slides":
-        return None
-    from ai_docs_kit.render.pptx_copy import PptxError, write_pptx
-
-    try:
-        return write_pptx(
-            out / f"{file.stem}.pptx",
-            facts=facts,
-            comp=built.comp,
-            doc=built.doc,
-            main=built.main,
-            render=built.render,
-            font_paths=font_paths(built.render),
-        )
-    except TypstError as error:
-        raise _BuildFailed(str(error)) from error
-    except PptxError as error:
-        raise _BuildFailed(str(error), code=1) from error
-
-
-def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
-    """Write the Word copy beside the PDF; slides have none."""
-    if built.comp.format != "doc":
-        return None
-    from ai_docs_kit.render.word import write_docx
-
-    return write_docx(out / f"{file.stem}.docx", comp=built.comp, theme=theme)
-
-
-def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
-    from ai_docs_kit.loop.look import LookContext, look
-    from ai_docs_kit.store import write_version
+def _build(file: Path, out: Path, theme: Theme, *, final: bool = False, json_output: bool = False) -> int:
+    from ai_docs_kit.api import BuildResult
     from ai_docs_kit.store.gate import ship_gate
 
-    try:
-        rules = all_rules() + load_theme_rules(theme)
-    except ThemeError as error:
-        raise _BuildFailed(str(error)) from error
-    result = asyncio.run(
-        look(
-            built.pdf,
-            built.comp,
-            LookContext(
-                doc=built.doc,
-                theme=theme,
-                main=built.main,
-                project=file.parent,
-                workdir=out / "look",
-                rules=rules,
-                critic=None,
-                final=final,
-                assets=[file.parent / "assets", theme.root / "assets"],
-            ),
-        )
-    )
-    sheet = _sheet(built, result, out)
-    pptx = _pptx(file, out, built, result.facts)
-    docx = _docx(file, out, built, theme)
-    findings = built.findings + result.findings
-    try:
-        version = write_version(
-            file,
-            built.doc,
-            built.comp,
-            built.pdf,
-            result.facts,
-            findings,
-            result.pngs,
-            None,
-            theme=theme,
-            final=final,
-            look=result.record(),
-            sheet=sheet,
-            pptx=pptx,
-            docx=docx,
-        )
-    except OSError as error:
-        raise _BuildFailed(f"Cannot write version: {error}") from error
+    version, findings = build_document(file, out, theme, final=final, on_rendered=None if json_output else print)
+    if json_output:
+        print(BuildResult.from_version(version, findings).model_dump_json())
+        return int(bool(ship_gate(version))) if final else 0
     for finding in findings:
         if finding.severity == "error":
             print(_line(finding))
@@ -378,8 +231,16 @@ def _look(args: argparse.Namespace) -> int:
     if args.pages == (args.findings is not None):
         print("give exactly one of --pages or --findings", file=sys.stderr)
         return 2
+    if args.json and not args.pages:
+        print("--json requires --pages", file=sys.stderr)
+        return 2
     try:
         if args.pages:
+            if args.json:
+                from ai_docs_kit.api import _version_preview
+
+                print(_version_preview(args.version_dir).model_dump_json())
+                return 0
             return _look_pages(args.version_dir)
         return _look_findings(args.version_dir, args.findings)
     except (OSError, ValueError) as error:
@@ -448,6 +309,8 @@ def _add_file_command(subparsers: Any, name: str, help: str) -> None:
     command.add_argument("--theme", type=Path, default=None, help=f"theme folder (default: {default_theme})")
     if name in ("build", "check"):
         command.add_argument("--final", action="store_true", help="treat the working file as a final build")
+    if name == "build":
+        command.add_argument("--json", action="store_true", help="print the build result as JSON")
     if name == "check":
         command.add_argument("--outline", action="store_true", help="check conformance to the doctype outline")
 
@@ -470,6 +333,7 @@ def _build_parser() -> argparse.ArgumentParser:
     look = subparsers.add_parser("look", help="print the pages for the look agent or record its findings")
     look.add_argument("version_dir", type=Path)
     look.add_argument("--pages", action="store_true")
+    look.add_argument("--json", action="store_true", help="print --pages as a preview result")
     look.add_argument("--findings", type=Path)
     write = subparsers.choices["write"]
     write.add_argument("--approve", action="store_true")
@@ -497,7 +361,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-FILE_COMMANDS = {"build": _build, "check": _check}
+FILE_COMMANDS = {"build", "check"}
 
 
 def _theme(folder: Path | None) -> Theme:
@@ -519,7 +383,7 @@ def _run_file_command(args: argparse.Namespace) -> int:
         theme = _theme(folder)
         if args.command == "check":
             return _check(args.file, out, theme, final=args.final, outline=args.outline)
-        return _build(args.file, out, theme, final=args.final)
+        return _build(args.file, out, theme, final=args.final, json_output=args.json)
     except _BuildFailed as error:
         print(error, file=sys.stderr)
         return error.code

@@ -103,6 +103,7 @@ A confirmed defect with a failing test, found by the end-of-loop pass, may be qu
 
 ## Surfaces
 
+- The Python API: `ai_docs_kit.api` reads documents, builds, scratch previews, findings and versions with typed results and pinned JSON Schemas.
 - The command line: `ai-docs-kit build`, `look`, `sent`, `review read`, `review apply`, `rule test`, `brand`, `doctor`, their exit codes and output.
 - The review readers: Word and PowerPoint files from outside, including malformed, oversized or hostile archives.
 - The editable copies: text, names and bookmarks that must map back to sections.

@@ -38,6 +38,7 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
     commands = section.add_subparsers(dest="section_command", required=True)
     listing = commands.add_parser("list", help="print every section id with its intent, owner and redraft ask")
     listing.add_argument("file", type=Path, help="the working file")
+    listing.add_argument("--json", action="store_true", help="print the document as JSON")
     get = commands.add_parser("get", help="print one section with the sources it cites")
     get.add_argument("file", type=Path, help="the working file")
     get.add_argument("id", help="the section id")
@@ -231,6 +232,11 @@ def run_section(args: argparse.Namespace) -> int:
                 return _put(args.file, _load(args.file), args)
         doc = _load(args.file)
         if args.section_command == "list":
+            if args.json:
+                from ai_docs_kit.api import read_document
+
+                print(read_document(args.file).model_dump_json())
+                return 0
             return _list(doc)
         if args.section_command == "get":
             return _get(doc, args.id)
@@ -238,6 +244,6 @@ def run_section(args: argparse.Namespace) -> int:
     except _Refused as error:
         print(" ".join(str(error).split()), file=sys.stderr)
         return error.code
-    except (GatheredFactsError, ThemeError, ManifestError, OSError) as error:
+    except (GatheredFactsError, ThemeError, ManifestError, OSError, ValueError) as error:
         print(" ".join(str(error).split()), file=sys.stderr)
         return 2
