@@ -163,8 +163,10 @@ Generated chart references in the Word copy have a reference style that inherits
 the body appearance. Review plans exclude these references from editable prose
 and retain their data position, including after paragraph insertions or deletions
 and reference moves. An edited generated reference is reported as unplaced text.
-Older copies are read using the reference's position in the stored composition;
-literal body prose with the same wording remains editable.
+The reference's stored position and text alignment identify its occurrence even
+when it loses its style or inserted prose inherits that style. Style hints are
+used only for an edited reference within its aligned replacement span. Literal
+body prose with the same wording remains editable, including in older copies.
 
 The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit look <version>
 --findings <file>` validates them (sections and pages exist, severities known) and adds them to the

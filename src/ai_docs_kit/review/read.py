@@ -109,7 +109,7 @@ def _exclude_reference(parts: WordText, section: str, index: int) -> None:
 
 
 def _exclude_references(sent: WordText, copy: WordText, composition: Composition) -> None:
-    """Identify generated references by style, or align their known positions in older copies."""
+    """Align each generated occurrence before considering style hints for edited reference text."""
     for section, (index, text) in reference_positions(composition).items():
         before = [_norm(p) for p in sent.paragraphs.get(section, [])]
         after = [_norm(p) for p in copy.paragraphs.get(section, [])]
@@ -117,16 +117,27 @@ def _exclude_references(sent: WordText, copy: WordText, composition: Composition
         if index >= len(before) or before[index] != expected:
             continue
         marked = copy.references.get(section, {})
-        edited_index = next(iter(marked), None)
-        if edited_index is None and not sent.references.get(section):
-            # The composition identifies one generated occurrence, even when body prose matches it.
-            for match in SequenceMatcher(None, before, after, autojunk=False).get_matching_blocks():
-                if match.a <= index < match.a + match.size:
-                    edited_index = match.b + index - match.a
-                    break
+        edited_index = None
+        alignment = SequenceMatcher(None, before, after, autojunk=False)
+        # A reference can lose its style, while new prose can inherit it.
+        for match in alignment.get_matching_blocks():
+            if match.a <= index < match.a + match.size:
+                edited_index = match.b + index - match.a
+                break
+        if edited_index is None:
             candidates = [i for i, value in enumerate(after) if value == expected]
-            if edited_index is None and len(candidates) == 1:
+            if len(candidates) == 1:
                 edited_index = candidates[0]
+        if edited_index is None:
+            for tag, start, end, edited_start, edited_end in alignment.get_opcodes():
+                if tag == "replace" and start <= index < end:
+                    candidates = [i for i in marked if edited_start <= i < edited_end]
+                    if len(candidates) == 1:
+                        edited_index = candidates[0]
+                    break
+        # Convert style hints into the single identified reference, leaving styled prose editable.
+        sent.references[section] = {}
+        copy.references[section] = {}
         if edited_index is not None:
             if after[edited_index] != expected:
                 copy.unplaced.append((section, copy.paragraphs[section][edited_index]))

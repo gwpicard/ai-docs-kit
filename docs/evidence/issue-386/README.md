@@ -42,3 +42,18 @@ paragraph insertions, deletions and splits, moved references, literal prose
 identical to a generated reference, and edited or cleared reference-only charts.
 The review-plan schema was regenerated with `export_review_schema` from
 `ai_docs_kit.review.plan`.
+
+## Reference style edits
+
+`tests/test_chart_word_reference_style_edits.py` builds, reads, applies and
+rebuilds each case below. It checks the revised prose, the data position, paragraph
+field anchors and the PDF, and requires no inserted prose to become unplaced.
+
+| Review edit | Rebuilt page |
+|---|---|
+| Reset the reference to Normal and edit opening prose | [Page 1](chart-review-reference-reset/p01.png) |
+| Insert prose before the reference with its style | [Page 1](chart-review-inherited-style/p01.png) |
+| Combine both style edits | [Page 1](chart-review-combined-styles/p01.png) |
+
+The generated occurrence is aligned against the stored copy before style hints
+are considered. A style shared with new prose cannot identify the reference.
