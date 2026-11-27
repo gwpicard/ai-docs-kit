@@ -74,8 +74,12 @@ def preview(path: Path | str, scratch: Path | str, theme: Path | str | None = No
     """
     path, scratch = Path(path), Path(scratch)
     resolved, destination = path.resolve(), scratch.resolve()
-    protected = (resolved.with_suffix(".versions"), resolved.parent / ".ai_docs_kit")
-    if resolved.is_relative_to(destination) or any(destination.is_relative_to(folder) for folder in protected):
+    # Builds and the oplog use the supplied working-file path, even when that
+    # file is a symlink. Resolve those stores as well as the scratch folder.
+    protected = (path.with_suffix(".versions").resolve(), (path.parent / ".ai_docs_kit").resolve())
+    if resolved.is_relative_to(destination) or any(
+        destination.is_relative_to(folder) or folder.is_relative_to(destination) for folder in protected
+    ):
         raise ValueError("scratch must be separate from the working file, oplog and versions")
     selected = load_theme(Path(theme) if theme is not None else resolve_theme(path).path)
     scratch.mkdir(parents=True, exist_ok=True)
