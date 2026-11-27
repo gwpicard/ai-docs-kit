@@ -1,17 +1,42 @@
 """Detect document text lost between the working file and either output."""
 
+import lzma
 import re
 from collections.abc import Iterator
+from pathlib import Path
 
 from docx import Document as WordDocument
+from docx.opc.exceptions import PackageNotFoundError
+from lxml import etree  # type: ignore[import-untyped]
 
 from ai_docs_kit.checks.engine import CheckContext, finding_key, make_finding, register, section_key
 from ai_docs_kit.facts.layout import LayoutFacts
 from ai_docs_kit.model import Finding, Provenance, Remedy, Rule, Section
 from ai_docs_kit.model.rules import Scope, Tier
+from ai_docs_kit.review.word_read import ARCHIVE_ERRORS
 from ai_docs_kit.source.parser import CITATION
 
 LINE_HYPHEN = re.compile(r"(?<=\w)[-\u2010\u00ad]\s*\n\s*(?=\w)")
+
+
+class WordCopyError(ValueError):
+    """The Word copy cannot be read for the text-presence check."""
+
+
+def _word_text(path: Path) -> str:
+    try:
+        document = WordDocument(str(path))
+        return _normalise("\n".join(paragraph.text for paragraph in document.paragraphs))
+    except (
+        PackageNotFoundError,
+        etree.XMLSyntaxError,
+        OSError,
+        ValueError,
+        KeyError,
+        *ARCHIVE_ERRORS,
+        lzma.LZMAError,
+    ) as error:
+        raise WordCopyError(f"{path}: cannot read Word copy ({error})") from error
 
 
 def _normalise(text: str) -> str:
@@ -66,8 +91,7 @@ class TextPresent:
             return []
         outputs = {"PDF": _pdf_text(ctx.facts)}
         if ctx.word_copy is not None:
-            document = WordDocument(str(ctx.word_copy))
-            outputs["Word copy"] = _normalise("\n".join(paragraph.text for paragraph in document.paragraphs))
+            outputs["Word copy"] = _word_text(ctx.word_copy)
         findings = []
         for index, section in enumerate(ctx.doc.sections):
             for field, raw in _blocks(section):
