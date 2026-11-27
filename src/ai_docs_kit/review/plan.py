@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ai_docs_kit.model.source import ContentField
 from ai_docs_kit.model.text import NonBlank
 
 
@@ -46,6 +47,10 @@ class SectionPlan(_Model):
     owner: Literal["human"] | None = Field(description="human when a reviewer wrote the wording.")
     items: list[str] | None = Field(
         default=None, description="The section's list items from the Word copy, in order; null when unchanged."
+    )
+    content_order: list[ContentField] | None = Field(
+        default=None,
+        description="The edited paragraph, item and data field order from a Word copy; null when unchanged.",
     )
     fields: dict[str, str] = Field(
         default_factory=dict, description="The applied text of each changed field, by field path (decks)."

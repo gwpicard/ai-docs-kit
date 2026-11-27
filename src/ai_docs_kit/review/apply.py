@@ -126,6 +126,7 @@ class _Decisions:
         self.wording: dict[str, str] = {}
         self.fields: dict[str, dict[str, str]] = {}
         self.items: dict[str, list[str]] = {}
+        self.content_order: dict[str, list[str]] = {}
         self.proposals: dict[str, str] = {}
         self.asks: dict[str, str] = {}
         for section_id, item in plan.sections.items():
@@ -137,6 +138,8 @@ class _Decisions:
                 self.fields[section_id] = item.fields
             if item.items is not None:
                 self.items[section_id] = item.items
+            if item.content_order is not None:
+                self.content_order[section_id] = item.content_order
             for comment in item.confirm:
                 if comment.accepted is not True:
                     continue
@@ -149,7 +152,11 @@ class _Decisions:
         return self.proposals.get(section_id, self.wording.get(section_id))
 
     def rewritten(self) -> list[str]:
-        return list(dict.fromkeys([*self.wording, *self.proposals, *self.fields, *self.items, *self.titles]))
+        return list(
+            dict.fromkeys(
+                [*self.wording, *self.proposals, *self.fields, *self.items, *self.titles, *self.content_order]
+            )
+        )
 
 
 def _accepted_structure(plan: ReviewPlan) -> list[StructureItem]:
@@ -262,6 +269,12 @@ def _changed_parts(
             parts.append("paragraphs")
         if "items" in props and _items_text(props["items"]) != _items_text(section.items):
             parts.append("items")
+        if (
+            section_id in decided.content_order
+            and "content_order" in props
+            and props["content_order"] != section.ordered_content()
+        ):
+            parts.append("content_order")
         for field in decided.fields.get(section_id, {}):
             target = _target(section, field)
             before, now = _field_text(props, target), _field_text(section, target)
@@ -287,6 +300,7 @@ def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[
         decided.wording.pop(section_id, None)
         decided.fields.pop(section_id, None)
         decided.items.pop(section_id, None)
+        decided.content_order.pop(section_id, None)
         decided.proposals.pop(section_id, None)
         decided.asks.pop(section_id, None)
     deletes = [s for s in deletes if s in by_id]
@@ -306,6 +320,8 @@ def apply_plan(path: Path, plan_path: Path) -> tuple[dict[str, list[str]], list[
             new = new.model_copy(update={"items": _items_for(new, decided.items[section_id])}, deep=True)
         for field, text in decided.fields.get(section_id, {}).items():
             new = _set_field(new, field, text)
+        if section_id in decided.content_order:
+            new = new.model_copy(update={"content_order": decided.content_order[section_id]}, deep=True)
         new.owner = "human"
         ops.append(PatchOp(op="replace_section", section_id=section_id, value=new))
         applied.append(section_id)

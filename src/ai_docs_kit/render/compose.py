@@ -120,6 +120,8 @@ def _compose_section(section: Section, fmt: Format, chooser: Chooser, index: int
     }
     if section.spoken is not None:
         props["spoken"] = section.spoken
+    if fmt == "doc" and (section.content_order or (section.paragraphs and (section.items or section.data is not None))):
+        props["content_order"] = section.ordered_content()
     component = _component(section, fmt, chooser, index, total)
     content = {
         "data": section.data,

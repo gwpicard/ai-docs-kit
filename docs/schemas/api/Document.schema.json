@@ -97,6 +97,14 @@
           "default": null,
           "title": "Component"
         },
+        "content_order": {
+          "items": {
+            "pattern": "^(?:(?:paragraphs|items)\\[[0-9]+\\]|data)$",
+            "type": "string"
+          },
+          "title": "Content Order",
+          "type": "array"
+        },
         "data": {
           "anyOf": [
             {
