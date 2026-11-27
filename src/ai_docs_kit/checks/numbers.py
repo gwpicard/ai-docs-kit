@@ -42,6 +42,20 @@ def cited_facts(facts: Sequence[Fact], citation: Citation) -> list[Fact]:
     return located or matching
 
 
+def _table_cells(section: Section) -> Iterator[tuple[str, str]]:
+    data = section.data or {}
+    columns = data.get("columns")
+    if isinstance(columns, list):
+        for column, cell in enumerate(columns):
+            yield f"data.columns[{column}]", str(cell)
+    rows = data.get("rows")
+    if isinstance(rows, list):
+        for row_index, row in enumerate(rows):
+            if isinstance(row, list):
+                for column, cell in enumerate(row):
+                    yield f"data.rows[{row_index}][{column}]", str(cell)
+
+
 def _claims(section: Section) -> Iterator[tuple[str | int, Sequence[str], list[Citation]]]:
     for index, item in enumerate(section.items):
         yield index, (item.head or "", item.body, *item.sub), item.citations
@@ -49,6 +63,7 @@ def _claims(section: Section) -> Iterator[tuple[str | int, Sequence[str], list[C
         ("title", section.title or ""),
         ("source_line", section.source_line or ""),
         *((f"paragraphs[{index}]", text) for index, text in enumerate(section.paragraphs)),
+        *_table_cells(section),
     ):
         citations = [
             Citation(key=match.group(1), locator=match.group(2).strip() if match.group(2) else None)
