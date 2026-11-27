@@ -1,8 +1,27 @@
-from typing import Any, Literal
+from collections.abc import Sequence
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
 Format = Literal["slides", "doc"]
+ContentField = Annotated[str, Field(pattern=r"^(?:(?:paragraphs|items)\[[0-9]+\]|data)$")]
+
+
+def content_fields(paragraphs: int, items: int, data: bool, order: Sequence[str] = ()) -> list[str]:
+    """Resolve recorded field order, retaining new fields and ignoring removed or repeated ones.
+
+    Older sections have no order and keep the serialiser's items, paragraphs, data fallback.
+    """
+    fields = [*[f"items[{i}]" for i in range(items)], *[f"paragraphs[{i}]" for i in range(paragraphs)]]
+    if data:
+        fields.append("data")
+    available = set(fields)
+    result = []
+    for field in [*order, *fields]:
+        if field in available:
+            result.append(field)
+            available.remove(field)
+    return result
 
 
 class Source(BaseModel):
@@ -36,6 +55,7 @@ class Section(BaseModel):
     title: str | None = None
     items: list[Item] = Field(default_factory=list)
     paragraphs: list[str] = Field(default_factory=list)
+    content_order: list[ContentField] = Field(default_factory=list)
     code: list[str] = Field(default_factory=list)
     note: str | None = None
     spoken: str | None = None
@@ -44,6 +64,10 @@ class Section(BaseModel):
     image: str | None = None
     icons: list[str] = Field(default_factory=list)
     extra_attrs: dict[str, str] = Field(default_factory=dict)
+
+    def ordered_content(self) -> list[str]:
+        """Return paragraph, item and data field paths in working-file order."""
+        return content_fields(len(self.paragraphs), len(self.items), self.data is not None, self.content_order)
 
 
 class Document(BaseModel):

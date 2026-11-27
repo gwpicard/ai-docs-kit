@@ -2,6 +2,7 @@
 
 #import "/lib/marks.typ": section, el, el-full-width
 #import "/lib/theme.typ": colour, type-style, space
+#import "/lib/doc-content.typ": doc-content, doc-list-item
 
 #let chart-table(sec) = section(sec.id, {
   let table = sec.chart.table
@@ -12,35 +13,37 @@
     sec.title
   })
   set text(..type-style("doc", "body"))
-  if table == none {
-    [chart type not supported]
-  } else {
-    let columns = table.columns
-    el-full-width("figure", sec.id, layout(size => {
-      let widths = (size.width / columns.len(),) * columns.len()
-      let align-of = c => if c == 0 { left } else { right }
-      let cell-pad = space(1)
-      stack(
-        grid(
-          columns: widths,
-          inset: (y: cell-pad),
-          ..columns.enumerate().map(((j, name)) => {
-            let field = if j == 0 { if name != "" { "data.category_label" } else { none } } else { "data.series[" + str(j - 1) + "].name" }
-            align(align-of(j), el("table-header", sec.id, field: field, width: widths.at(j), text(weight: "bold", name)))
-          }),
-        ),
-        line(length: size.width, stroke: 0.5pt + colour("hairline")),
-        grid(
-          columns: widths,
-          inset: (y: cell-pad),
-          ..table.rows.enumerate().map(((i, row)) => row.enumerate().map(((j, cell)) => {
-            let field = if j == 0 { "data.categories[" + str(i) + "]" } else { "data.series[" + str(j - 1) + "].values[" + str(i) + "]" }
-            align(align-of(j), el("table-cell", sec.id, field: field, width: widths.at(j), cell))
-          })).flatten(),
-        ),
-      )
-    }))
-  }
+  doc-content(sec, draw-item: i => doc-list-item(sec, i), draw-data: () => {
+    if table == none {
+      [chart type not supported]
+    } else {
+      let columns = table.columns
+      el-full-width("figure", sec.id, layout(size => {
+        let widths = (size.width / columns.len(),) * columns.len()
+        let align-of = c => if c == 0 { left } else { right }
+        let cell-pad = space(1)
+        stack(
+          grid(
+            columns: widths,
+            inset: (y: cell-pad),
+            ..columns.enumerate().map(((j, name)) => {
+              let field = if j == 0 { if name != "" { "data.category_label" } else { none } } else { "data.series[" + str(j - 1) + "].name" }
+              align(align-of(j), el("table-header", sec.id, field: field, width: widths.at(j), text(weight: "bold", name)))
+            }),
+          ),
+          line(length: size.width, stroke: 0.5pt + colour("hairline")),
+          grid(
+            columns: widths,
+            inset: (y: cell-pad),
+            ..table.rows.enumerate().map(((i, row)) => row.enumerate().map(((j, cell)) => {
+              let field = if j == 0 { "data.categories[" + str(i) + "]" } else { "data.series[" + str(j - 1) + "].values[" + str(i) + "]" }
+              align(align-of(j), el("table-cell", sec.id, field: field, width: widths.at(j), cell))
+            })).flatten(),
+          ),
+        )
+      }))
+    }
+  })
   if source-line != "" {
     el-full-width("figure-source", sec.id, field: "source_line", {
       set text(..type-style("doc", "caption"), fill: colour("muted"))

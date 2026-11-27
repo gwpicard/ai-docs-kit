@@ -5,9 +5,11 @@ import json
 import re
 import sys
 from collections import Counter
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from ai_docs_kit.render.compose import Composition
+from ai_docs_kit.render.word import LABELS, reference_positions
 from ai_docs_kit.review.apply import add_apply_command, run_apply
 from ai_docs_kit.review.plan import (
     CommentItem,
@@ -84,13 +86,69 @@ def _version_for(folder: Path, copy: Path) -> tuple[int, Path, Warning | None]:
     return number, found[number], warning
 
 
-def _body_text(sent: WordText, copy: WordText, section: str, source_line: str) -> tuple[str, str]:
+def _body_content(
+    sent: WordText, copy: WordText, section: str, source_line: str
+) -> tuple[str, str, list[str], list[str]]:
     before, after = sent.paragraphs.get(section, []), copy.paragraphs.get(section, [])
+    order_before = list(sent.content_order.get(section, []))
+    order_after = list(copy.content_order.get(section, []))
     source = _norm(strip_xml_illegal(source_line))
     if source and before and after and _norm(before[-1]) == _norm(after[-1]) == source:
         # The Word writer appends the source after the body. Keep any identical body paragraphs.
+        order_before = [field for field in order_before if field != f"paragraphs[{len(before) - 1}]"]
+        order_after = [field for field in order_after if field != f"paragraphs[{len(after) - 1}]"]
         before, after = before[:-1], after[:-1]
-    return "\n\n".join(before), "\n\n".join(after)
+    return "\n\n".join(before), "\n\n".join(after), order_before, order_after
+
+
+def _exclude_reference(parts: WordText, section: str, index: int) -> None:
+    """Keep the generated reference's data position outside editable body wording."""
+    text = parts.paragraphs[section].pop(index)
+    parts.references.setdefault(section, {})[index] = text
+    order = []
+    for field in parts.content_order.get(section, []):
+        if field.startswith("paragraphs["):
+            number = int(field[11:-1])
+            field = "data" if number == index else f"paragraphs[{number - (number > index)}]"
+        order.append(field)
+    parts.content_order[section] = order
+
+
+def _exclude_references(sent: WordText, copy: WordText, composition: Composition) -> None:
+    """Align each generated occurrence before considering style hints for edited reference text."""
+    for section, (index, text) in reference_positions(composition).items():
+        before = [_norm(p) for p in sent.paragraphs.get(section, [])]
+        after = [_norm(p) for p in copy.paragraphs.get(section, [])]
+        expected = _norm(text)
+        if index >= len(before) or before[index] != expected:
+            continue
+        marked = copy.references.get(section, {})
+        edited_index = None
+        alignment = SequenceMatcher(None, before, after, autojunk=False)
+        # A reference can lose its style, while new prose can inherit it.
+        for match in alignment.get_matching_blocks():
+            if match.a <= index < match.a + match.size:
+                edited_index = match.b + index - match.a
+                break
+        if edited_index is None:
+            candidates = [i for i, value in enumerate(after) if value == expected]
+            if len(candidates) == 1:
+                edited_index = candidates[0]
+        if edited_index is None:
+            for tag, start, end, edited_start, edited_end in alignment.get_opcodes():
+                if tag == "replace" and start <= index < end:
+                    candidates = [i for i in marked if edited_start <= i < edited_end]
+                    if len(candidates) == 1:
+                        edited_index = candidates[0]
+                    break
+        # Convert style hints into the single identified reference, leaving styled prose editable.
+        sent.references[section] = {}
+        copy.references[section] = {}
+        if edited_index is not None:
+            if after[edited_index] != expected:
+                copy.unplaced.append((section, copy.paragraphs[section][edited_index]))
+            _exclude_reference(copy, section, edited_index)
+        _exclude_reference(sent, section, index)
 
 
 def _items(parts: WordText, section: str) -> list[str]:
@@ -108,17 +166,23 @@ def build_plan(
     structure: list[StructureItem] = []
     changed = False
     for section in sent.order:
-        before, after = _body_text(sent, copy, section, (source_lines or {}).get(section, ""))
+        before, after, order_before, order_after = _body_content(
+            sent, copy, section, (source_lines or {}).get(section, "")
+        )
         title_before, title_after = sent.titles.get(section, ""), copy.titles.get(section, "")
         listed_before, listed_after = _items(sent, section), _items(copy, section)
         item = SectionPlan(title=None, wording=None, owner=None)
         present = _present(copy, section)
         # A retained source still counts as section content when all body wording was cleared.
-        has_content = bool(title_after or copy.paragraphs.get(section) or listed_after)
+        references_before = sent.references.get(section, {})
+        references_after = copy.references.get(section, {})
+        has_content = bool(title_after or copy.paragraphs.get(section) or listed_after or references_after)
         if present and title_before and not title_after.strip():
             raise ReadError(f"{section}: the section title cannot be blank")
-        if (title_before or before or listed_before) and not has_content:
-            text = "\n\n".join([p for p in (title_before, before, "\n".join(listed_before)) if p])
+        if (title_before or before or listed_before or references_before) and not has_content:
+            text = "\n\n".join(
+                p for p in (title_before, before, "\n".join(listed_before), *references_before.values()) if p
+            )
             structure.append(StructureItem(kind="delete", section=section, text=text))
         elif present:
             if _norm(title_before) != _norm(title_after):
@@ -127,6 +191,10 @@ def build_plan(
                 item.wording, item.owner = after, "human"
         if present and has_content and listed_before != listed_after:
             item.items, item.owner = list(copy.items.get(section, [])), "human"
+        if present and has_content and order_before != order_after:
+            item.content_order, item.owner = order_after, "human"
+            if before != after:
+                item.wording = after
         seen = Counter((e[0], _norm(e[1]), e[2]) for e in sent.emphasis.get(section, []))
         for kind, text, value in copy.emphasis.get(section, []):
             key = (kind, _norm(text), value)
@@ -136,7 +204,11 @@ def build_plan(
                 item.emphasis.append(Emphasis(kind=kind, text=_norm(text), value=value))  # type: ignore[arg-type]
         sections[section] = item
         changed = changed or bool(
-            item.title is not None or item.wording is not None or item.emphasis or item.items is not None
+            item.title is not None
+            or item.wording is not None
+            or item.emphasis
+            or item.items is not None
+            or item.content_order is not None
         )
     placed = [s for s in sent.order if _present(copy, s)]
     order = [s for s in copy.order if s in placed]
@@ -263,6 +335,8 @@ def summary(plan: ReviewPlan, path: Path) -> list[str]:
             parts.append("wording changed")
         if item.items is not None:
             parts.append("list items changed")
+        if item.content_order is not None:
+            parts.append("content reordered")
         if item.confirm:
             parts.append(f"{len(item.confirm)} comment(s)")
         if item.emphasis:
@@ -296,13 +370,15 @@ def run_review(args: argparse.Namespace) -> int:
             plan = build_deck_plan(sent_deck, read_deck(copy, set(sent_deck.order)), number, copy.name)
         else:
             sent = read_word(sent_file)
+            reviewed = read_word(copy, set(sent.order))
             composition = Composition.model_validate_json((directory / "composition.json").read_bytes())
+            _exclude_references(sent, reviewed, composition)
             source_lines = {
                 section.id: source
                 for section in composition.sections
-                if isinstance(source := section.props.get("source_line"), str)
+                if section.component not in LABELS and isinstance(source := section.props.get("source_line"), str)
             }
-            plan = build_plan(sent, read_word(copy, set(sent.order)), number, copy.name, source_lines)
+            plan = build_plan(sent, reviewed, number, copy.name, source_lines)
         if assumed:
             plan.warnings.append(assumed)
         path = directory / PLAN_NAME
