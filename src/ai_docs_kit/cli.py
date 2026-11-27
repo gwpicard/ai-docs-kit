@@ -123,6 +123,10 @@ def _build(file: Path, out: Path, theme: Theme, *, final: bool = False, json_out
 
 def _gate_report(reasons: list[str]) -> int:
     for reason in reasons:
+        if reason == "not fully looked at":
+            reason = "no engine page pass"
+        elif reason.startswith("not fully looked at: "):
+            reason = reason.replace("not fully looked at: ", "incomplete engine page pass: ", 1)
         print(f"not ready: {reason}")
     if not reasons:
         print("gate: passed")
@@ -226,7 +230,7 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         return 2
     record = version.manifest.look
     if record is None:
-        print(f"{version_dir}: no look record; the engine's look has not run", file=sys.stderr)
+        print(f"{version_dir}: no look record; the engine page pass has not run", file=sys.stderr)
         return 2
     merged = list(record.agent or [])
     added = 0
@@ -238,8 +242,8 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         update_manifest(version_dir, look=record.model_copy(update={"agent": merged}))
     print(f"recorded {added} findings")
     errors = version.manifest.findings.error + sum(f.severity == "error" for f in merged)
-    unlooked = "; ".join(record.could_not) or "none"
-    print(f"open errors: {errors}, pages not looked at: {unlooked}")
+    unchecked = "; ".join(record.could_not) or "none"
+    print(f"open errors: {errors}, engine page pass could not check: {unchecked}")
     return 0
 
 

@@ -53,10 +53,22 @@ def test_D1_final_build_reports_gap_and_clean_gate(tmp_path, capsys):
     assert any(line.startswith("not ready: ") and line.endswith("error findings") for line in out.splitlines())
     assert manifest(version)["final"] is True
     (code, out, _), version = build(tmp_path / "clean", capsys)
-    assert code == 0, out
-    assert out.splitlines() == [str(tmp_path / "clean" / "out" / "deck.pdf"), str(version), "gate: passed"]
+    assert code == 1, out
+    assert out.splitlines() == [
+        str(tmp_path / "clean" / "out" / "deck.pdf"),
+        str(version),
+        "not ready: not looked at by the look agent",
+    ]
     assert manifest(version)["look"]["could_not"] == []
     assert manifest(version)["look"]["tiers"]["semantic"] == "skipped"
+    findings = tmp_path / "clean" / "findings.json"
+    findings.write_text("[]")
+    code, out, err = run(["look", str(version), "--findings", str(findings)], capsys)
+    assert code == 0 and err == "", out
+    from ai_docs_kit.store import load_version
+
+    assert cli._gate_report(gate.ship_gate(load_version(version))) == 0
+    assert capsys.readouterr().out.splitlines() == ["gate: passed"]
 
 
 def test_D2_ship_gate_evidence_and_reason_order(tmp_path, capsys):
