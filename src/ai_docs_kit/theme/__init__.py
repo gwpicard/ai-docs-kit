@@ -22,7 +22,11 @@ class ThemeResolution(NamedTuple):
 def resolve_theme(path: Path) -> ThemeResolution:
     """Choose a working file's theme, relative to that file rather than the caller."""
     path = path.absolute()
-    doc, _ = parse(read_source(path))
+    try:
+        text = read_source(path)
+    except UnicodeDecodeError as error:
+        raise ThemeError(f"{path}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
+    doc, _ = parse(text)
     root = default_root(path.parent)
     brands: dict[str, Path] = {}
     for entry in sorted(root.iterdir()) if root.is_dir() else []:
