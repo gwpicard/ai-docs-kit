@@ -38,7 +38,20 @@
   let field = "items[" + str(i) + "]"
   let citations = sec.at("citations", default: ()).at(i, default: ())
   list.item({
-    el-full-width("list-item", sec.id, field: field, [#if item.head != "" { [#text(weight: "bold", item.head) ] }#item.body#if citations.len() > 0 { [ #cite-keys(citations)] }])
+    if item.head != "" and item.body.trim() != "" {
+      layout(size => {
+        // Reserve the wrapped head and the start of its body, then draw inline as before.
+        let start = [#text(weight: "bold", item.head) #item.body.split().first()]
+        let reserve = measure(block(width: size.width, start)).height
+        block(height: reserve, breakable: false, sticky: true, above: 0pt, below: 0pt)
+        v(-reserve)
+      })
+    }
+    {
+      // The reservation has already supplied the item's leading block spacing.
+      set block(above: 0pt)
+      el-full-width("list-item", sec.id, field: field, [#if item.head != "" { [#text(weight: "bold", item.head) ] }#item.body#if citations.len() > 0 { [ #cite-keys(citations)] }])
+    }
     for (j, sub) in item.at("sub", default: ()).enumerate() {
       list.item(el-full-width("list-sub", sec.id, field: field + ".sub[" + str(j) + "]", sub))
     }
