@@ -10,10 +10,10 @@
 } else {
   section(sec.id, {
     set text(fill: colour("ink"))
-    el-full-width("heading", sec.id, field: "title", {
+    block(sticky: true, breakable: false, el-full-width("heading", sec.id, field: "title", {
       set text(..type-style("doc", "h2"))
       sec.title
-    })
+    }))
     set text(..type-style("doc", "body"))
     doc-content(sec, draw-item: i => doc-list-item(sec, i), draw-data: () => {
       el-full-width("figure", sec.id, layout(size => {
