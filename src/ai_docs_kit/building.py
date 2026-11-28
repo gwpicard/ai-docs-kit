@@ -32,6 +32,7 @@ class _Built(NamedTuple):
     main: Path
     pdf: Path
     comp: Composition
+    source: bytes | None = None
 
 
 class _BuildFailed(ValueError):
@@ -67,12 +68,13 @@ def _draw(file: Path, out: Path, doc: Document, findings: list[Finding], comp: C
 
 
 def _render(file: Path, out: Path, theme: Theme) -> _Built:
-    doc, findings = _parse(file)
+    source = file.read_bytes()
+    doc, findings = _parse(file, reader=lambda _: source.decode("utf-8-sig"))
     try:
         comp = compose(doc, assets=[file.parent / "assets", theme.root / "assets"])
     except ComposeError as error:
         raise _BuildFailed(str(error)) from error
-    return _draw(file, out, doc, findings, comp, theme)
+    return _draw(file, out, doc, findings, comp, theme)._replace(source=source)
 
 
 def _line(finding: Finding) -> str:
@@ -235,6 +237,7 @@ def build_document(
             sheet=sheet,
             pptx=pptx,
             docx=docx,
+            source=built.source,
         )
     except OSError as error:
         raise _BuildFailed(f"Cannot write version: {error}") from error

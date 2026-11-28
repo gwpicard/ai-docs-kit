@@ -216,6 +216,43 @@ def inverse_ops(
     return inverse
 
 
+def restore_ops(before: Document, after: Document) -> list[PatchOp]:
+    """Diff saved sections using only operations with recorded inverses."""
+    for doc in (before, after):
+        ids = [section.id for section in doc.sections]
+        if any(key is None for key in ids) or len(set(ids)) != len(ids):
+            raise PatchRejected("invalid-section", "restore requires unique section ids")
+    desired = {section.id: section for section in after.sections}
+    sections = list(before.sections)
+    ops: list[PatchOp] = []
+    for section in before.sections:
+        target = desired.get(section.id)
+        if target is None or _changed(section, target, IDENTITY_FIELDS):
+            assert section.id is not None
+            ops.append(PatchOp(op="delete_section", section_id=section.id))
+            sections.remove(section)
+    for index, section in enumerate(after.sections):
+        assert section.id is not None
+        if index < len(sections) and sections[index].id == section.id:
+            value = section.model_copy(update={"lock": sections[index].lock})
+            if sections[index] != value:
+                ops.append(PatchOp(op="replace_section", section_id=section.id, value=value))
+        else:
+            prior = next((s for s in sections if s.id == section.id), None)
+            if prior is not None:
+                # move_section has no recorded inverse; delete and reinsert instead.
+                ops.append(PatchOp(op="delete_section", section_id=section.id))
+                sections.remove(prior)
+            anchor = after.sections[index - 1].id if index else None
+            value = section.model_copy(update={"lock": None})
+            ops.append(PatchOp(op="insert_after", section_id=section.id, after_id=anchor, value=value))
+            sections.insert(index, section)
+        if value.lock != section.lock:
+            # Undo restores this lock first, before replacing or deleting the section.
+            ops.append(PatchOp(op="set_fields", section_id=section.id, fields={"lock": section.lock}))
+    return ops
+
+
 def diff_ops(before: Document, after: Document) -> list[PatchOp]:
     """Describe section changes and ordering in terms of patch operations."""
     old = {s.id: s for s in before.sections if s.id is not None}
