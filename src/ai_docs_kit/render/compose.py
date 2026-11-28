@@ -1,5 +1,6 @@
 import hashlib
 import shutil
+from datetime import date
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,7 @@ M1_COMPONENTS: dict[tuple[Format, str], str] = {
 }
 
 
-CHART_COMPONENTS: frozenset[str] = frozenset({"chart", "chart-table"})
+CHART_COMPONENTS: frozenset[str] = frozenset({"chart", "doc-chart", "chart-table"})
 
 
 class ComposeError(ValueError):
@@ -41,6 +42,33 @@ class ComposedSection(BaseModel):
 class Composition(BaseModel):
     format: Format
     sections: list[ComposedSection]
+    front: dict[str, str] = Field(default_factory=dict)
+    version_date: date | None = None
+
+
+def build_date() -> date:
+    """Return the local calendar date for a new build."""
+    return date.today()
+
+
+def _british_date(day: date | None) -> str:
+    if day is None:
+        return ""
+    months = (
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    )
+    return f"{day.day} {months[day.month - 1]} {day.year}"
 
 
 @cache
@@ -92,6 +120,8 @@ def _compose_section(section: Section, fmt: Format, chooser: Chooser, index: int
     }
     if section.spoken is not None:
         props["spoken"] = section.spoken
+    if fmt == "doc" and (section.content_order or (section.paragraphs and (section.items or section.data is not None))):
+        props["content_order"] = section.ordered_content()
     component = _component(section, fmt, chooser, index, total)
     content = {
         "data": section.data,
@@ -124,11 +154,22 @@ def compose(doc: Document, chooser: Chooser | None = None, *, assets: list[Path]
     if assets is not None:
         for section, composed in zip(doc.sections, sections, strict=True):
             composed.image_path = _resolve_image(section.image, assets)
-    return Composition(format=doc.format, sections=sections)
+    front = {key: value for key in ("title", "audience") if isinstance(value := doc.front.get(key), str)}
+    return Composition(
+        format=doc.format,
+        sections=sections,
+        front=front,
+        version_date=build_date() if doc.format == "doc" and front.get("title", "").strip() else None,
+    )
 
 
 def _main_typ(comp: Composition) -> str:
     lines = ['#import "/lib/theme.typ": colour, page-setup']
+    if comp.format == "doc" and comp.front.get("title", "").strip():
+        lines += [
+            '#import "/lib/theme.typ": doc-title-block',
+            '#import "/lib/marks.typ": el-full-width',
+        ]
     for name in dict.fromkeys(s.component for s in comp.sections):
         lines.append(f'#import "/components/{name}.typ": {name}')
     lines += [
@@ -140,6 +181,11 @@ def _main_typ(comp: Composition) -> str:
         "",
         '#let comp = json("/composition.json")',
     ]
+    if comp.format == "doc" and comp.front.get("title", "").strip():
+        front_id = "front"
+        while front_id in {section.id for section in comp.sections}:
+            front_id += "_"
+        lines.append(f'#doc-title-block(comp.front, "{_british_date(comp.version_date)}", el-full-width, "{front_id}")')
     for i, section in enumerate(comp.sections):
         if i > 0 and comp.format == "slides":
             lines.append("#pagebreak()")

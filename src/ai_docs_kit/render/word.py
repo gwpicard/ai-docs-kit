@@ -4,11 +4,13 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document as WordDocument
+from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import RGBColor
 
 from ai_docs_kit.bookmark_names import bookmark_name, is_hashed
+from ai_docs_kit.model.source import content_fields
 from ai_docs_kit.render.compose import ComposedSection, Composition
 from ai_docs_kit.store.stamp import add_docx_properties
 from ai_docs_kit.theme import Theme
@@ -16,12 +18,14 @@ from ai_docs_kit.xml_text import strip_xml_illegal
 
 LABELS = {
     "chart": "Chart",
+    "doc-chart": "Chart",
     "chart-table": "Chart",
     "table": "Table",
     "full-image": "Figure",
     "image-with-text": "Figure",
 }
 THEME_ATTRIBUTES = ("asciiTheme", "hAnsiTheme", "eastAsiaTheme", "cstheme")
+REFERENCE_STYLE = "Document Reference"
 
 
 def _style(document: Any, name: str, family: str, colour: str) -> None:
@@ -45,16 +49,46 @@ def _item_text(item: dict[str, Any]) -> str:
 def _lines(section: ComposedSection, numbers: dict[str, int]) -> list[tuple[str, str]]:
     """The (style, text) lines of one section; a chart, table or figure is one numbered line."""
     label = LABELS.get(section.component)
+    props = section.props
+    reference = None
     if label:
         numbers[label] = numbers.get(label, 0) + 1
-        return [("Normal", f"[{label} {numbers[label]}: {section.props['title']}]")]
-    props = section.props
-    lines = [("Heading 1", props["title"])] if props["title"] else []
-    lines += [("Normal", text) for text in props["paragraphs"]]
-    lines += [("List Bullet", _item_text(item)) for item in props["items"]]
-    if props["source_line"]:
+        reference = (REFERENCE_STYLE, f"[{label} {numbers[label]}: {props['title']}]")
+        if not props.get("content_order"):
+            return [reference]
+    lines = [("Heading 1", props["title"])] if props["title"] and not label else []
+    # Older compositions retain their original paragraphs-first Word order.
+    fallback = [
+        *[f"paragraphs[{i}]" for i in range(len(props["paragraphs"]))],
+        *[f"items[{i}]" for i in range(len(props["items"]))],
+    ]
+    order = content_fields(
+        len(props["paragraphs"]), len(props["items"]), bool(label), props.get("content_order", fallback)
+    )
+    for field in order:
+        if field == "data" and reference:
+            lines.append(reference)
+        elif field.startswith("paragraphs["):
+            lines.append(("Normal", props["paragraphs"][int(field[11:-1])]))
+        elif field.startswith("items["):
+            lines.append(("List Bullet", _item_text(props["items"][int(field[6:-1])])))
+    if props["source_line"] and not label:
         lines.append(("Normal", props["source_line"]))
     return lines
+
+
+def reference_positions(comp: Composition) -> dict[str, tuple[int, str]]:
+    """Locate generated references among ordinary paragraphs, including copies predating the reference style."""
+    positions = {}
+    numbers: dict[str, int] = {}
+    for section in comp.sections:
+        index = 0
+        for style, text in _lines(section, numbers):
+            if style == REFERENCE_STYLE:
+                positions[section.id] = (index, strip_xml_illegal(text))
+            if style in ("Normal", REFERENCE_STYLE):
+                index += 1
+    return positions
 
 
 def _bookmark(tag: str, number: int, name: str | None = None) -> Any:
@@ -75,6 +109,8 @@ def write_docx(path: Path, *, comp: Composition, theme: Theme) -> Path:
     _style(document, "Normal", families[scale["body"].family], roles["ink"])
     _style(document, "List Bullet", families[scale["body"].family], roles["ink"])
     _style(document, "Heading 1", families[scale["h1"].family], roles["ink"])
+    reference_style = document.styles.add_style(REFERENCE_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+    reference_style.base_style = document.styles["Normal"]
     numbers: dict[str, int] = {}
     stored: dict[str, str] = {}
     for number, section in enumerate(comp.sections, 1):

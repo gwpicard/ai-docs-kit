@@ -1,12 +1,15 @@
 """Section commands and the gathered facts that support their patch guards."""
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from ai_docs_kit.loop.guards import FactGuard, _fields
 from ai_docs_kit.model import Document, Patch, PatchOp, Section
-from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev
+from ai_docs_kit.render.components import ManifestError, all_manifests, capacity_excesses
+from ai_docs_kit.render.compose import component_for
+from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev, project_lock
 from ai_docs_kit.source.ids import IdStore
 from ai_docs_kit.source.parser import parse
 from ai_docs_kit.source.patches import PatchRejected
@@ -18,6 +21,8 @@ from ai_docs_kit.store.gathered import (
     gathered_facts_path,
     read_gathered_facts,
 )
+from ai_docs_kit.theme import ThemeError, load_theme, neutral_theme
+from ai_docs_kit.theme.voice import load_voice
 
 
 class _Refused(Exception):
@@ -33,13 +38,21 @@ def add_section_commands(subparsers: argparse._SubParsersAction) -> None:  # typ
     commands = section.add_subparsers(dest="section_command", required=True)
     listing = commands.add_parser("list", help="print every section id with its intent, owner and redraft ask")
     listing.add_argument("file", type=Path, help="the working file")
+    listing.add_argument("--json", action="store_true", help="print the document as JSON")
     get = commands.add_parser("get", help="print one section with the sources it cites")
     get.add_argument("file", type=Path, help="the working file")
     get.add_argument("id", help="the section id")
+    brief = commands.add_parser("brief", help="print one section's voice rules and component capacity limits")
+    brief.add_argument("file", type=Path, help="the working file")
+    brief.add_argument("id", help="the section id")
+    brief.add_argument("--theme", type=Path, default=None, help="theme folder (default: the neutral theme)")
+    brief.add_argument("--json", action="store_true", help="print the brief as one JSON object")
     put = commands.add_parser("put", help="replace one section through the patch guards")
     put.add_argument("file", type=Path, help="the working file")
     put.add_argument("id", help="the section id")
     put.add_argument("--from", dest="source", type=Path, required=True, help="a file holding the new section block")
+    put.add_argument("--base-rev", type=int, default=None, help="refuse if the document is no longer at this revision")
+    put.add_argument("--json", action="store_true", help="print the new revision and section id as JSON")
     put.add_argument(
         "--redraft-done",
         action="store_true",
@@ -61,7 +74,9 @@ def run_facts(args: argparse.Namespace) -> int:
     try:
         doc = _load(args.file)
         if args.facts_command == "add":
-            added = add_gathered_facts(args.file, args.facts, {s.key for s in doc.sources})
+            added, warnings = add_gathered_facts(args.file, args.facts, {s.key: s.text for s in doc.sources})
+            for warning in warnings:
+                print(warning, file=sys.stderr)
             print(f"added {added} gathered facts")
         else:
             for fact in read_gathered_facts(gathered_facts_path(args.file), missing_ok=True):
@@ -69,7 +84,8 @@ def run_facts(args: argparse.Namespace) -> int:
                 print(" ".join(f"[{citation}] {fact.text}".split()))
         return 0
     except (_Refused, GatheredFactsError, OSError) as error:
-        print(" ".join(str(error).split()), file=sys.stderr)
+        for line in str(error).splitlines():
+            print(" ".join(line.split()), file=sys.stderr)
         return 2
 
 
@@ -116,6 +132,52 @@ def _get(doc: Document, section_id: str) -> int:
     return 0
 
 
+def _brief(doc: Document, args: argparse.Namespace) -> int:
+    section = _find(doc, args.id)
+    theme = neutral_theme() if args.theme is None else load_theme(args.theme)
+    voice = load_voice(theme)
+    component = component_for(section, doc.format, doc.sections.index(section), len(doc.sections))
+    manifest = all_manifests().get(component) if component is not None else None
+    summary = voice.summary.get(doc.format, "")
+    capacity = manifest.capacity if manifest is not None else {}
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "section": section.id,
+                    "intent": section.intent,
+                    "format": doc.format,
+                    "component": component,
+                    "voice": summary,
+                    "banned": voice.banned,
+                    "terminology": [term.model_dump(mode="json") for term in voice.terminology],
+                    "capacity": capacity,
+                },
+                ensure_ascii=False,
+            )
+        )
+    else:
+        print(f"Section: {section.id}")
+        print(f"Intent: {section.intent}")
+        print(f"Format: {doc.format}")
+        print(f"Component: {component or 'none'}")
+        print(f"Voice: {summary}")
+        print(
+            'Wording quoted from a source keeps its own form, including contractions such as "don\'t know", '
+            "even where the brand's voice avoids them."
+        )
+        print("Banned:")
+        for term in voice.banned:
+            print(f"- {term}")
+        print("Terminology:")
+        for entry in voice.terminology:
+            print(f"- {entry.preferred}: replaces {', '.join(entry.avoid)}")
+        print("Capacity:")
+        for measure, (low, high) in capacity.items():
+            print(f"- {measure}: {low} to {high}")
+    return 0
+
+
 def _replacement(path: Path) -> Section:
     if not path.is_file():
         raise _Refused(f"{path}: no such file", 2)
@@ -133,6 +195,11 @@ def _check_may_replace(old: Section) -> None:
 
 
 def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
+    store = path.parent / ".ai_docs_kit"
+    oplog = store / "oplog.jsonl"
+    revision = current_rev(oplog)
+    if args.base_rev is not None and args.base_rev != revision:
+        raise _Refused(f"document is at rev {revision}, not {args.base_rev}; read it again")
     old = _find(doc, args.id)
     _check_may_replace(old)
     new = _replacement(args.source)
@@ -146,35 +213,57 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
     evidence.extend(v for v in doc.front.values() if isinstance(v, str))
     evidence.extend(_fields(old))
     evidence.extend(fact.text for fact in read_gathered_facts(gathered_facts_path(path), missing_ok=True))
-    guard = FactGuard(evidence, {s.key for s in doc.sources})
-    store = path.parent / ".ai_docs_kit"
-    oplog = store / "oplog.jsonl"
+    guard = FactGuard(
+        evidence,
+        {s.key for s in doc.sources},
+        document_counts={"source": len(doc.sources), "section": len(doc.sections)},
+    )
     patch = Patch(
-        base_rev=current_rev(oplog),
+        base_rev=revision,
         author="ai",
         reason="section put" + (" (redraft done)" if args.redraft_done else ""),
         ops=[PatchOp(op="replace_section", section_id=args.id, value=new)],
     )
+    component = component_for(new, doc.format, doc.sections.index(old), len(doc.sections))
+    manifest = all_manifests().get(component) if component is not None else None
+    excesses = capacity_excesses(new, manifest) if manifest is not None else []
     try:
-        apply_to_file(path, patch, oplog, IdStore(store / "ids.json"), guard)
+        result = apply_to_file(path, patch, oplog, IdStore(store / "ids.json"), guard)
     except PatchRejected as error:
         detail = f" ({', '.join(guard.unsupported)})" if error.code == "fact-unsupported" else ""
         raise _Refused(f"{error}{detail}") from error
-    print(f"replaced section {args.id}")
+    for measure, value, maximum in excesses:
+        print(
+            f"warning source.capacity {args.id} {measure} value {value} exceeds maximum {maximum} "
+            f"for component {component}",
+            file=sys.stderr,
+        )
+    if args.json:
+        print(json.dumps({"rev": result.rev, "section_id": args.id}))
+    else:
+        print(f"replaced section {args.id}")
     return 0
 
 
 def run_section(args: argparse.Namespace) -> int:
     try:
+        if args.section_command == "put":
+            with project_lock(args.file.parent / ".ai_docs_kit"):
+                return _put(args.file, _load(args.file), args)
         doc = _load(args.file)
         if args.section_command == "list":
+            if args.json:
+                from ai_docs_kit.api import read_document
+
+                print(read_document(args.file).model_dump_json())
+                return 0
             return _list(doc)
         if args.section_command == "get":
             return _get(doc, args.id)
-        return _put(args.file, doc, args)
+        return _brief(doc, args)
     except _Refused as error:
-        print(error, file=sys.stderr)
+        print(" ".join(str(error).split()), file=sys.stderr)
         return error.code
-    except GatheredFactsError as error:
+    except (GatheredFactsError, ThemeError, ManifestError, OSError, ValueError) as error:
         print(" ".join(str(error).split()), file=sys.stderr)
         return 2

@@ -71,6 +71,20 @@ After the outline is agreed and its working file has a source list, the skill sa
 facts with `ai-docs-kit facts add <name>.md <facts.json>`. The input is the gather agent's `facts`
 array: each entry has `text`, `source` and an optional `locator`. The command refuses an unlisted
 source key before saving anything and keeps each text, source and locator combination once.
+Every figure is compared with the source text using the fact guard's tokeniser:
+the cited PDF page, transcript cue or table cell or row; plain text, Markdown
+and facts without a locator use the whole file. Local paths resolve relative to
+the working file. Unsupported figures and unreadable local sources refuse the
+whole batch, with one stderr line per refused fact and no store change. A URL
+fact is accepted with a persistent `unverified` mark and a warning because the
+engine cannot read its source text.
+
+A derived figure absent from its source is refused as a plain fact. Store a
+`calc:` line instead, such as `calc: ratio(184000, 61300) = 3.00`, after the
+facts supplying its operands. The existing calculation guard checks operands
+against earlier stored or same-batch facts and recomputes the result. Drafts
+cite those operand facts beside the figure and repeat the calculation in the
+section's note. Supported operations are sum, difference, ratio and percentage.
 `ai-docs-kit facts list <name>.md` prints one fact per line with its key and locator. `section put`
 uses every stored fact as evidence alongside the sources, front matter and section's previous text;
 unsupported figures, dates, names and source keys are still refused. A missing fact store contributes
@@ -89,6 +103,61 @@ Evidence retains isolated capitalised words even at sentence openings, so a gath
 with a name can support that name after an opening word in a draft.
 Source keys and source text are tokenised as separate evidence entries, so a capitalised opening
 such as `The EU` or `The Northern Fisheries Council` keeps the same sentence boundary as the draft.
+Text after a bold head ending in a colon or full stop, inside or just outside the closing bold
+markers, also starts a sentence. This includes `**Option A: Extend as proposed.**` and
+`**Eastfield:** Keep the zone`, in prose and list items; longer names still need evidence.
+Parsed item heads retain sentence-start normalisation: `Summary:` is ordinary opening wording
+and `In March:` is calendar wording; a remaining name such as `Varnholm` in `In Varnholm:`
+still needs evidence.
+`section put` accepts a number word immediately before `source`, `sources`, `section` or `sections`
+when it equals the working file's corresponding count. This exemption belongs only to that phrase;
+the count supplies no evidence for an unrelated figure, including in a later replacement.
+
+The voice text from `section brief` explains that source quotations keep their own wording,
+including contractions such as "don't know" even when the brand avoids them. The banned-term
+check exempts a complete quotation in straight or curly quotation marks only when its wording
+appears in a listed source entry or gathered fact. Unquoted terms and unsupported quotations
+still produce findings. `section put` warns on stderr once for each capacity limit exceeded by
+the replacement's chosen component, using the same measures as the build. Capacity warnings
+still save the block and exit 0; the existing patch guards decide refusals.
+
+Working-file patches hold an advisory lock on the shared `.ai_docs_kit` folder across
+reading, checking and writing, without creating a lock file. `section put` also prepares
+its evidence inside this lock. Its optional `--base-rev N` refuses a changed revision
+with exit 1 and `document is at rev M, not N; read it again`, leaving the working file
+and oplog unchanged. Without the option it reads the current revision inside the lock.
+Writing requires `fcntl`, available on macOS and Linux; other platforms refuse clearly.
+
+`ai-docs-kit undo <name>.md` applies the last edit's recorded inverse as a new
+human-authored patch; `redo` reapplies the most recently undone edit. Both print
+the new revision. Repeated undo walks backwards through that working file's
+edits, skipping undo and redo entries. An edit without a recorded inverse stops
+the walk, and a new edit to that file clears its redo history. Empty history
+and a missing inverse exit 1 with one stderr line. Manual edits after undo also
+invalidate redo, including changes to another section or to formatting; a
+refused redo preserves the working file and oplog byte for byte. History stays append-only,
+and inverse operations preserve unrelated edits in the current working file.
+The Python API offers `undo(path, base_rev)` and `redo(path, base_rev)`, returning
+`HistoryResult` with `rev` and `target_rev`. They check the base revision and
+select and apply the history patch within the same project lock as other edits.
+Oplog entries identify history actions and their target revisions explicitly;
+ordinary patch reasons never identify an undo or redo. File hashes before and
+after each patch detect manual edits and prevent a discarded redo branch from
+returning after later history operations.
+
+Each new version keeps an independent, byte-for-byte copy of the working file
+as `source.md`, outside the manifest's deliverable outputs. Builds capture these
+bytes before parsing, so edits during rendering stay in the working file and
+cannot change the version's source. Existing versions are never backfilled.
+`ai-docs-kit restore <name>.md v3` restores its sections
+as one human-authored patch with reason `restore v3` and prints the new revision.
+Undo recovers the pre-restore sections, including their order and ownership,
+without losing earlier history. An unknown version or one without `source.md`
+exits 2 with one stderr line naming the version. Front matter, context and
+sources cannot be patched, so a restore changing any of them is refused before
+writing. Both files must have unique section ids for unambiguous patch targets.
+The Python API's `restore(path, version, base_rev)` returns the restored
+`Document` and checks and applies the patch under the same project lock.
 
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
@@ -96,28 +165,102 @@ marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills ca
 
 ## 4. The build
 
+`ai-docs-kit theme which <name>.md` prints the theme folder and the rule that selected it;
+`--json` prints an object with `path` and `rule`. The shared engine function `resolve_theme(path)`
+resolves front matter `theme` first as a folder relative to the working file (identified by
+`theme.yaml`), then as a brand slug in `.brand/<slug>/theme` beside that file, then as `neutral`.
+An absolute theme folder is also accepted, including a brand kept elsewhere with `--root`.
+Without a theme key, exactly one brand selects that brand's theme, and no brand selects the shipped
+neutral theme. An unknown value or a missing key with two or more brands is refused with exit 2
+and one stderr line naming the candidates. Brand discovery uses the brand workspace's slug and
+repository checks, independent of the caller's current folder. Theme loading still validates the
+selected folder's tokens, fonts and voice.
+
+`build` and `check` use this same resolution when `--theme` is omitted. An explicit `--theme <folder>`
+wins even if the working file's selection would be refused. Projects with a single brand and no
+theme key therefore build and check with that brand's theme. The create and review skills call
+`theme which` for their working file and pass its result to commands that need an explicit theme.
+
 `ai-docs-kit build <name>.md` does, every time:
 
 1. parse and validate the working file (source checks);
 2. compose and render the PDF with Typst;
-3. read layout facts and run the geometry and pixel checks;
+3. write the Word copy for a document, read layout facts and run the geometry and pixel checks;
 4. rasterise every page into the version's `pages/` folder, with `pages.json` (which sections sit on
    which page) and a contact sheet (deck) or spreads (document);
-5. write the editable copy;
-6. write a new version under `<name>.versions/vN/` with the engine's findings.
+5. write the PowerPoint copy for slides;
+6. write a new version under `<name>.versions/vN/` with the engine's findings and replace
+   `build/<name>.findings.json` with the same findings, including an empty array for a clean build
+   (`--out` selects another build folder).
+
+After the look, source findings acquire their section's starting page from layout marks.
+`look --pages` names that page, or the section when an older finding has no page.
+
+Documents with a front matter title open with a title block above the first section
+on page 1, without a separate cover page. It shows the title, the audience when
+present and the build date in British form. The theme draws it using document
+type and colour tokens. Title and audience have `front.title` and `front.audience`
+element marks, named by `look --pages`, outside the document's sections. The
+page index lists only editable section ids. Section font-size findings exclude
+the title block, whose marks and field paths remain in the page's regions and
+layout facts. The composition stores the date and optional front matter for that
+version; older compositions without them remain readable. Untitled documents, slides and
+component swatches have no title block.
 
 Document builds support `body`, `callout`, `chart`, `bullets` and `key-numbers`.
+Document charts draw bar, column and explicitly requested `type: line` data resolved by `render/chart_spec.py`,
+using the document's available width and the slide chart's marks and field paths.
+The `doc-chart` component holds up to 24 categories and five series; unsupported
+data stays in `chart-table`. Both components retain the resolved twin table.
+Lines join values in category order, with one marked point per value and the theme's
+categorical colours. The automatic chooser and slides still draw bars and columns only.
+`check --outline` defers a missing-data `source.intent-known` finding when the
+intent has a component for the format once data is present. Unknown intents
+still fail, and full checks and builds still report missing chart data.
 The document list draws headed or plain items, nested sub-lines and citations;
 key figures draw 2 to 4 values with labels in the document's type scale. Both
 write their items as lists inside the section's bookmark in the Word copy.
+All document components draw their paragraphs too. The section records the order of
+paragraphs, list items and chart data as field paths, so the PDF and Word copy
+retain the working file's reading order, including prose after a list. A chart's
+numbered Word reference sits where its data appears. Callout prose stays inside
+the unbreakable frame. Key-number prose flows outside the unbreakable strip;
+prose between figure lists separates them into strips.
+Generated chart references in the Word copy have a reference style that inherits
+the body appearance. Review plans exclude these references from editable prose
+and retain their data position, including after paragraph insertions or deletions
+and reference moves. An edited generated reference is reported as unplaced text.
+The reference's stored position and text alignment identify its occurrence even
+when it loses its style or inserted prose inherits that style. Style hints are
+used only for an edited reference within its aligned replacement span. Literal
+body prose with the same wording remains editable, including in older copies.
+
+Document builds run `geo.text-present` against every section heading, paragraph
+and list item, including its head, body and sub-lines. Each block must appear
+in the PDF text from the layout facts and in the Word copy. Matching ignores
+line breaks, line-end hyphenation, runs of whitespace and citation markers.
+Each missing block is an error naming the section, field path and opening
+words; a Word loss says `Word copy` and is separate from a PDF loss. Both
+outputs contribute to the same version's findings and look record. Ordinary
+builds still finish with open errors; `check` exits 1 and `build --final` reports
+the version as not ready. `check` reads an existing Word copy in the output
+folder without replacing it; without a copy it checks the PDF alone. Slides
+and the document's front matter title block are outside this rule's scope.
 
 The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit look <version>
 --findings <file>` validates them (sections and pages exist, severities known) and adds them to the
 version's look record. The skill fixes what was found and rebuilds, at most twice, then reports what
 remains by section.
 
+The ship gate requires the version's look record to carry the look agent's findings. Recording
+an empty array through `look --findings` counts as read; a missing agent findings list does not.
+The engine page pass stays in the same look record with its existing fields and is reported as
+`engine page pass`, including any pages it could not check. A clean `build --final` without agent
+findings still writes its version, then exits 1 with `not ready: not looked at by the look agent`.
+
 The skill gives the person the PDF, the editable copy and the summary line of `look`, which names any
-open error and any page not looked at.
+open error and any page the engine page pass could not check. Missing look agent findings must also
+be reported before the version can be described as ready to ship.
 
 ## 5. The editable copies
 
@@ -209,7 +352,7 @@ rulebook on probation (advisory) and blocks only after the person promotes it. T
   .ai_docs_kit/facts/<name>.md.json  gathered facts agreed at the outline
   <name>.pdf                the latest deliverable
   <name>.pptx | <name>.docx the latest editable copy
-  <name>.versions/vN/       every build: PDF, editable copy, pages/, manifest with the look record
+  <name>.versions/vN/       every build: source.md, PDF, editable copy, pages/, manifest with the look record
 ```
 
 Caches and the render kit live under the plugin's data folder, never in the project folder.

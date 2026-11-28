@@ -1,0 +1,10 @@
+name: doc-chart
+format: doc
+label: Document chart
+intents: [chart]
+capacity:
+  title_words: [1, 10]
+  categories: [1, 24]
+  series: [1, 5]
+elements: [heading, paragraph, list-item, list-sub, chart-plot, chart-mark, chart-label, chart-legend, figure, table-header, table-cell, figure-source]
+fixture: tests/fixtures/components/doc-chart.yaml

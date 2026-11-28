@@ -35,6 +35,15 @@ class LayoutFacts(BaseModel):
     images: list[PlacedImage] = Field(default_factory=list)
 
 
+def front_matter_ids(facts: LayoutFacts) -> set[str]:
+    """Return mark ids for front matter, which is outside the editable sections."""
+    return {
+        mark.id
+        for mark in facts.marks
+        if isinstance(mark, ElementMark) and mark.field is not None and mark.field.startswith("front.")
+    }
+
+
 def centre(box: FactBox) -> Point:
     return (box.page, (box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2)
 

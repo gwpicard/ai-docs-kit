@@ -231,6 +231,24 @@ sections:
   - body: Share progress across the team
   - body: Review the next steps
   component: callout
+- id: s-doc-chart
+  intent: chart
+  title: Monthly trips by zone
+  paragraphs:
+  - The zones follow different seasonal patterns.
+  data:
+    type: column
+    category_label: Month
+    categories: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+    series:
+    - name: Upland
+      values: [12, 18, 24, 30, 36, 42, 48, 54, 48, 36, 24, 18]
+    - name: Lowland
+      values: [18, 24, 30, 36, 42, 48, 54, 60, 54, 42, 30, 24]
+    - name: Riverside
+      values: [6, 12, 18, 24, 30, 36, 42, 48, 42, 30, 18, 12]
+  source_line: 'Source: Synthetic survey records'
+  component: doc-chart
 - id: s-chart-table
   intent: chart
   title: Quarterly results

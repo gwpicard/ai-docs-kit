@@ -1,0 +1,20 @@
+id: monthly
+component: doc-chart
+because: Show the explicitly requested line chart in the document component.
+intent: chart
+title: Monthly trips by zone
+paragraphs:
+  - The zones follow different seasonal patterns.
+data:
+  type: line
+  ordered: true
+  category_label: Month
+  categories: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+  series:
+    - name: Upland
+      values: [-4, 2, 8, 4, 10, 6, 12, 8, 14, 10, 16, 0]
+    - name: Lowland
+      values: [3, 9, 5, 11, 7, 13, 9, 15, 11, 17, 13, 7]
+    - name: Riverside
+      values: [1, 7, 3, 9, 5, 11, 7, 13, 9, 15, 11, 5]
+source_line: 'Source: Synthetic survey records'

@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
@@ -20,6 +21,7 @@ ATTR_ORDER = [
     "redraft",
 ]
 ATTR_ESCAPES = str.maketrans({"\\": "\\\\", '"': '\\"', "\n": "\\n", "\r": "\\r", "\t": "\\t"})
+PARAGRAPH_MARKER = re.compile(r"^([-*+]|[0-9]+[.)])(?= )")
 
 
 def _dump(value: Any) -> str:
@@ -75,15 +77,36 @@ def _quotes(section: Section) -> str:
     return "\n".join(f"> {name}: {value}" for name, value in fields if value is not None)
 
 
+def _paragraph(text: str) -> str:
+    if "\n" in text or "\r" in text:
+        # A typed literal keeps paragraph boundaries and protects lines that
+        # would otherwise become items, notes, headings or closing fences.
+        literal = yaml.safe_dump(text, default_style="|", allow_unicode=True, width=10**6)
+        return f"```paragraph\n{literal}```"
+    return PARAGRAPH_MARKER.sub(lambda match: match[0][:-1] + "\\" + match[0][-1], text)
+
+
 def _section_blocks(section: Section) -> list[str]:
     blocks = []
     if section.title is not None:
         blocks.append(f"## {section.title}")
-    if section.items:
-        blocks.append("\n".join(_item(item) for item in section.items))
-    blocks.extend(section.paragraphs)
+    previous = ""
+    for field in section.ordered_content():
+        if field == "data":
+            # Keep notes before data for sections without recorded mixed order.
+            if section.content_order:
+                blocks.append(f"```data\n{_dump(section.data)}```")
+        elif field.startswith("items["):
+            text = _item(section.items[int(field[6:-1])])
+            if previous.startswith("items["):
+                blocks[-1] += "\n" + text
+            else:
+                blocks.append(text)
+        else:
+            blocks.append(_paragraph(section.paragraphs[int(field[11:-1])]))
+        previous = field
     blocks.append(_quotes(section))
-    if section.data is not None:
+    if section.data is not None and not section.content_order:
         blocks.append(f"```data\n{_dump(section.data)}```")
     blocks.extend(f"```\n{code}\n```" for code in section.code)
     return [block for block in blocks if block]

@@ -9,27 +9,33 @@ import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 
-from pydantic import TypeAdapter, ValidationError
+from pydantic import TypeAdapter
 
 from ai_docs_kit import __version__
-from ai_docs_kit.agents.gatherer import Fact
 from ai_docs_kit.brand.cli import add_brand_commands, run_brand
+from ai_docs_kit.building import _BuildFailed as _BuildFailed
+from ai_docs_kit.building import _Built, _draw, _located_findings, _source_facts, build_document
+from ai_docs_kit.building import _parse as _parse_document
+from ai_docs_kit.building import _pptx as _write_pptx
 from ai_docs_kit.checks.catalogue import all_rules, document_rules
 from ai_docs_kit.checks.engine import CheckContext, run_checks
+from ai_docs_kit.checks.text_present import WordCopyError
 from ai_docs_kit.config import default_config_text
 from ai_docs_kit.facts.layout import layout_facts
 from ai_docs_kit.facts.raster import PdfiumRasteriser
 from ai_docs_kit.model import Document, Finding
-from ai_docs_kit.render.compose import ComposeError, Composition, assemble, compose, font_paths
+from ai_docs_kit.render.compose import ComposeError, compose, font_paths
 from ai_docs_kit.render.kit import read_tokens
-from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, TypstError, compile_pdf, typst_version
+from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, typst_version
 from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
-from ai_docs_kit.source.parser import parse
+from ai_docs_kit.source.files import apply_history, current_rev, project_lock
+from ai_docs_kit.source.ids import IdStoreError
+from ai_docs_kit.source.patches import PatchRejected
 from ai_docs_kit.source.read import read_source
-from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme
+from ai_docs_kit.theme import Theme, ThemeError, load_theme, neutral_theme, resolve_theme
 from ai_docs_kit.theme.learn import add_rule_commands, run_rule
 from ai_docs_kit.theme.rules import load_theme_rules
 
@@ -80,169 +86,33 @@ def _init(directory: Path) -> int:
     return 0
 
 
-class _Built(NamedTuple):
-    doc: Document
-    findings: list[Finding]
-    render: Path
-    main: Path
-    pdf: Path
-    comp: Composition
-
-
-class _BuildFailed(Exception):
-    def __init__(self, message: str, code: int = 2) -> None:
-        super().__init__(message)
-        self.code = code
-
-
 def _out_dir(file: Path, out: Path | None) -> Path:
     return out if out is not None else file.parent / "build"
-
-
-def _parse(file: Path) -> tuple[Document, list[Finding]]:
-    try:
-        text = read_source(file)
-    except UnicodeDecodeError as error:
-        raise _BuildFailed(f"{file}: not valid UTF-8 ({error.reason} at byte {error.start})") from error
-    doc, findings = parse(text)
-    errors = [f for f in findings if f.severity == "error"]
-    if errors:
-        raise _BuildFailed("\n".join(_line(f) for f in errors))
-    return doc, findings
-
-
-def _draw(file: Path, out: Path, doc: Document, findings: list[Finding], comp: Composition, theme: Theme) -> _Built:
-    render = out / "render"
-    if render.exists():
-        shutil.rmtree(render)
-    main = assemble(comp, render, theme=theme)
-    pdf = out / f"{file.stem}.pdf"
-    try:
-        compile_pdf(main, render, pdf, font_paths(render))
-    except TypstError as error:
-        raise _BuildFailed(str(error)) from error
-    return _Built(doc, findings, render, main, pdf, comp)
-
-
-def _render(file: Path, out: Path, theme: Theme) -> _Built:
-    doc, findings = _parse(file)
-    try:
-        comp = compose(doc, assets=[file.parent / "assets", theme.root / "assets"])
-    except ComposeError as error:
-        raise _BuildFailed(str(error)) from error
-    return _draw(file, out, doc, findings, comp, theme)
 
 
 def _line(finding: Finding) -> str:
     return f"{finding.severity} {finding.rule_id} {finding.section_id or '-'} {finding.message}"
 
 
-def _build(file: Path, out: Path, theme: Theme, *, final: bool = False) -> int:
-    for directory in (out / "render", out / "look"):
-        try:
-            directory.mkdir(exist_ok=True)
-        except OSError as error:
-            raise _BuildFailed(f"ai_docs_kit: cannot use {directory} as a build folder: {error.strerror}") from error
-    built = _render(file, out, theme)
-    print(built.pdf)
-    return _version_build(file, out, theme, built, final)
-
-
-def _sheet(built: _Built, result: Any, out: Path) -> Path:
-    """Draw the contact sheet for slides, or the facing-page spreads for a document."""
-    from ai_docs_kit.facts.sheets import contact_sheet, page_labels, spread_sheet
-    from ai_docs_kit.store import page_index
-
-    if built.comp.format != "slides":
-        return spread_sheet(result.pngs, page_labels(result.facts), out / "spreads.png")
-    components = {s.id: s.component for s in built.comp.sections}
-    labels = [
-        " ".join([str(page["page"]), *(components[s] for s in page["sections"] if s in components)])
-        for page in page_index(result.facts, [])
-    ]
-    return contact_sheet(result.pngs, labels, out / "contact.png")
+def _parse(file: Path) -> tuple[Document, list[Finding]]:
+    return _parse_document(file, reader=lambda path: read_source(path))
 
 
 def _pptx(file: Path, out: Path, built: _Built, facts: Any) -> Path | None:
-    """Write the PowerPoint copy beside the PDF; a document has none."""
-    if built.comp.format != "slides":
-        return None
-    from ai_docs_kit.render.pptx_copy import PptxError, write_pptx
-
-    try:
-        return write_pptx(
-            out / f"{file.stem}.pptx",
-            facts=facts,
-            comp=built.comp,
-            doc=built.doc,
-            main=built.main,
-            render=built.render,
-            font_paths=font_paths(built.render),
-        )
-    except TypstError as error:
-        raise _BuildFailed(str(error)) from error
-    except PptxError as error:
-        raise _BuildFailed(str(error), code=1) from error
+    """Keep the CLI copy hook while the shared pipeline owns its implementation."""
+    return _write_pptx(file, out, built, facts)
 
 
-def _docx(file: Path, out: Path, built: _Built, theme: Theme) -> Path | None:
-    """Write the Word copy beside the PDF; slides have none."""
-    if built.comp.format != "doc":
-        return None
-    from ai_docs_kit.render.word import write_docx
-
-    return write_docx(out / f"{file.stem}.docx", comp=built.comp, theme=theme)
-
-
-def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bool) -> int:
-    from ai_docs_kit.loop.look import LookContext, look
-    from ai_docs_kit.store import write_version
+def _build(file: Path, out: Path, theme: Theme, *, final: bool = False, json_output: bool = False) -> int:
+    from ai_docs_kit.api import BuildResult
     from ai_docs_kit.store.gate import ship_gate
 
-    try:
-        rules = all_rules() + load_theme_rules(theme)
-    except ThemeError as error:
-        raise _BuildFailed(str(error)) from error
-    result = asyncio.run(
-        look(
-            built.pdf,
-            built.comp,
-            LookContext(
-                doc=built.doc,
-                theme=theme,
-                main=built.main,
-                project=file.parent,
-                workdir=out / "look",
-                rules=rules,
-                critic=None,
-                final=final,
-                assets=[file.parent / "assets", theme.root / "assets"],
-            ),
-        )
+    version, findings = build_document(
+        file, out, theme, final=final, on_rendered=None if json_output else print, pptx_writer=_pptx
     )
-    sheet = _sheet(built, result, out)
-    pptx = _pptx(file, out, built, result.facts)
-    docx = _docx(file, out, built, theme)
-    findings = built.findings + result.findings
-    try:
-        version = write_version(
-            file,
-            built.doc,
-            built.comp,
-            built.pdf,
-            result.facts,
-            findings,
-            result.pngs,
-            None,
-            theme=theme,
-            final=final,
-            look=result.record(),
-            sheet=sheet,
-            pptx=pptx,
-            docx=docx,
-        )
-    except OSError as error:
-        raise _BuildFailed(f"Cannot write version: {error}") from error
+    if json_output:
+        print(BuildResult.from_version(version, findings).model_dump_json())
+        return int(bool(ship_gate(version))) if final else 0
     for finding in findings:
         if finding.severity == "error":
             print(_line(finding))
@@ -254,6 +124,10 @@ def _version_build(file: Path, out: Path, theme: Theme, built: _Built, final: bo
 
 def _gate_report(reasons: list[str]) -> int:
     for reason in reasons:
+        if reason == "not fully looked at":
+            reason = "no engine page pass"
+        elif reason.startswith("not fully looked at: "):
+            reason = reason.replace("not fully looked at: ", "incomplete engine page pass: ", 1)
         print(f"not ready: {reason}")
     if not reasons:
         print("gate: passed")
@@ -261,7 +135,13 @@ def _gate_report(reasons: list[str]) -> int:
 
 
 def _page_line(page: dict[str, Any]) -> str:
-    return f"page {page['page']}: {', '.join(page['sections'])}"
+    fields = dict.fromkeys(
+        region["field"]
+        for region in page.get("regions", [])
+        if isinstance(region.get("field"), str) and region["field"].startswith("front.")
+    )
+    suffix = f"; {', '.join(fields)}" if fields else ""
+    return f"page {page['page']}: {', '.join(page['sections'])}{suffix}"
 
 
 def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
@@ -277,6 +157,9 @@ def _read_pages(version_dir: Path) -> list[dict[str, Any]]:
                 raise KeyError("page and sections")
             if not all(isinstance(section, str) for section in page["sections"]):
                 raise TypeError("section id is not a string")
+            regions = page.get("regions", [])
+            if not isinstance(regions, list) or not all(isinstance(region, dict) for region in regions):
+                raise TypeError("regions is not an array of objects")
     except OSError as error:
         raise ValueError(f"{pages_path}: cannot read page index ({error.strerror or error})") from error
     except (KeyError, TypeError, ValueError) as error:
@@ -292,10 +175,12 @@ def _look_pages(version_dir: Path) -> int:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
         if not isinstance(findings, list):
             raise TypeError("expected a JSON array of findings")
-        notes = [
-            f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}"
-            for f in findings
-        ]
+        notes = []
+        for finding in findings:
+            location = f"section {finding.get('section_id') or '-'}"
+            if finding.get("page") is not None:
+                location = f"page {finding['page']} {location}"
+            notes.append(f"- {finding['rule_id']} {finding['severity']} {location}: {finding['message']}")
     except (KeyError, TypeError, AttributeError) as error:
         raise ValueError(f"{findings_path}: malformed findings ({error!r})") from error
     print("\n".join([*lines, "engine findings (do not repeat):", *notes]))
@@ -311,7 +196,11 @@ def _look_findings(version_dir: Path, file: Path) -> int:
 
     from ai_docs_kit.store import LookFinding, load_version, update_manifest
 
-    version = load_version(version_dir)
+    try:
+        version = load_version(version_dir)
+    except (ValidationError, UnicodeDecodeError) as error:
+        errors = error.error_count() if isinstance(error, ValidationError) else 1
+        raise ValueError(f"{version_dir / 'manifest.json'}: not valid manifest ({errors} errors)") from error
     pages = _read_pages(version_dir)
     try:
         raw = json.loads(file.read_text(encoding="utf-8"))
@@ -344,7 +233,7 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         return 2
     record = version.manifest.look
     if record is None:
-        print(f"{version_dir}: no look record; the engine's look has not run", file=sys.stderr)
+        print(f"{version_dir}: no look record; the engine page pass has not run", file=sys.stderr)
         return 2
     merged = list(record.agent or [])
     added = 0
@@ -356,8 +245,8 @@ def _look_findings(version_dir: Path, file: Path) -> int:
         update_manifest(version_dir, look=record.model_copy(update={"agent": merged}))
     print(f"recorded {added} findings")
     errors = version.manifest.findings.error + sum(f.severity == "error" for f in merged)
-    unlooked = "; ".join(record.could_not) or "none"
-    print(f"open errors: {errors}, pages not looked at: {unlooked}")
+    unchecked = "; ".join(record.could_not) or "none"
+    print(f"open errors: {errors}, engine page pass could not check: {unchecked}")
     return 0
 
 
@@ -365,8 +254,16 @@ def _look(args: argparse.Namespace) -> int:
     if args.pages == (args.findings is not None):
         print("give exactly one of --pages or --findings", file=sys.stderr)
         return 2
+    if args.json and not args.pages:
+        print("--json requires --pages", file=sys.stderr)
+        return 2
     try:
         if args.pages:
+            if args.json:
+                from ai_docs_kit.api import _version_preview
+
+                print(_version_preview(args.version_dir).model_dump_json())
+                return 0
             return _look_pages(args.version_dir)
         return _look_findings(args.version_dir, args.findings)
     except (OSError, ValueError) as error:
@@ -383,13 +280,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
     except ThemeError as error:
         raise _BuildFailed(str(error)) from error
     assets = [file.parent / "assets", theme.root / "assets"]
-    facts_path = file.parent / ".ai_docs_kit" / "write" / file.stem / "facts.json"
-    source_facts = None
-    if facts_path.exists():
-        try:
-            source_facts = TypeAdapter(list[Fact]).validate_json(facts_path.read_bytes())
-        except ValidationError as error:
-            raise _BuildFailed(f"{facts_path}: not valid facts ({error.error_count()} errors)") from error
+    source_facts = _source_facts(file, doc)
     try:
         comp = compose(doc, assets=assets)
     except ComposeError:
@@ -398,7 +289,10 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
             file,
             out,
             parsed
-            + run_checks(rules, CheckContext(doc, theme=theme, final=final, assets=assets, source_facts=source_facts)),
+            + run_checks(
+                rules,
+                CheckContext(doc, theme=theme, final=final, assets=assets, source_facts=source_facts, outline=outline),
+            ),
         )
     built = _draw(file, out, doc, parsed, comp, theme)
     facts = layout_facts(built.pdf, built.main, built.render, font_paths=font_paths(built.render))
@@ -413,8 +307,10 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
         assets=assets,
         pages_png=pages_png,
         source_facts=source_facts,
+        word_copy=out / f"{file.stem}.docx" if (out / f"{file.stem}.docx").is_file() else None,
+        outline=outline,
     )
-    return _report(file, out, built.findings + run_checks(rules, ctx))
+    return _report(file, out, _located_findings(built.findings + run_checks(rules, ctx), facts))
 
 
 def _report(file: Path, out: Path, findings: list[Finding]) -> int:
@@ -431,9 +327,12 @@ def _add_file_command(subparsers: Any, name: str, help: str) -> None:
     command = subparsers.add_parser(name, help=help)
     command.add_argument("file", type=Path, help="the working file")
     command.add_argument("--out", type=Path, default=None, help="output folder (default: build beside the file)")
-    command.add_argument("--theme", type=Path, default=None, help="theme folder (default: the neutral theme)")
+    default_theme = "the working file's theme" if name in ("build", "check") else "the neutral theme"
+    command.add_argument("--theme", type=Path, default=None, help=f"theme folder (default: {default_theme})")
     if name in ("build", "check"):
         command.add_argument("--final", action="store_true", help="treat the working file as a final build")
+    if name == "build":
+        command.add_argument("--json", action="store_true", help="print the build result as JSON")
     if name == "check":
         command.add_argument("--outline", action="store_true", help="check conformance to the doctype outline")
 
@@ -447,6 +346,12 @@ def _build_parser() -> argparse.ArgumentParser:
     add_facts_commands(subparsers)
     add_review_commands(subparsers)
     add_rule_commands(subparsers)
+    for name in ("undo", "redo"):
+        history = subparsers.add_parser(name, help=f"{name} the last edit to a working file")
+        history.add_argument("file", type=Path, help="the working file")
+    restore = subparsers.add_parser("restore", help="restore a version's working file as one undoable patch")
+    restore.add_argument("file", type=Path, help="the working file")
+    restore.add_argument("version", help="the saved version, such as v3")
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
     init = subparsers.add_parser("init", help="initialise a project")
     init.add_argument("directory", type=Path, help="project folder")
@@ -456,12 +361,16 @@ def _build_parser() -> argparse.ArgumentParser:
     look = subparsers.add_parser("look", help="print the pages for the look agent or record its findings")
     look.add_argument("version_dir", type=Path)
     look.add_argument("--pages", action="store_true")
+    look.add_argument("--json", action="store_true", help="print --pages as a preview result")
     look.add_argument("--findings", type=Path)
     write = subparsers.choices["write"]
     write.add_argument("--approve", action="store_true")
     write.add_argument("--yes", action="store_true")
     theme = subparsers.add_parser("theme", help="work with themes")
     theme_commands = theme.add_subparsers(dest="theme_command", required=True)
+    which = theme_commands.add_parser("which", help="show a working file's theme folder and selection rule")
+    which.add_argument("file", type=Path, help="the working file")
+    which.add_argument("--json", action="store_true", help="print the folder and rule as a JSON object")
     test = theme_commands.add_parser("test", help="test a theme")
     test.add_argument("--theme", type=Path, default=None, help="theme folder")
     evaluation = subparsers.add_parser("eval", help="run evaluations")
@@ -480,7 +389,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-FILE_COMMANDS = {"build": _build, "check": _check}
+FILE_COMMANDS = {"build", "check"}
 
 
 def _theme(folder: Path | None) -> Theme:
@@ -498,12 +407,30 @@ def _run_file_command(args: argparse.Namespace) -> int:
         print(f"ai_docs_kit: cannot use {out} as the output folder: {error.strerror}", file=sys.stderr)
         return 2
     try:
+        folder = args.theme if args.theme is not None else resolve_theme(args.file).path
+        theme = _theme(folder)
         if args.command == "check":
-            return _check(args.file, out, _theme(args.theme), final=args.final, outline=args.outline)
-        return _build(args.file, out, _theme(args.theme), final=args.final)
+            return _check(args.file, out, theme, final=args.final, outline=args.outline)
+        return _build(args.file, out, theme, final=args.final, json_output=args.json)
     except _BuildFailed as error:
         print(error, file=sys.stderr)
         return error.code
+    except (ThemeError, OSError, UnicodeError, WordCopyError) as error:
+        print(" ".join(str(error).splitlines()), file=sys.stderr)
+        return 2
+
+
+def _theme_which(args: argparse.Namespace) -> int:
+    try:
+        selection = resolve_theme(args.file)
+    except (ThemeError, OSError, UnicodeError) as error:
+        print(" ".join(str(error).splitlines()), file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps({"path": str(selection.path), "rule": selection.rule}))
+    else:
+        print(f"{selection.path} ({selection.rule})")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -523,6 +450,24 @@ def main(argv: list[str] | None = None) -> int:
         return run_review(args)
     if args.command == "rule":
         return run_rule(args)
+    if args.command in ("undo", "redo", "restore"):
+        try:
+            if args.command == "restore":
+                from ai_docs_kit.api import restore
+
+                store = args.file.parent / ".ai_docs_kit"
+                with project_lock(store):
+                    result = restore(args.file, args.version, current_rev(store / "oplog.jsonl"))
+            else:
+                result, _ = apply_history(args.file, args.command)
+        except PatchRejected as error:
+            print(" ".join(error.message.splitlines()), file=sys.stderr)
+            return 1
+        except (OSError, ValueError, IdStoreError) as error:
+            print(" ".join(str(error).splitlines()), file=sys.stderr)
+            return 2
+        print(f"rev {result.rev}")
+        return 0
     if args.command == "doctor":
         return _doctor()
     if args.command == "init":
@@ -537,6 +482,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in FILE_COMMANDS:
         return _run_file_command(args)
     if args.command == "theme":
+        if args.theme_command == "which":
+            return _theme_which(args)
         return _run_theme_test(args.theme)
     if args.command == "eval":
         return _heal(args) if args.eval_command == "heal" else _critic_eval(args)

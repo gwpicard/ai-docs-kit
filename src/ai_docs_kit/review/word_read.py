@@ -10,6 +10,7 @@ from pathlib import Path
 from lxml import etree  # type: ignore[import-untyped]
 
 from ai_docs_kit.bookmark_names import is_hashed, section_of
+from ai_docs_kit.render.word import REFERENCE_STYLE
 from ai_docs_kit.store.stamp import read_custom_properties
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -39,6 +40,8 @@ class WordText:
     titles: dict[str, str] = field(default_factory=dict)
     paragraphs: dict[str, list[str]] = field(default_factory=dict)
     items: dict[str, list[str]] = field(default_factory=dict)
+    content_order: dict[str, list[str]] = field(default_factory=dict)
+    references: dict[str, dict[int, str]] = field(default_factory=dict)
     emphasis: dict[str, list[tuple[str, str, str | None]]] = field(default_factory=dict)
     comments: list[tuple[str | None, Comment]] = field(default_factory=list)
     unplaced: list[tuple[str | None, str]] = field(default_factory=list)
@@ -212,7 +215,14 @@ class _Walker:
             self.result.titles[section] = text
         elif text and section is not None:
             target = self.result.items if listed else self.result.paragraphs
-            target.setdefault(section, []).append(text)
+            values = target.setdefault(section, [])
+            index = len(values)
+            values.append(text)
+            kind = "items" if listed else "paragraphs"
+            self.result.content_order.setdefault(section, []).append(f"{kind}[{index}]")
+            style = node.find(f"{_q('pPr')}/{_q('pStyle')}")
+            if not listed and style is not None and style.get(_q("val")) == REFERENCE_STYLE.replace(" ", ""):
+                self.result.references.setdefault(section, {})[index] = text
         elif text:
             self.result.unplaced.append((self.last, text))
         if section is not None:

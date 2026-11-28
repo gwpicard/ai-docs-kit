@@ -1,18 +1,55 @@
 """Resolve chart data into an explainable, format-independent specification."""
 
+import json
 import math
 import re
 from collections.abc import Mapping
 from decimal import ROUND_HALF_UP, Decimal, localcontext
-from typing import Any, Literal
+from pathlib import Path
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-DRAWN_TYPES = ("bar", "column")
+DRAWN_TYPES = ("bar", "column", "line")
 MANY_CATEGORIES = 7
 MAX_DECIMALS = 3
 
-ChartType = Literal["bar", "column"]
+ChartType = Literal["bar", "column", "line"]
+
+
+class ChartDataSeries(BaseModel):
+    model_config = ConfigDict(strict=True, allow_inf_nan=False)
+
+    name: str = Field(default="", description="The series label, used in the legend and table heading.")
+    values: list[float] = Field(description="Finite numeric values in category order, without unit text.")
+
+
+class ChartData(BaseModel):
+    """The authoring contract for a chart section's data block."""
+
+    model_config = ConfigDict(strict=True)
+
+    type: Literal["bar", "column", "line", "pie"] | None = Field(
+        default=None,
+        description="Requested type; omit for automatic bar/column choice. Pie uses the table fallback.",
+    )
+    categories: list[str] = Field(description="Category labels in display order.")
+    series: list[ChartDataSeries] = Field(description="Series sharing the same category order.")
+    unit: str | None = Field(default=None, description="Label unit, such as %, GBP or kg; null means no unit.")
+    category_label: str = Field(default="", description="Heading of the category column in the table fallback.")
+    time_series: bool = Field(default=False, description="Choose columns automatically for a declared time series.")
+    ordered: bool = Field(default=False, description="Choose columns automatically for ordered categories.")
+
+
+def export_chart_schema(directory: Path) -> Path:
+    """Publish the chart data model as a reproducible JSON Schema."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "ChartData.schema.json"
+    path.write_text(
+        json.dumps(ChartData.model_json_schema(), indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 class ChartColour(BaseModel):
@@ -39,7 +76,7 @@ class TwinTable(BaseModel):
 
 
 class ChartSpec(BaseModel):
-    type: Literal["bar", "column", "unsupported"]
+    type: Literal["bar", "column", "line", "unsupported"]
     reason: str
     requested: str | None
     chosen: ChartType | None
@@ -160,6 +197,12 @@ def _decimal_places(value: float) -> int:
 
 def resolve_chart(data: Mapping[str, Any] | None) -> ChartSpec:
     data = data or {}
+    try:
+        data = ChartData.model_validate(data).model_dump()
+    except ValidationError:
+        # Older or malformed blocks still use the tolerant reader below, including
+        # its unsupported result and table fallback for unknown requested types.
+        pass
     categories = [str(category) for category in data.get("categories") or []]
     sources = [source for source in data.get("series") or [] if isinstance(source, Mapping)]
     requested = str(data["type"]) if data.get("type") else None
@@ -179,9 +222,9 @@ def resolve_chart(data: Mapping[str, Any] | None) -> ChartSpec:
         )
 
     chosen, reason = _choose(data, categories, rows)
-    chart_type: Literal["bar", "column", "unsupported"] = chosen
+    chart_type: Literal["bar", "column", "line", "unsupported"] = chosen
     if requested in DRAWN_TYPES:
-        chart_type = "bar" if requested == "bar" else "column"
+        chart_type = cast(ChartType, requested)
         reason = "requested in the section"
     elif requested is not None:
         chart_type = "unsupported"

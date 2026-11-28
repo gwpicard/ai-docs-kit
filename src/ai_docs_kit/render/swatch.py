@@ -33,7 +33,8 @@ def swatch(
     dest = workdir / f"swatch-{section_id}"
     if dest.exists():
         shutil.rmtree(dest)
-    main = assemble(compose(single, assets=assets), dest, theme=theme)
+    comp = compose(single, assets=assets).model_copy(update={"front": {}, "version_date": None})
+    main = assemble(comp, dest, theme=theme)
     fonts = font_paths(dest)
     pdf = dest / "swatch.pdf"
     compile_pdf(main, dest, pdf, fonts)

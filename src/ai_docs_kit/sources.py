@@ -54,6 +54,45 @@ def _vtt(source: Path) -> str:
     return "\n".join(cue for block in blocks if (cue := _cue(block)) is not None)
 
 
+def source_text_at(source: Path, locator: str | None) -> str:
+    """Read source evidence without letting page, cue or cell metadata supply figures."""
+    suffix = source.suffix.lower()
+    if suffix == ".pdf":
+        text, _ = _pdf(source)
+        pages = re.split(r"<!-- page \d+ -->\n", text)[1:]
+        if locator is None:
+            return "\n".join(pages)
+        match = re.fullmatch(r"p\.\s*(\d+)", locator)
+        if match and 1 <= int(match[1]) <= len(pages):
+            return pages[int(match[1]) - 1]
+    elif suffix == ".vtt":
+        cues = [line.split("] ", 1) for line in _vtt(source).splitlines()]
+        if locator is None:
+            return "\n".join(text for _, text in cues)
+        matches = [text for timestamp, text in cues if timestamp[1:] == _timestamp(locator)]
+        if matches:
+            return "\n".join(matches)
+    elif suffix in {".csv", ".xlsx"}:
+        from ai_docs_kit.tables import read_cells
+
+        cells = read_cells(source, include_all=True)
+        if locator is None:
+            return "\n".join(cell.value.text for cell in cells)
+        row = re.fullmatch(r"(.+)!(\d+)(?::\2)?", locator)
+        matches = [
+            cell.value.text
+            for cell in cells
+            if cell.locator == locator or (row and re.fullmatch(re.escape(row[1]) + r"![A-Z]+" + row[2], cell.locator))
+        ]
+        if matches:
+            return "\n".join(matches)
+    elif suffix in {".txt", ".md"}:
+        return source.read_text(encoding="utf-8-sig")
+    else:
+        raise ValueError(f"unsupported source format {suffix!r}")
+    raise ValueError(f"no source text at locator {locator!r}")
+
+
 def source_files(project: Path) -> list[Path]:
     source_dir = project / "sources"
     if not source_dir.exists():
