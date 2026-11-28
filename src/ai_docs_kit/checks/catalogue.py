@@ -17,6 +17,7 @@ from ai_docs_kit.checks import (
     sequence,
     source,
     text,
+    text_present,
 )
 from ai_docs_kit.checks import dsl as dsl
 from ai_docs_kit.model import Provenance, Remedy, Rule
@@ -62,6 +63,7 @@ def all_rules() -> list[Rule]:
         *m1_rules(),
         *source.M2_RULES,
         *text.RULES,
+        *text_present.RULES,
         *capacity.RULES,
         *gaps.RULES,
         *figures.RULES,

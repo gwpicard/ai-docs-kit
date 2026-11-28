@@ -171,10 +171,10 @@ theme key therefore build and check with that brand's theme. The create and revi
 
 1. parse and validate the working file (source checks);
 2. compose and render the PDF with Typst;
-3. read layout facts and run the geometry and pixel checks;
+3. write the Word copy for a document, read layout facts and run the geometry and pixel checks;
 4. rasterise every page into the version's `pages/` folder, with `pages.json` (which sections sit on
    which page) and a contact sheet (deck) or spreads (document);
-5. write the editable copy;
+5. write the PowerPoint copy for slides;
 6. write a new version under `<name>.versions/vN/` with the engine's findings and replace
    `build/<name>.findings.json` with the same findings, including an empty array for a clean build
    (`--out` selects another build folder).
@@ -211,6 +211,18 @@ The reference's stored position and text alignment identify its occurrence even
 when it loses its style or inserted prose inherits that style. Style hints are
 used only for an edited reference within its aligned replacement span. Literal
 body prose with the same wording remains editable, including in older copies.
+
+Document builds run `geo.text-present` against every section heading, paragraph
+and list item, including its head, body and sub-lines. Each block must appear
+in the PDF text from the layout facts and in the Word copy. Matching ignores
+line breaks, line-end hyphenation, runs of whitespace and citation markers.
+Each missing block is an error naming the section, field path and opening
+words; a Word loss says `Word copy` and is separate from a PDF loss. Both
+outputs contribute to the same version's findings and look record. Ordinary
+builds still finish with open errors; `check` exits 1 and `build --final` reports
+the version as not ready. `check` reads an existing Word copy in the output
+folder without replacing it; without a copy it checks the PDF alone. Slides
+and the document's front matter title block are outside this rule's scope.
 
 The `look` agent then reads `pages/` and returns findings as JSON. `ai-docs-kit look <version>
 --findings <file>` validates them (sections and pages exist, severities known) and adds them to the
