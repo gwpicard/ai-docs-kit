@@ -303,6 +303,7 @@ def write_version(
     sheet: Path | None = None,
     pptx: Path | None = None,
     docx: Path | None = None,
+    source: bytes | None = None,
 ) -> Version:
     root = doc_path.parent / f"{doc_path.stem}.versions"
     root.mkdir(parents=True, exist_ok=True)
@@ -330,7 +331,7 @@ def write_version(
             now,
             [c.name for c in (pptx, docx) if c],
         )
-        shutil.copyfile(doc_path, temporary / "source.md")
+        (temporary / "source.md").write_bytes(source if source is not None else doc_path.read_bytes())
         shutil.copyfile(pdf, temporary / f"{doc_path.stem}.pdf")
         for copy in (pptx, docx):
             if copy is not None:

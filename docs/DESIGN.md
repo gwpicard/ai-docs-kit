@@ -138,8 +138,10 @@ after each patch detect manual edits and prevent a discarded redo branch from
 returning after later history operations.
 
 Each new version keeps an independent, byte-for-byte copy of the working file
-as `source.md`, outside the manifest's deliverable outputs. Existing versions
-are never backfilled. `ai-docs-kit restore <name>.md v3` restores its sections
+as `source.md`, outside the manifest's deliverable outputs. Builds capture these
+bytes before parsing, so edits during rendering stay in the working file and
+cannot change the version's source. Existing versions are never backfilled.
+`ai-docs-kit restore <name>.md v3` restores its sections
 as one human-authored patch with reason `restore v3` and prints the new revision.
 Undo recovers the pre-restore sections, including their order and ownership,
 without losing earlier history. An unknown version or one without `source.md`
