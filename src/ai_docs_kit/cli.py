@@ -16,7 +16,7 @@ from pydantic import TypeAdapter
 from ai_docs_kit import __version__
 from ai_docs_kit.brand.cli import add_brand_commands, run_brand
 from ai_docs_kit.building import _BuildFailed as _BuildFailed
-from ai_docs_kit.building import _Built, _draw, _source_facts, build_document
+from ai_docs_kit.building import _Built, _draw, _located_findings, _source_facts, build_document
 from ai_docs_kit.building import _parse as _parse_document
 from ai_docs_kit.building import _pptx as _write_pptx
 from ai_docs_kit.checks.catalogue import all_rules, document_rules
@@ -175,10 +175,12 @@ def _look_pages(version_dir: Path) -> int:
         findings = json.loads(findings_path.read_text(encoding="utf-8"))
         if not isinstance(findings, list):
             raise TypeError("expected a JSON array of findings")
-        notes = [
-            f"- {f['rule_id']} {f['severity']} page {f.get('page')} section {f.get('section_id')}: {f['message']}"
-            for f in findings
-        ]
+        notes = []
+        for finding in findings:
+            location = f"section {finding.get('section_id') or '-'}"
+            if finding.get("page") is not None:
+                location = f"page {finding['page']} {location}"
+            notes.append(f"- {finding['rule_id']} {finding['severity']} {location}: {finding['message']}")
     except (KeyError, TypeError, AttributeError) as error:
         raise ValueError(f"{findings_path}: malformed findings ({error!r})") from error
     print("\n".join([*lines, "engine findings (do not repeat):", *notes]))
@@ -308,7 +310,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
         word_copy=out / f"{file.stem}.docx" if (out / f"{file.stem}.docx").is_file() else None,
         outline=outline,
     )
-    return _report(file, out, built.findings + run_checks(rules, ctx))
+    return _report(file, out, _located_findings(built.findings + run_checks(rules, ctx), facts))
 
 
 def _report(file: Path, out: Path, findings: list[Finding]) -> int:

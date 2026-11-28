@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ai_docs_kit.loop.guards import FactGuard, _fields
 from ai_docs_kit.model import Document, Patch, PatchOp, Section
-from ai_docs_kit.render.components import ManifestError, all_manifests
+from ai_docs_kit.render.components import ManifestError, all_manifests, capacity_excesses
 from ai_docs_kit.render.compose import component_for
 from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_to_file, current_rev, project_lock
 from ai_docs_kit.source.ids import IdStore
@@ -162,6 +162,10 @@ def _brief(doc: Document, args: argparse.Namespace) -> int:
         print(f"Format: {doc.format}")
         print(f"Component: {component or 'none'}")
         print(f"Voice: {summary}")
+        print(
+            'Wording quoted from a source keeps its own form, including contractions such as "don\'t know", '
+            "even where the brand's voice avoids them."
+        )
         print("Banned:")
         for term in voice.banned:
             print(f"- {term}")
@@ -220,11 +224,20 @@ def _put(path: Path, doc: Document, args: argparse.Namespace) -> int:
         reason="section put" + (" (redraft done)" if args.redraft_done else ""),
         ops=[PatchOp(op="replace_section", section_id=args.id, value=new)],
     )
+    component = component_for(new, doc.format, doc.sections.index(old), len(doc.sections))
+    manifest = all_manifests().get(component) if component is not None else None
+    excesses = capacity_excesses(new, manifest) if manifest is not None else []
     try:
         result = apply_to_file(path, patch, oplog, IdStore(store / "ids.json"), guard)
     except PatchRejected as error:
         detail = f" ({', '.join(guard.unsupported)})" if error.code == "fact-unsupported" else ""
         raise _Refused(f"{error}{detail}") from error
+    for measure, value, maximum in excesses:
+        print(
+            f"warning source.capacity {args.id} {measure} value {value} exceeds maximum {maximum} "
+            f"for component {component}",
+            file=sys.stderr,
+        )
     if args.json:
         print(json.dumps({"rev": result.rev, "section_id": args.id}))
     else:

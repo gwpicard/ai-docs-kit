@@ -119,6 +119,6 @@ def test_look_pages_prints_every_page_section_and_engine_finding_in_order(versio
         "page 1: cover",
         "page 2: agenda",
         "engine findings (do not repeat):",
-        "- source.unknown-citation warning page None section agenda: S7 is not in the sources.",
-        "- source.citations-resolve error page None section agenda: citation key S7 is not listed in ## Sources",
+        "- source.unknown-citation warning page 2 section agenda: S7 is not in the sources.",
+        "- source.citations-resolve error page 2 section agenda: citation key S7 is not listed in ## Sources",
     ]

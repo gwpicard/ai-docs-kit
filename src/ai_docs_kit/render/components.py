@@ -68,6 +68,15 @@ class ComponentManifest(BaseModel):
         return "; ".join(f"{m} {self.capacity[m][0]} to {self.capacity[m][1]}" for m in measures)
 
 
+def capacity_excesses(section: Section, manifest: ComponentManifest) -> list[tuple[str, int, int]]:
+    """Return each exceeded capacity measure with its value and maximum."""
+    return [
+        (name, value, maximum)
+        for name, (_, maximum) in manifest.capacity.items()
+        if (measure := MEASURES.get(name)) is not None and (value := measure(section)) > maximum
+    ]
+
+
 def _measure_key(measure: str) -> str:
     return measure.replace("_", "~")
 

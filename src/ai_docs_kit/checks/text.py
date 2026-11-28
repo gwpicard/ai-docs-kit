@@ -19,6 +19,19 @@ def _voice(theme: Theme) -> Voice:
 
 # Text the audience reads or hears; `note` and `source_line` are exempt.
 VOICE_FIELDS = ("title", "items", "paragraphs", "spoken")
+QUOTED = re.compile(r""""([^"]+)"|“([^”]+)”|(?<!\w)'((?:[^']|'(?=\w))+)'(?!\w)|‘((?:[^’]|’(?=\w))+)’(?!\w)""")
+
+
+def _without_source_quotes(text: str, sources: list[str]) -> str:
+    """Mask only complete quotations supported by source wording, keeping other occurrences."""
+
+    def replace(match: re.Match[str]) -> str:
+        quotation = " ".join(next(group for group in match.groups() if group is not None).split())
+        if quotation and any(re.search(_term_pattern(quotation), source) for source in sources):
+            return " " * len(match.group())
+        return match.group()
+
+    return QUOTED.sub(replace, text)
 
 
 def _term_pattern(term: str) -> str:
@@ -35,9 +48,20 @@ def _hit(term: str, texts: list[str]) -> bool:
 
 
 def _field_finding(
-    ctx: CheckContext, rule: Rule, section: Section, field: str, banned: list[str], index: int
+    ctx: CheckContext, rule: Rule, section: Section, field: str, banned: list[str], index: int, sources: list[str]
 ) -> Finding | None:
     texts = _texts(section, field)
+    if field == "items":
+        # A bold head is part of its bullet, so a quotation can close in the body.
+        texts = []
+        for item in section.items:
+            text = item.body
+            if item.head is not None:
+                # Match the serialiser's punctuation adjacency at a bold head.
+                joiner = "" if text[:1] in (":", ",", ";", ".") else " "
+                text = f"{item.head}{joiner}{text}".rstrip()
+            texts.extend([text, *item.sub])
+    texts = [_without_source_quotes(text, sources) for text in texts]
     terms = sorted({term for term in banned if _hit(term, texts)})
     if not terms:
         return None
@@ -61,11 +85,14 @@ class BannedTerms:
         if ctx.theme is None:
             return []
         banned = _voice(ctx.theme).banned
+        keys = {source.key for source in ctx.doc.sources}
+        sources = [" ".join(source.text.split()) for source in ctx.doc.sources]
+        sources.extend(" ".join(fact.text.split()) for fact in ctx.source_facts or [] if fact.source_key in keys)
         return [
             finding
             for index, section in enumerate(ctx.doc.sections)
             for field in VOICE_FIELDS
-            if (finding := _field_finding(ctx, rule, section, field, banned, index)) is not None
+            if (finding := _field_finding(ctx, rule, section, field, banned, index, sources)) is not None
         ]
 
 
