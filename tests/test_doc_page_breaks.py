@@ -140,7 +140,7 @@ def _table(count, reverse):
         names.reverse()
         rows = [(label, previous, current) for label, current, previous in rows]
     data = {
-        "type": "bar",
+        "type": "pie",
         "category_label": HEADERS[0],
         "categories": [row[0] for row in rows],
         "series": [{"name": name, "values": [row[i] for row in rows]} for i, name in enumerate(names, start=1)],

@@ -75,7 +75,7 @@ def test_D2_composition_preserves_table_and_routes_formats():
     expected = {**EXPECTED, "columns": ["", "Current", "Previous"]}
     assert slide.content["chart"]["table"] == expected
     document = compose.compose(_doc(section, "doc")).sections[0]
-    assert document.component == "chart-table"
+    assert document.component == "doc-chart"
     assert document.content["chart"] == slide.content["chart"]
     empty = section.model_copy(update={"data": None})
     assert compose.component_for(empty, "doc") is None

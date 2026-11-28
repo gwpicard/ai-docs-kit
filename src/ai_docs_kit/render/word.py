@@ -18,6 +18,7 @@ from ai_docs_kit.xml_text import strip_xml_illegal
 
 LABELS = {
     "chart": "Chart",
+    "doc-chart": "Chart",
     "chart-table": "Chart",
     "table": "Table",
     "full-image": "Figure",

@@ -20,7 +20,7 @@ COMPONENTS = {
 }
 FRONT = "---\ndoctype: report\nformat: doc\n---\n\n## Sources\n\n- [S1] Synthetic survey register.\n\n"
 DATA = """```data
-type: bar
+type: pie
 category_label: District
 categories: [Upland, Lowland]
 series:

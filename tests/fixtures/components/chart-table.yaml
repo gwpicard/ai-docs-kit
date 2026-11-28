@@ -2,7 +2,7 @@ id: ct1
 intent: chart
 title: Quarterly results
 data:
-  type: bar
+  type: pie
   category_label: Region
   categories: [North, South, East, West]
   series:

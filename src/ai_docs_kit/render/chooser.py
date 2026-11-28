@@ -5,6 +5,7 @@ import yaml  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ai_docs_kit.model import Format, Section
+from ai_docs_kit.render.chart_spec import resolve_chart
 from ai_docs_kit.render.components import ComponentManifest, all_manifests
 
 FORMATS: tuple[Format, ...] = ("slides", "doc")
@@ -20,6 +21,7 @@ class When(BaseModel):
     count: tuple[int, int] | None = None
     max_item_chars: tuple[int, int] | None = None
     has_data: bool | None = None
+    drawable_chart: bool | None = None
     has_image: bool | None = None
     is_first: bool | None = None
     is_last: bool | None = None
@@ -28,6 +30,9 @@ class When(BaseModel):
         """Return whether every key given here matches `section` at `index` of `total`."""
         features: dict[str, Any] = {
             "has_data": section.data is not None,
+            "drawable_chart": resolve_chart(section.data).type != "unsupported"
+            if self.drawable_chart is not None
+            else False,
             "has_image": section.image is not None,
             "is_first": index == 0,
             "is_last": index == total - 1,

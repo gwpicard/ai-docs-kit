@@ -195,10 +195,17 @@ version; older compositions without them remain readable. Untitled documents, sl
 component swatches have no title block.
 
 Document builds support `body`, `callout`, `chart`, `bullets` and `key-numbers`.
+Document charts draw bar and column data resolved by `render/chart_spec.py`,
+using the document's available width and the slide chart's marks and field paths.
+The `doc-chart` component holds up to 24 categories and five series; unsupported
+data stays in `chart-table`. Both components retain the resolved twin table.
+`check --outline` defers a missing-data `source.intent-known` finding when the
+intent has a component for the format once data is present. Unknown intents
+still fail, and full checks and builds still report missing chart data.
 The document list draws headed or plain items, nested sub-lines and citations;
 key figures draw 2 to 4 values with labels in the document's type scale. Both
 write their items as lists inside the section's bookmark in the Word copy.
-All five components draw their paragraphs too. The section records the order of
+All document components draw their paragraphs too. The section records the order of
 paragraphs, list items and chart data as field paths, so the PDF and Word copy
 retain the working file's reading order, including prose after a list. A chart's
 numbered Word reference sits where its data appears. Callout prose stays inside
