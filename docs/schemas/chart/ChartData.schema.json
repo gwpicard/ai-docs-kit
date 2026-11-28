@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "ChartDataSeries": {
+      "properties": {
+        "name": {
+          "default": "",
+          "description": "The series label, used in the legend and table heading.",
+          "title": "Name",
+          "type": "string"
+        },
+        "values": {
+          "description": "Finite numeric values in category order, without unit text.",
+          "items": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "title": "ChartDataSeries",
+      "type": "object"
+    }
+  },
+  "description": "The authoring contract for a chart section's data block.",
+  "properties": {
+    "categories": {
+      "description": "Category labels in display order.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Categories",
+      "type": "array"
+    },
+    "category_label": {
+      "default": "",
+      "description": "Heading of the category column in the table fallback.",
+      "title": "Category Label",
+      "type": "string"
+    },
+    "ordered": {
+      "default": false,
+      "description": "Choose columns automatically for ordered categories.",
+      "title": "Ordered",
+      "type": "boolean"
+    },
+    "series": {
+      "description": "Series sharing the same category order.",
+      "items": {
+        "$ref": "#/$defs/ChartDataSeries"
+      },
+      "title": "Series",
+      "type": "array"
+    },
+    "time_series": {
+      "default": false,
+      "description": "Choose columns automatically for a declared time series.",
+      "title": "Time Series",
+      "type": "boolean"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "enum": [
+            "bar",
+            "column",
+            "line",
+            "pie"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Requested type; omit for automatic bar/column choice. Pie uses the table fallback.",
+      "title": "Type"
+    },
+    "unit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Label unit, such as %, GBP or kg; null means no unit.",
+      "title": "Unit"
+    }
+  },
+  "required": [
+    "categories",
+    "series"
+  ],
+  "title": "ChartData",
+  "type": "object"
+}
