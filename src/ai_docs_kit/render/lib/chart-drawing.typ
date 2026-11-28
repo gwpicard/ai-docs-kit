@@ -1,4 +1,4 @@
-// Shared bar and column geometry. Callers supply their page's available width.
+// Shared bar, column and line geometry. Callers supply their page's available width.
 #import "marks.typ": el
 #import "theme.typ": chart-role
 
@@ -46,13 +46,32 @@
       let bar-w = group-w / (count + (count - 1) * 0.1)
       let bar-gap = bar-w * 0.1
       block(width: width, height: plot-h, {
-        for (i, category) in categories.enumerate() {
+        if kind == "line" {
+          let radius = 2.5pt
           for (j, s) in series.enumerate() {
-            let value = s.values.at(i, default: 0)
-            let length = plot-h * calc.abs(value) / span
-            let offset = plot-h * (maximum - calc.max(0, value)) / span
-            let x = column-inset + i * slot + (slot - group-w) / 2 + j * (bar-w + bar-gap)
-            place(top + left, dx: x, dy: offset, el("chart-mark", sec.id, field: "data.series[" + str(j) + "].values[" + str(i) + "]", rect(width: bar-w, height: length, fill: chart-role(s.colour.palette, s.colour.index), stroke: none)))
+            let ink = chart-role(s.colour.palette, s.colour.index)
+            let points = s.values.enumerate().map(((i, value)) => (
+              column-inset + (i + 0.5) * slot,
+              plot-h * (maximum - value) / span,
+            ))
+            for i in range(1, points.len()) {
+              place(top + left, line(start: points.at(i - 1), end: points.at(i), stroke: (paint: ink, thickness: 1.5pt)))
+            }
+            for (i, point) in points.enumerate() {
+              place(top + left, dx: point.at(0) - radius, dy: point.at(1) - radius,
+                el("chart-mark", sec.id, field: "data.series[" + str(j) + "].values[" + str(i) + "]", circle(radius: radius, fill: ink, stroke: none)),
+              )
+            }
+          }
+        } else {
+          for (i, category) in categories.enumerate() {
+            for (j, s) in series.enumerate() {
+              let value = s.values.at(i, default: 0)
+              let length = plot-h * calc.abs(value) / span
+              let offset = plot-h * (maximum - calc.max(0, value)) / span
+              let x = column-inset + i * slot + (slot - group-w) / 2 + j * (bar-w + bar-gap)
+              place(top + left, dx: x, dy: offset, el("chart-mark", sec.id, field: "data.series[" + str(j) + "].values[" + str(i) + "]", rect(width: bar-w, height: length, fill: chart-role(s.colour.palette, s.colour.index), stroke: none)))
+            }
           }
         }
       })
