@@ -125,7 +125,7 @@ These fields describe its content:
 
 | Field | Meaning |
 | --- | --- |
-| `type` | Optional requested chart type: `bar` draws horizontal bars, `column` draws vertical columns, and `line` draws connected points in documents. Omit it or use null for automatic choice. `pie` is accepted as a table fallback, but is not drawn. Unknown types fail schema validation. |
+| `type` | Optional requested chart type: `bar` draws horizontal bars, `column` draws vertical columns, and `line` draws connected points in documents. Omit it or use null for automatic choice. `pie` is schema-valid but is not drawn: documents use a table, while slides show an unsupported-type notice. Unknown types fail schema validation. |
 | `categories` | Required list of string labels, in display order. Quote numeric labels such as years. |
 | `series` | Required list of series, each a mapping with `name` and `values`. |
 | `name` | Series label for the legend and the table heading; defaults to an empty string. |
@@ -146,9 +146,17 @@ Without a requested type, the engine applies these rules in order:
 6. Other categories select `bar`.
 
 An explicit drawn type takes precedence over these rules; automatic choice
-never selects `line`. Documents draw `bar`, `column` and `line`. Slides draw
-`bar` and `column`. A type the target cannot draw uses a table fallback with a
-visible notice, the same categories, series names and formatted values.
+never selects `line`. Documents draw `bar`, `column` and `line`.
+
+In documents, an unsupported type with valid data uses a table fallback with
+the same categories, series names and formatted values, without an
+unsupported-type notice. If no usable table exists, the chart area shows
+`chart type not supported` instead.
+
+For slides, only `bar` and `column` are drawn. Other requested types, including
+`line` and `pie`, show `chart type not supported` in the chart area, without a
+table or data values.
+
 Malformed data resolves as unsupported rather than being drawn; supply complete
 numeric series instead of relying on the engine's recovery of older blocks.
 
