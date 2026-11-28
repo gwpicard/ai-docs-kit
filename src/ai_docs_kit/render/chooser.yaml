@@ -84,6 +84,7 @@ intents:
       - {component: chart, when: {has_data: true}}
       - {component: bullets}
     doc:
+      - {component: doc-chart, when: {has_data: true, drawable_chart: true}}
       - {component: chart-table, when: {has_data: true}}
   closing:
     describes: A closing statement.

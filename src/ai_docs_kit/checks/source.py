@@ -80,6 +80,11 @@ class IntentKnown:
             )
             for index, section in enumerate(ctx.doc.sections)
             if component_for(section, fmt, index, total) is None
+            if not (
+                ctx.outline
+                and section.data is None
+                and component_for(section.model_copy(update={"data": {}}), fmt, index, total) is not None
+            )
         ]
 
 

@@ -12,7 +12,7 @@ from ai_docs_kit.cli import main
 from ai_docs_kit.source import parse
 
 DATA = """```data
-type: bar
+type: pie
 category_label: District
 categories: [Upland, Lowland]
 series:

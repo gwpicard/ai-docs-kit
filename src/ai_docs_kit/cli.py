@@ -289,7 +289,10 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
             file,
             out,
             parsed
-            + run_checks(rules, CheckContext(doc, theme=theme, final=final, assets=assets, source_facts=source_facts)),
+            + run_checks(
+                rules,
+                CheckContext(doc, theme=theme, final=final, assets=assets, source_facts=source_facts, outline=outline),
+            ),
         )
     built = _draw(file, out, doc, parsed, comp, theme)
     facts = layout_facts(built.pdf, built.main, built.render, font_paths=font_paths(built.render))
@@ -305,6 +308,7 @@ def _check(file: Path, out: Path, theme: Theme, *, final: bool = False, outline:
         pages_png=pages_png,
         source_facts=source_facts,
         word_copy=out / f"{file.stem}.docx" if (out / f"{file.stem}.docx").is_file() else None,
+        outline=outline,
     )
     return _report(file, out, _located_findings(built.findings + run_checks(rules, ctx), facts))
 

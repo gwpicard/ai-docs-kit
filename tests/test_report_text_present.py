@@ -315,7 +315,7 @@ def test_normalised_multisection_control_then_a_real_loss(tmp_path, monkeypatch,
             [
                 "## Route comparison",
                 "Both districts retain their access record.",
-                "```data\ntype: bar\ncategories: [Upland, Lowland]\n"
+                "```data\ntype: pie\ncategories: [Upland, Lowland]\n"
                 "series:\n  - name: Visits\n    values: [17, 29]\n```",
                 "> source: Synthetic survey register",
             ],
