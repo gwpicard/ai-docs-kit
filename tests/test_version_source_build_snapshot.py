@@ -27,11 +27,11 @@ def test_build_source_snapshot_matches_render_with_and_without_later_edit(
         path.write_bytes(original)
         calls = []
 
-        def compile_then_edit(*args, **kwargs):
+        def compile_then_edit(*args, working=path, mutate=edited, renders=calls, **kwargs):
             result = compile_pdf(*args, **kwargs)
-            calls.append(path)
-            if edited:
-                path.write_bytes(later)
+            renders.append(working)
+            if mutate:
+                working.write_bytes(later)
             return result
 
         with monkeypatch.context() as probe:
