@@ -13,7 +13,7 @@
     inset: space(5),
     stroke: 1pt + colour("accent"),
     {
-      el-full-width("callout-title", sec.id, field: "title", text(weight: "bold", sec.title))
+      el-full-width("callout-title", sec.id, field: "title", text(..type-style("doc", "h1"), sec.title))
       doc-content(sec, draw-item: i => {
         let item = sec.items.at(i)
         let citations = sec.at("citations", default: ()).at(i, default: ())

@@ -6,10 +6,10 @@
 
 #let body(sec) = section(sec.id, {
   set text(fill: colour("ink"))
-  el-full-width("heading", sec.id, field: "title", {
+  block(sticky: true, breakable: false, el-full-width("heading", sec.id, field: "title", {
     set text(..type-style("doc", "h1"))
     sec.title
-  })
+  }))
   set text(..type-style("doc", "body"))
   doc-content(sec, draw-item: i => doc-list-item(sec, i))
   if sec.source_line != "" {
