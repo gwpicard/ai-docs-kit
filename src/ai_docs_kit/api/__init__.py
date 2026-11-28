@@ -32,7 +32,7 @@ from ai_docs_kit.render.compose import Composition
 from ai_docs_kit.source.files import UNPARSEABLE_RULES, apply_history, apply_to_document, current_rev, project_lock
 from ai_docs_kit.source.ids import IdStore
 from ai_docs_kit.source.parser import parse
-from ai_docs_kit.source.patches import PatchRejected
+from ai_docs_kit.source.patches import PatchRejected, restore_ops
 from ai_docs_kit.source.read import read_source
 from ai_docs_kit.store import Version, field_index, load_version, page_index
 from ai_docs_kit.theme import load_theme, resolve_theme
@@ -62,6 +62,7 @@ __all__ = [
     "preview",
     "read_document",
     "redo",
+    "restore",
     "undo",
 ]
 
@@ -154,6 +155,31 @@ def redo(path: Path | str, base_rev: int) -> HistoryResult:
     """Reapply the most recently undone edit unless a later edit cleared it."""
     result, target_rev = apply_history(Path(path), "redo", base_rev)
     return HistoryResult(rev=result.rev, target_rev=target_rev)
+
+
+def restore(path: Path | str, version: str, base_rev: int) -> Document:
+    """Restore a saved working file as one undoable human patch."""
+    path = Path(path)
+    if re.fullmatch(r"v[0-9]+", version) is None:
+        raise ValueError(f"{version!r}: expected a version such as v3")
+    folder = path.with_suffix(".versions") / version
+    if not folder.is_dir():
+        raise ValueError(f"{version}: no such version")
+    source = folder / "source.md"
+    if not source.is_file():
+        raise ValueError(f"{version}: no source.md; this version has no saved working file")
+    store = path.parent / ".ai_docs_kit"
+    with project_lock(store):
+        before = read_document(path)
+        if before.rev != base_rev:
+            raise PatchRejected("stale-base-rev", f"document is at rev {before.rev}, not {base_rev}; read it again")
+        saved = read_document(source)
+        for field in ("front", "format", "context", "sources"):
+            if getattr(before, field) != getattr(saved, field):
+                name = "front matter" if field in ("front", "format") else field
+                raise PatchRejected("unpatchable-restore", f"cannot restore {version}: {name} cannot be patched")
+        patch = Patch(base_rev=base_rev, author="human", reason=f"restore {version}", ops=restore_ops(before, saved))
+        return apply_to_document(path, before, patch, store / "oplog.jsonl", IdStore(store / "ids.json"))
 
 
 def build(path: Path | str, theme: Path | str | None = None) -> BuildResult:
