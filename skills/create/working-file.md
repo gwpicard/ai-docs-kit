@@ -116,6 +116,75 @@ components when data is present; some slide intents also depend on item count
 or an image. The chooser handles those choices; do not guess a component from
 the intent's spelling.
 
+## Chart data
+
+The published input definition is
+[`docs/schemas/chart/ChartData.schema.json`](../../docs/schemas/chart/ChartData.schema.json).
+Put a YAML mapping inside a fenced `data` block in a section with `intent="chart"`.
+These fields describe its content:
+
+| Field | Meaning |
+| --- | --- |
+| `type` | Optional requested chart type: `bar` draws horizontal bars, `column` draws vertical columns, and `line` draws connected points in documents. Omit it or use null for automatic choice. `pie` is schema-valid but is not drawn: documents use a table, while slides show an unsupported-type notice. Unknown types fail schema validation. |
+| `categories` | Required list of string labels, in display order. Quote numeric labels such as years. |
+| `series` | Required list of series, each a mapping with `name` and `values`. |
+| `name` | Series label for the legend and the table heading; defaults to an empty string. |
+| `values` | Required list of finite numeric values in the same order as the categories. Supply one value per category. Negative values are allowed; strings, booleans and null are not numbers. |
+| `unit` | Optional string applied to value labels. `GBP`, `USD` and `EUR` use currency symbols, `%` adds a percent sign, and other units follow the number. Omit it or use null for no unit. Keep unit text out of `values`. |
+| `category_label` | Optional heading for the table's category column; defaults to an empty string. |
+| `time_series` | Optional boolean, default false. True declares a time series and selects columns when `type` is omitted. |
+| `ordered` | Optional boolean, default false. True declares ordered categories and selects columns when `type` is omitted. |
+
+Without a requested type, the engine applies these rules in order:
+
+1. `time_series: true` selects `column`.
+2. `ordered: true` selects `column`.
+3. Any negative value selects `bar`.
+4. Two or more time-like categories, all recognised as years, quarters, months
+   or ISO dates, select `column`.
+5. Seven (7) or more categories select `bar`.
+6. Other categories select `bar`.
+
+An explicit drawn type takes precedence over these rules; automatic choice
+never selects `line`. Documents draw `bar`, `column` and `line`.
+
+In documents, an unsupported type with valid data uses a table fallback with
+the same categories, series names and formatted values, without an
+unsupported-type notice. If no usable table exists, the chart area shows
+`chart type not supported` instead.
+
+For slides, only `bar` and `column` are drawn. Other requested types, including
+`line` and `pie`, show `chart type not supported` in the chart area, without a
+table or data values.
+
+Malformed data resolves as unsupported rather than being drawn; supply complete
+numeric series instead of relying on the engine's recovery of older blocks.
+
+For a worked document chart, add this section to the `format: doc` working file
+above. The values are synthetic example data; replace them with gathered facts
+and cite their source before using the chart in a report.
+
+````markdown
+::: {#d0f64 .section intent="chart" section="content" because="Compare the monthly trip counts"}
+## Monthly trips by zone
+
+```data
+type: line
+categories: [Jan, Feb, Mar]
+series:
+  - name: Upland
+    values: [12, 18, 24]
+  - name: Lowland
+    values: [18, 24, 30]
+unit: trips
+category_label: Month
+time_series: true
+ordered: true
+```
+> source: Synthetic survey records
+:::
+````
+
 ## Store the facts before drafting
 
 After the outline is agreed and its source list exists, save the gather agent's
