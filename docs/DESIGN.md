@@ -195,10 +195,12 @@ version; older compositions without them remain readable. Untitled documents, sl
 component swatches have no title block.
 
 Document builds support `body`, `callout`, `chart`, `bullets` and `key-numbers`.
-Document charts draw bar and column data resolved by `render/chart_spec.py`,
+Document charts draw bar, column and explicitly requested `type: line` data resolved by `render/chart_spec.py`,
 using the document's available width and the slide chart's marks and field paths.
 The `doc-chart` component holds up to 24 categories and five series; unsupported
 data stays in `chart-table`. Both components retain the resolved twin table.
+Lines join values in category order, with one marked point per value and the theme's
+categorical colours. The automatic chooser and slides still draw bars and columns only.
 `check --outline` defers a missing-data `source.intent-known` finding when the
 intent has a component for the format once data is present. Unknown intents
 still fail, and full checks and builds still report missing chart data.

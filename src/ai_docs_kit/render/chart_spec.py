@@ -4,15 +4,15 @@ import math
 import re
 from collections.abc import Mapping
 from decimal import ROUND_HALF_UP, Decimal, localcontext
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel
 
-DRAWN_TYPES = ("bar", "column")
+DRAWN_TYPES = ("bar", "column", "line")
 MANY_CATEGORIES = 7
 MAX_DECIMALS = 3
 
-ChartType = Literal["bar", "column"]
+ChartType = Literal["bar", "column", "line"]
 
 
 class ChartColour(BaseModel):
@@ -39,7 +39,7 @@ class TwinTable(BaseModel):
 
 
 class ChartSpec(BaseModel):
-    type: Literal["bar", "column", "unsupported"]
+    type: Literal["bar", "column", "line", "unsupported"]
     reason: str
     requested: str | None
     chosen: ChartType | None
@@ -179,9 +179,9 @@ def resolve_chart(data: Mapping[str, Any] | None) -> ChartSpec:
         )
 
     chosen, reason = _choose(data, categories, rows)
-    chart_type: Literal["bar", "column", "unsupported"] = chosen
+    chart_type: Literal["bar", "column", "line", "unsupported"] = chosen
     if requested in DRAWN_TYPES:
-        chart_type = "bar" if requested == "bar" else "column"
+        chart_type = cast(ChartType, requested)
         reason = "requested in the section"
     elif requested is not None:
         chart_type = "unsupported"
