@@ -330,6 +330,7 @@ def write_version(
             now,
             [c.name for c in (pptx, docx) if c],
         )
+        shutil.copyfile(doc_path, temporary / "source.md")
         shutil.copyfile(pdf, temporary / f"{doc_path.stem}.pdf")
         for copy in (pptx, docx):
             if copy is not None:

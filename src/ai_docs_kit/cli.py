@@ -31,7 +31,7 @@ from ai_docs_kit.render.kit import read_tokens
 from ai_docs_kit.render.typst import INSTALL_COMMAND, TYPST_VERSION, typst_version
 from ai_docs_kit.review.read import add_review_commands, run_review
 from ai_docs_kit.section_command import add_facts_commands, add_section_commands, run_facts, run_section
-from ai_docs_kit.source.files import apply_history
+from ai_docs_kit.source.files import apply_history, current_rev, project_lock
 from ai_docs_kit.source.ids import IdStoreError
 from ai_docs_kit.source.patches import PatchRejected
 from ai_docs_kit.source.read import read_source
@@ -343,6 +343,9 @@ def _build_parser() -> argparse.ArgumentParser:
     for name in ("undo", "redo"):
         history = subparsers.add_parser(name, help=f"{name} the last edit to a working file")
         history.add_argument("file", type=Path, help="the working file")
+    restore = subparsers.add_parser("restore", help="restore a version's working file as one undoable patch")
+    restore.add_argument("file", type=Path, help="the working file")
+    restore.add_argument("version", help="the saved version, such as v3")
     subparsers.add_parser("doctor", help="report what is installed and what is missing")
     init = subparsers.add_parser("init", help="initialise a project")
     init.add_argument("directory", type=Path, help="project folder")
@@ -441,9 +444,16 @@ def main(argv: list[str] | None = None) -> int:
         return run_review(args)
     if args.command == "rule":
         return run_rule(args)
-    if args.command in ("undo", "redo"):
+    if args.command in ("undo", "redo", "restore"):
         try:
-            result, _ = apply_history(args.file, args.command)
+            if args.command == "restore":
+                from ai_docs_kit.api import restore
+
+                store = args.file.parent / ".ai_docs_kit"
+                with project_lock(store):
+                    result = restore(args.file, args.version, current_rev(store / "oplog.jsonl"))
+            else:
+                result, _ = apply_history(args.file, args.command)
         except PatchRejected as error:
             print(" ".join(error.message.splitlines()), file=sys.stderr)
             return 1
