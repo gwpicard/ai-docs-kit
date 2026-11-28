@@ -27,6 +27,7 @@ versions = list_versions(path)
 | `add_section(path, after_id, section, base_rev)` | `EditResult` | Inserts a human-owned `Section` after the named section, or at the start when `after_id=None`. Allocates an id if absent without changing the input model. |
 | `delete_section(path, section_id, base_rev)` | `EditResult` | Removes the section and returns its content with the new revision. |
 | `move_section(path, section_id, after_id, base_rev)` | `EditResult` | Moves a section after the named section, keeping its content and id. |
+| `restore(path, version, base_rev)` | `Document` | Restores sections from a version such as `v3` as one undoable human patch, returning the restored document and new revision. Refuses changes to front matter, context or sources, and versions without `source.md`. |
 
 Every edit writes one `author="human"` patch under the project lock. `EditResult`
 holds `rev` and `section`. Use the revision from `read_document` for `base_rev`.

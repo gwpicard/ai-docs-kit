@@ -137,6 +137,20 @@ ordinary patch reasons never identify an undo or redo. File hashes before and
 after each patch detect manual edits and prevent a discarded redo branch from
 returning after later history operations.
 
+Each new version keeps an independent, byte-for-byte copy of the working file
+as `source.md`, outside the manifest's deliverable outputs. Builds capture these
+bytes before parsing, so edits during rendering stay in the working file and
+cannot change the version's source. Existing versions are never backfilled.
+`ai-docs-kit restore <name>.md v3` restores its sections
+as one human-authored patch with reason `restore v3` and prints the new revision.
+Undo recovers the pre-restore sections, including their order and ownership,
+without losing earlier history. An unknown version or one without `source.md`
+exits 2 with one stderr line naming the version. Front matter, context and
+sources cannot be patched, so a restore changing any of them is refused before
+writing. Both files must have unique section ids for unambiguous patch targets.
+The Python API's `restore(path, version, base_rev)` returns the restored
+`Document` and checks and applies the patch under the same project lock.
+
 The skills ship as a Claude Code plugin from this repository: `.claude-plugin/plugin.json`, a
 marketplace manifest, `skills/<name>/SKILL.md` and `agents/<name>.md`. Skills call the engine through
 `${CLAUDE_PLUGIN_ROOT}/bin/ai-docs-kit`, which runs the package with `uv` from the plugin folder.
@@ -323,7 +337,7 @@ rulebook on probation (advisory) and blocks only after the person promotes it. T
   .ai_docs_kit/facts/<name>.md.json  gathered facts agreed at the outline
   <name>.pdf                the latest deliverable
   <name>.pptx | <name>.docx the latest editable copy
-  <name>.versions/vN/       every build: PDF, editable copy, pages/, manifest with the look record
+  <name>.versions/vN/       every build: source.md, PDF, editable copy, pages/, manifest with the look record
 ```
 
 Caches and the render kit live under the plugin's data folder, never in the project folder.
